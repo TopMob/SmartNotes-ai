@@ -182,6 +182,10 @@ export function setReminder(noteId: string, reminderAt: string | null) {
   patchNote(noteId, { reminderAt }, { scheduleAnalysis: false });
 }
 
+export function moveNoteToFolder(noteId: string, folderId: string | null) {
+  patchNote(noteId, { folderId }, { scheduleAnalysis: false });
+}
+
 export function addPage(noteId: string, title?: string) {
   const note = useNotesStore.getState().notes.find((item) => item.id === noteId);
 
