@@ -9,6 +9,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
+  FileImage,
   EyeOff,
   Folder,
   FolderInput,
@@ -26,26 +27,31 @@ import {
   Share2,
   Shield,
   Italic,
+  Paintbrush,
   SlidersHorizontal,
   Sparkles,
   Tag,
+  Underline,
+  Strikethrough,
   Trash2,
   Undo2,
   UserRound,
   X,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { Editor } from "@tiptap/core";
+import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import LinkExtension from "@tiptap/extension-link";
+import TextAlign from "@tiptap/extension-text-align";
 
 import type { Folder as FolderEntity } from "@/entities/folder";
 import type { Note } from "@/entities/note";
 import { addFolder, hideFolder, permanentlyDeleteFolder, renameFolder, restoreFolder, trashFolder, unhideFolder } from "@/features/folders/model/folder-actions";
 import { useFoldersStore } from "@/features/folders/model/folders-store";
-import { resolveSimpleMathExpression } from "@/features/editor/lib/math-resolver";
 import { maskLockedPreview, verifyNoteLock } from "@/features/lock-center/lib/lock-service";
 import { addNote, addPage, deletePage, moveNoteToFolder, patchNote, permanentlyDeleteNote, restoreNote, setArchived, setReminder, toggleFavorite, togglePinned, trashNote, updatePage } from "@/features/notes/model/note-actions";
 import { type NotesSort, selectPinnedGroups, selectVisibleNotes } from "@/features/notes/model/note-selectors";
@@ -88,6 +94,10 @@ function escapeHtml(value: string) {
   return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
 }
 
+function stripHtml(value: string) {
+  return value.replace(/<[^>]*>/gu, " ").replace(/&nbsp;/gu, " ").replace(/\s+/gu, " ").trim();
+}
+
 function plainTextToEditorContent(value: string) {
   if (!value.trim()) {
     return "<p></p>";
@@ -111,31 +121,6 @@ function serializeEditorSnapshot(note: Note) {
     content: note.content,
     pages: note.pages.map((page) => ({ id: page.id, title: page.title, content: page.content, drawingRevision: page.drawingRevision })),
   });
-}
-
-function maybeInsertMathResult(editor: Editor) {
-  const { from } = editor.state.selection;
-
-  if (!editor.state.selection.empty) {
-    return false;
-  }
-
-  const blockStart = editor.state.doc.resolve(from).start();
-  const textBeforeCaret = editor.state.doc.textBetween(blockStart, from, "\n", " ");
-  const match = textBeforeCaret.match(/(?:^|\s)([\d+\-*/().\s]+)=\s*$/u);
-
-  if (!match) {
-    return false;
-  }
-
-  const result = resolveSimpleMathExpression(match[1].trim());
-
-  if (!result) {
-    return false;
-  }
-
-  editor.commands.insertContent(result);
-  return true;
 }
 
 export function SmartNotesShell() {
@@ -603,7 +588,7 @@ function FoldersGrid({ folders, mode, emptyText, folderViewMode, onOpenFolder }:
   }
 
   return (
-    <div className={`grid gap-3 p-4 ${folderViewMode === "compact" ? "sm:grid-cols-3 xl:grid-cols-4" : "sm:grid-cols-2 xl:grid-cols-3"}`}>
+    <div className={`grid gap-3 p-4 ${folderViewMode === "compact" ? "sm:grid-cols-4 xl:grid-cols-5" : "sm:grid-cols-3 xl:grid-cols-4"}`}>
       {folders.map((folder) => {
         const notesCount = notes.filter((note) => note.folderId === folder.id && !note.trashedAt).length;
 
@@ -636,7 +621,7 @@ function TrashView({ copy, notes, notesPerPage, trashedFolders, onOpenNote, onOp
       {trashedFolders.length ? (
         <section>
           <div className="mb-3 text-sm font-black uppercase tracking-[0.2em] text-foreground/42">{copy.shell.sections.deletedFolders}</div>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-4">
             {trashedFolders.map((folder) => (
               <div className="rounded-[1.2rem] border border-dashed border-rose-300 bg-surface-strong p-4" key={folder.id}>
                 <h3 className="text-base font-black tracking-tight">{folder.name}</h3>
@@ -690,7 +675,7 @@ function NotesView({ copy, title, notes, notesPerPage, emptyText, onOpenNote, on
             <Heart className="h-4 w-4" />
             {copy.shell.sections.pinned}
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-4">
             {pinnedVisible.map((note) => (
               <NoteCard key={note.id} folders={visibleFolders} note={note} onOpenNote={onOpenNote} onOpenSheet={onOpenSheet} view={view} />
             ))}
@@ -719,7 +704,7 @@ function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: { note: Note
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   const folderName = folders.find((folder) => folder.id === note.folderId)?.name ?? "Без папки";
-  const previewText = note.lock?.hidden ? maskLockedPreview(note.id) : note.content;
+  const previewText = note.lock?.hidden ? maskLockedPreview(note.id) : stripHtml(note.content);
   const reminderLabel = note.reminderAt
     ? new Date(note.reminderAt).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
     : null;
@@ -874,14 +859,11 @@ function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setToolbarV
     extensions: [
       StarterKit.configure({ bulletList: { keepMarks: true, keepAttributes: false } }),
       LinkExtension.configure({ openOnClick: false, autolink: true, linkOnPaste: true, defaultProtocol: "https" }),
+      TextAlign.configure({ types: ["heading", "paragraph"] }),
     ],
     content: plainTextToEditorContent(currentPage.content),
     immediatelyRender: false,
     onUpdate: ({ editor: tiptapEditor }) => {
-      if (maybeInsertMathResult(tiptapEditor)) {
-        return;
-      }
-
       const nextContent = tiptapEditor.getHTML();
       updatePage(note.id, currentPage.id, { content: nextContent });
       markEditorDirty(
@@ -992,9 +974,27 @@ function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setToolbarV
 
         <section className="mt-3 min-h-0 flex-1 overflow-y-auto rounded-[2rem] border border-border bg-surface/88 p-4 shadow-2xl shadow-violet-950/8 sm:p-8">
           <input className="w-full bg-transparent text-3xl font-black tracking-tight outline-none placeholder:text-foreground/28 sm:text-5xl" onChange={(event) => handleTitleChange(event.target.value)} placeholder="Заголовок" value={note.title} />
-          {toolbarVisible ? <div className="sticky top-0 z-10 mt-5 flex gap-2 overflow-x-auto rounded-2xl border border-border bg-surface-strong/92 p-2 backdrop-blur-xl"><button className={`shrink-0 rounded-xl px-3 py-2 text-sm font-black hover:bg-background ${editor.isActive("bold") ? "bg-background text-accent" : ""}`} onClick={() => editor.chain().focus().toggleBold().run()} type="button"><Bold className="h-4 w-4" /></button><button className={`shrink-0 rounded-xl px-3 py-2 text-sm font-black hover:bg-background ${editor.isActive("italic") ? "bg-background text-accent" : ""}`} onClick={() => editor.chain().focus().toggleItalic().run()} type="button"><Italic className="h-4 w-4" /></button><button className={`shrink-0 rounded-xl px-3 py-2 text-sm font-black hover:bg-background ${editor.isActive("bulletList") ? "bg-background text-accent" : ""}`} onClick={() => editor.chain().focus().toggleBulletList().run()} type="button"><List className="h-4 w-4" /></button><button className={`shrink-0 rounded-xl px-3 py-2 text-sm font-black hover:bg-background ${editor.isActive("link") ? "bg-background text-accent" : ""}`} onClick={() => { const url = window.prompt("Ссылка"); if (url) { editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run(); } }} type="button">Link</button></div> : null}
+          {toolbarVisible ? (
+            <div className="sticky top-0 z-10 mt-5 flex gap-2 overflow-x-auto rounded-2xl border border-border bg-surface-strong/92 p-2 backdrop-blur-xl">
+              <ToolButton active={editor.isActive("bold")} icon={Bold} onClick={() => editor.chain().focus().toggleBold().run()} />
+              <ToolButton active={editor.isActive("italic")} icon={Italic} onClick={() => editor.chain().focus().toggleItalic().run()} />
+              <ToolButton active={editor.isActive("underline")} icon={Underline} onClick={() => editor.chain().focus().toggleUnderline().run()} />
+              <ToolButton active={editor.isActive("strike")} icon={Strikethrough} onClick={() => editor.chain().focus().toggleStrike().run()} />
+              <ToolButton active={editor.isActive({ textAlign: "left" })} icon={AlignLeft} onClick={() => editor.chain().focus().setTextAlign("left").run()} />
+              <ToolButton active={editor.isActive({ textAlign: "center" })} icon={AlignCenter} onClick={() => editor.chain().focus().setTextAlign("center").run()} />
+              <ToolButton active={editor.isActive({ textAlign: "right" })} icon={AlignRight} onClick={() => editor.chain().focus().setTextAlign("right").run()} />
+              <ToolButton active={editor.isActive("bulletList")} icon={List} onClick={() => editor.chain().focus().toggleBulletList().run()} />
+              <ToolButton active={editor.isActive("link")} label="Link" onClick={() => { const url = window.prompt("Ссылка"); if (url) { editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run(); } }} />
+              <ToolButton icon={Paintbrush} label="Sketch" onClick={() => {}} />
+              <ToolButton icon={FileImage} label="Add image" onClick={() => {}} />
+            </div>
+          ) : null}
           <input className="mt-5 w-full rounded-2xl border border-border bg-surface-strong px-4 py-3 text-sm font-semibold outline-none" maxLength={80} onChange={(event) => handlePageTitleChange(event.target.value)} placeholder="Название страницы" value={currentPage.title} />
-          <div className="mt-5 min-h-[52vh] rounded-[1.5rem] border border-border bg-background/36 p-4 text-lg leading-9 outline-none"><EditorContent editor={editor} /></div>
+          <div className="mt-5 flex min-h-[60vh] flex-1 rounded-[1.5rem] border border-border bg-background/36 p-4 text-lg leading-9 outline-none" onMouseDown={() => editor.chain().focus().run()}>
+            <div className="min-h-full flex-1" onMouseDown={() => editor.chain().focus().run()}>
+              <EditorContent editor={editor} />
+            </div>
+          </div>
         </section>
 
         <footer className="mt-3 flex items-center gap-2 rounded-[1.5rem] border border-border bg-surface/92 p-2 shadow-xl shadow-violet-950/8">
@@ -1114,7 +1114,46 @@ function LockContent({ onClose }: { onClose: () => void }) {
 }
 
 function AboutContent() {
-  return <div className="mt-5 grid gap-3 sm:grid-cols-2"><button className="rounded-[1.5rem] border border-border bg-surface-strong p-5 text-left hover:bg-background" type="button"><p className="text-xs font-black uppercase tracking-[0.2em] text-accent">О нас</p><h3 className="mt-3 text-xl font-black">SmartNotes</h3><p className="mt-2 text-sm leading-6 text-foreground/58">Создал и забыл: заметки, которые сами помогают находить важное.</p></button><button className="rounded-[1.5rem] border border-border bg-surface-strong p-5 text-left hover:bg-background" type="button"><p className="text-xs font-black uppercase tracking-[0.2em] text-accent">Оценить</p><h3 className="mt-3 text-xl font-black">Feedback</h3><p className="mt-2 text-sm leading-6 text-foreground/58">Оценить продукт и оставить отзыв по текущей реализации.</p></button></div>;
+  const lang = useThemeStore((state) => state.lang);
+  const copy = getUiCopy(lang);
+
+  return (
+    <div className="mt-5 grid gap-3">
+      <section className="rounded-[1.5rem] border border-border bg-surface-strong p-5">
+        <p className="text-xs font-black uppercase tracking-[0.2em] text-accent">{copy.shell.aboutUsTitle}</p>
+        <h3 className="mt-3 text-2xl font-black">SmartNotes</h3>
+        <p className="mt-2 text-sm leading-6 text-foreground/58">{copy.shell.aboutUsText}</p>
+        <ul className="mt-4 space-y-2 text-sm text-foreground/70">
+          <li>{copy.shell.aboutUsPoint1}</li>
+          <li>{copy.shell.aboutUsPoint2}</li>
+        </ul>
+      </section>
+
+      <section className="rounded-[1.5rem] border border-border bg-surface-strong p-5">
+        <p className="text-xs font-black uppercase tracking-[0.2em] text-accent">{copy.shell.rateUsTitle}</p>
+        <h3 className="mt-3 text-2xl font-black">Rate us</h3>
+        <p className="mt-2 text-sm leading-6 text-foreground/58">{copy.shell.rateUsText}</p>
+        <div className="mt-4 flex gap-2">
+          {[1, 2, 3, 4, 5].map((value) => (
+            <button className="h-11 w-11 rounded-2xl border border-border bg-background font-black hover:bg-surface" key={value} type="button">{value}</button>
+          ))}
+        </div>
+        <textarea className="mt-4 min-h-32 w-full rounded-2xl border border-border bg-background p-4 text-sm outline-none" placeholder={copy.shell.feedbackPlaceholder} />
+        <div className="mt-4 flex gap-2">
+          <Button className="flex-1 rounded-2xl" type="button">{copy.shell.sendFeedback}</Button>
+          <Button asChild className="rounded-2xl" variant="secondary"><a href="mailto:support@smartnotes.app">{copy.shell.support}</a></Button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function ToolButton({ icon: Icon, label, active = false, onClick }: { icon?: ComponentType<{ className?: string }>; label?: string; active?: boolean; onClick: () => void }) {
+  return (
+    <button className={`shrink-0 rounded-xl px-3 py-2 text-sm font-black hover:bg-background ${active ? "bg-background text-accent" : ""}`} onClick={onClick} type="button">
+      {Icon ? <Icon className="h-4 w-4" /> : label}
+    </button>
+  );
 }
 
 function CreateFolderContent({ onClose }: { onClose: () => void }) {

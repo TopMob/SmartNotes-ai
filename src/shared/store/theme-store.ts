@@ -30,7 +30,6 @@ export type EditorToolKey =
   | "undoRedo"
   | "links"
   | "pages"
-  | "mathResolver"
   | "inlineTags";
 
 export type EditorSettings = Record<EditorToolKey, boolean>;
@@ -58,7 +57,6 @@ const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
   undoRedo: true,
   links: true,
   pages: true,
-  mathResolver: true,
   inlineTags: true,
 };
 

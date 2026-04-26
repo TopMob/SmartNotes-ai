@@ -76,7 +76,6 @@ export default function SettingsPage() {
       ["undoRedo", lang === "ru" ? "Undo / redo" : "Undo / redo"],
       ["links", lang === "ru" ? "Ссылки" : "Links"],
       ["pages", lang === "ru" ? "Страницы" : "Pages"],
-      ["mathResolver", lang === "ru" ? "Math resolver" : "Math resolver"],
       ["inlineTags", lang === "ru" ? "Inline tags" : "Inline tags"],
     ] as const,
     [lang],
