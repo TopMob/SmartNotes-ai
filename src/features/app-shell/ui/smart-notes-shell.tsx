@@ -1,0 +1,986 @@
+"use client";
+
+import {
+  Archive,
+  Bell,
+  Brain,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  EyeOff,
+  Folder,
+  FolderInput,
+  Heart,
+  Inbox,
+  Lock,
+  LogOut,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  RotateCcw,
+  Save,
+  Search,
+  Share2,
+  Shield,
+  SlidersHorizontal,
+  Sparkles,
+  Tag,
+  Trash2,
+  Undo2,
+  UserRound,
+  X,
+} from "lucide-react";
+import Link from "next/link";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+import type { Folder as FolderEntity } from "@/entities/folder";
+import type { Note } from "@/entities/note";
+import { addFolder, hideFolder, permanentlyDeleteFolder, renameFolder, restoreFolder, trashFolder, unhideFolder } from "@/features/folders/model/folder-actions";
+import { useFoldersStore } from "@/features/folders/model/folders-store";
+import { maskLockedPreview, verifyNoteLock } from "@/features/lock-center/lib/lock-service";
+import { addNote, addPage, deletePage, moveNoteToFolder, patchNote, permanentlyDeleteNote, restoreNote, setArchived, setReminder, toggleFavorite, togglePinned, trashNote, updatePage } from "@/features/notes/model/note-actions";
+import { type NotesSort, selectPinnedGroups, selectVisibleNotes } from "@/features/notes/model/note-selectors";
+import { useNotesStore } from "@/features/notes/model/notes-store";
+import { listPendingAiAnalysis } from "@/services/ai/ai-queue";
+import { listSyncQueue } from "@/services/sync/sync-queue";
+import { getUiCopy } from "@/shared/lib/i18n";
+import { type AppView, useUiStore } from "@/shared/store/ui-store";
+import { useThemeStore } from "@/shared/store/theme-store";
+import { Button } from "@/shared/ui/button";
+
+type SheetName = "folder" | "note" | "pages" | "lock" | "about" | "create-folder" | "reminder" | null;
+
+type ShellNavKey = "notes" | "favorites" | "archive" | "reminders" | "locked" | "trash" | "folders" | "hiddenFolders" | "adminTools";
+
+const navItems: Array<{ key: ShellNavKey; view: AppView; icon: typeof Inbox }> = [
+  { key: "notes", view: "notes", icon: Inbox },
+  { key: "favorites", view: "favorites", icon: Heart },
+  { key: "archive", view: "archive", icon: Archive },
+  { key: "reminders", view: "reminders", icon: Bell },
+  { key: "locked", view: "locked", icon: Lock },
+  { key: "trash", view: "trash", icon: Trash2 },
+  { key: "folders", view: "folders", icon: Folder },
+  { key: "hiddenFolders", view: "hidden_folders", icon: EyeOff },
+  { key: "adminTools", view: "admin_tools", icon: Shield },
+];
+
+const invites = ["Design workspace", "Shared family notes"];
+const sortOptions: Array<{ label: string; value: NotesSort }> = [
+  { label: "По времени", value: "updated" },
+  { label: "AI relevance", value: "ai_relevance" },
+  { label: "Важность", value: "importance" },
+  { label: "Алфавит", value: "alphabet" },
+];
+
+export function SmartNotesShell() {
+  const rawFolders = useFoldersStore((state) => state.folders);
+  const notes = useNotesStore((state) => state.notes);
+  const currentNoteId = useNotesStore((state) => state.currentNoteId);
+  const editorDirty = useNotesStore((state) => state.editorDirty);
+  const setCurrentNoteId = useNotesStore((state) => state.setCurrentNoteId);
+  const markEditorDirty = useNotesStore((state) => state.markEditorDirty);
+  const view = useUiStore((state) => state.view);
+  const activeFolderId = useUiStore((state) => state.activeFolderId);
+  const searchQuery = useUiStore((state) => state.searchQuery);
+  const notesFilter = useUiStore((state) => state.notesFilter);
+  const mobileSidebarOpen = useUiStore((state) => state.mobileSidebarOpen);
+  const desktopSidebarOpen = useUiStore((state) => state.desktopSidebarOpen);
+  const desktopSidebarPinned = useUiStore((state) => state.desktopSidebarPinned);
+  const reduceMotion = useThemeStore((state) => state.reduceMotion);
+  const folderViewMode = useThemeStore((state) => state.folderViewMode);
+  const notesPerPage = useThemeStore((state) => state.notesPerPage);
+  const lang = useThemeStore((state) => state.lang);
+  const copy = getUiCopy(lang);
+  const setView = useUiStore((state) => state.setView);
+  const setActiveFolderId = useUiStore((state) => state.setActiveFolderId);
+  const setSearchQuery = useUiStore((state) => state.setSearchQuery);
+  const setNotesSort = useUiStore((state) => state.setNotesSort);
+  const toggleFolderFilter = useUiStore((state) => state.toggleFolderFilter);
+  const toggleTagFilter = useUiStore((state) => state.toggleTagFilter);
+  const setUpdatedWindowDays = useUiStore((state) => state.setUpdatedWindowDays);
+  const resetNotesFilter = useUiStore((state) => state.resetNotesFilter);
+  const openMobileSidebar = useUiStore((state) => state.openMobileSidebar);
+  const closeMobileSidebar = useUiStore((state) => state.closeMobileSidebar);
+  const setDesktopSidebarOpen = useUiStore((state) => state.setDesktopSidebarOpen);
+  const toggleDesktopSidebar = useUiStore((state) => state.toggleDesktopSidebar);
+  const toggleDesktopSidebarPinned = useUiStore((state) => state.toggleDesktopSidebarPinned);
+
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [sheet, setSheet] = useState<SheetName>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [toolbarVisible, setToolbarVisible] = useState(true);
+  const [isDesktop, setIsDesktop] = useState(false);
+  const [tagDraft, setTagDraft] = useState("");
+  const profileRef = useRef<HTMLDivElement | null>(null);
+  const filtersRef = useRef<HTMLDivElement | null>(null);
+
+  const folders = useMemo(() => rawFolders.filter((folder) => !folder.trashedAt && !folder.isHidden), [rawFolders]);
+  const hiddenFolders = useMemo(() => rawFolders.filter((folder) => !folder.trashedAt && folder.isHidden), [rawFolders]);
+  const trashedFolders = useMemo(() => rawFolders.filter((folder) => Boolean(folder.trashedAt)), [rawFolders]);
+  const activeFolder = useMemo(() => rawFolders.find((folder) => folder.id === activeFolderId) ?? null, [activeFolderId, rawFolders]);
+  const tagOptions = useMemo(
+    () => Array.from(new Set(notes.flatMap((note) => note.userTags))).sort((left, right) => left.localeCompare(right)),
+    [notes],
+  );
+  const currentNote = useMemo(() => notes.find((note) => note.id === currentNoteId) ?? null, [currentNoteId, notes]);
+  const visibleNotes = useMemo(
+    () => selectVisibleNotes({ notes, view, activeFolderId, searchQuery, filter: notesFilter }),
+    [activeFolderId, notes, notesFilter, searchQuery, view],
+  );
+
+  useEffect(() => {
+    document.documentElement.dataset.motion = reduceMotion ? "reduce" : "full";
+
+    return () => {
+      delete document.documentElement.dataset.motion;
+    };
+  }, [reduceMotion]);
+
+  useEffect(() => {
+    function handlePointerDown(event: MouseEvent) {
+      if (!profileRef.current?.contains(event.target as Node)) {
+        setProfileOpen(false);
+      }
+
+      if (!filtersRef.current?.contains(event.target as Node)) {
+        setFiltersOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, []);
+
+  useEffect(() => {
+    function syncViewport() {
+      const desktop = window.innerWidth >= 1024;
+      setIsDesktop(desktop);
+
+      if (!desktop) {
+        setDesktopSidebarOpen(false);
+      }
+
+      if (desktopSidebarPinned && desktop) {
+        setDesktopSidebarOpen(true);
+      }
+    }
+
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+
+    return () => window.removeEventListener("resize", syncViewport);
+  }, [desktopSidebarPinned, setDesktopSidebarOpen]);
+
+  function toggleSidebar() {
+    if (isDesktop) {
+      toggleDesktopSidebar();
+      return;
+    }
+
+    openMobileSidebar();
+  }
+
+  function openView(nextView: AppView) {
+    setView(nextView);
+
+    if (nextView !== "folder") {
+      setActiveFolderId(null);
+    }
+
+    closeMobileSidebar();
+  }
+
+  function openFolder(folder: FolderEntity) {
+    setActiveFolderId(folder.id);
+    setView("folder");
+    closeMobileSidebar();
+  }
+
+  function openNote(noteId: string) {
+    const note = notes.find((item) => item.id === noteId);
+
+    if (!note) {
+      return;
+    }
+
+    setCurrentNoteId(noteId);
+
+    setFiltersOpen(false);
+
+    if (note.lock?.hidden) {
+      setSheet("lock");
+      return;
+    }
+
+    setEditorOpen(true);
+  }
+
+  function createNoteDraft() {
+    const note = addNote({ title: "", content: "", folderId: activeFolderId, userTags: [] }, "local-user");
+    setCurrentNoteId(note.id);
+    setEditorOpen(true);
+  }
+
+  const filteredTagSuggestions = useMemo(() => {
+    const query = tagDraft.trim().toLowerCase();
+
+    if (!query) {
+      return tagOptions.slice(0, 6);
+    }
+
+    return tagOptions.filter((tag) => tag.toLowerCase().includes(query)).slice(0, 6);
+  }, [tagDraft, tagOptions]);
+
+  function closeEditor() {
+    setEditorOpen(false);
+    setCurrentNoteId(null);
+    markEditorDirty(false);
+  }
+
+  const desktopSidebarVisible = isDesktop && (desktopSidebarPinned || desktopSidebarOpen);
+  const contentShift = desktopSidebarVisible ? "lg:pl-[19.5rem]" : "lg:pl-0";
+
+  return (
+    <main className="min-h-screen text-foreground">
+      <div className="relative min-h-screen">
+        {desktopSidebarVisible ? (
+          <div className="pointer-events-none absolute inset-y-0 left-0 hidden w-[18rem] lg:block">
+            <div className="pointer-events-auto h-full">
+              <Sidebar copy={copy} currentView={view} folderViewMode={folderViewMode} folders={folders} isDesktop onClose={() => setDesktopSidebarOpen(false)} onCreateFolder={() => setSheet("create-folder")} onOpenFolder={openFolder} onOpenSheet={setSheet} onSwitchView={openView} />
+            </div>
+          </div>
+        ) : null}
+
+        <div className={`transition-[padding] duration-300 ${contentShift}`}>
+          <Header copy={copy} activeFolder={activeFolder} filtersOpen={filtersOpen} filtersRef={filtersRef} onOpenDrawer={toggleSidebar} onOpenFilters={() => setFiltersOpen((value) => !value)} onOpenFolderMenu={() => setSheet("folder")} profileOpen={profileOpen} profileRef={profileRef} searchQuery={searchQuery} setProfileOpen={setProfileOpen} setSearchQuery={setSearchQuery} view={view} />
+
+          {filtersOpen ? (
+            <div className="pointer-events-none absolute right-3 top-[4.8rem] z-30 w-[min(92vw,25rem)] sm:right-4">
+              <div className="pointer-events-auto">
+                <TopFiltersPopup
+                  folders={folders}
+                  notesFilter={notesFilter}
+                  tagDraft={tagDraft}
+                  tagSuggestions={filteredTagSuggestions}
+                  onResetFilters={resetNotesFilter}
+                  onSetNotesSort={setNotesSort}
+                  onSetUpdatedWindowDays={setUpdatedWindowDays}
+                  onToggleFolderFilter={toggleFolderFilter}
+                  onToggleTagFilter={toggleTagFilter}
+                  onTagDraftChange={setTagDraft}
+                />
+              </div>
+            </div>
+          ) : null}
+
+              <MainSurface copy={copy} activeFolder={activeFolder} folderViewMode={folderViewMode} folders={folders} hiddenFolders={hiddenFolders} notes={visibleNotes} notesPerPage={notesPerPage} onOpenFolder={openFolder} onOpenNote={openNote} onOpenSheet={setSheet} trashedFolders={trashedFolders} view={view} />
+        </div>
+      </div>
+
+      {mobileSidebarOpen ? (
+        <div className="fixed inset-0 z-40 lg:hidden">
+          <button aria-label="Закрыть меню" className="absolute inset-0 bg-foreground/42 backdrop-blur-sm" onClick={closeMobileSidebar} type="button" />
+          <div className="absolute inset-y-0 left-0 w-[88vw] max-w-sm pr-10">
+            <Sidebar copy={copy} currentView={view} folderViewMode={folderViewMode} folders={folders} onClose={closeMobileSidebar} onCreateFolder={() => setSheet("create-folder")} onOpenFolder={openFolder} onOpenSheet={setSheet} onSwitchView={openView} />
+          </div>
+        </div>
+      ) : null}
+
+      <button className="fixed bottom-5 right-5 z-30 flex h-16 w-16 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-2xl shadow-violet-950/24" onClick={createNoteDraft} type="button">
+        <Plus className="h-7 w-7" />
+      </button>
+
+      {editorOpen && currentNote ? <EditorOverlay note={currentNote} onClose={closeEditor} onOpenSheet={setSheet} toolbarVisible={toolbarVisible} setToolbarVisible={setToolbarVisible} /> : null}
+      <BottomSheet activeFolder={activeFolder} editorDirty={editorDirty} name={sheet} onClose={() => setSheet(null)} />
+    </main>
+  );
+}
+
+function Header({ copy, view, activeFolder, searchQuery, filtersOpen, filtersRef, onOpenDrawer, onOpenFilters, onOpenFolderMenu, profileOpen, profileRef, setProfileOpen, setSearchQuery }: { copy: ReturnType<typeof getUiCopy>; view: AppView; activeFolder: FolderEntity | null; searchQuery: string; filtersOpen: boolean; filtersRef: React.RefObject<HTMLDivElement | null>; onOpenDrawer: () => void; onOpenFilters: () => void; onOpenFolderMenu: () => void; profileOpen: boolean; profileRef: React.RefObject<HTMLDivElement | null>; setProfileOpen: (open: boolean) => void; setSearchQuery: (query: string) => void }) {
+  const title =
+    view === "folder" && activeFolder
+      ? activeFolder.name
+      : view === "folders"
+        ? copy.shell.folders
+        : view === "favorites"
+          ? copy.shell.favorites
+          : view === "archive"
+            ? copy.shell.archive
+            : view === "reminders"
+              ? copy.shell.reminders
+              : view === "locked"
+                ? copy.shell.locked
+                : view === "hidden_folders"
+                  ? copy.shell.hiddenFolders
+                  : view === "admin_tools"
+                    ? copy.shell.adminTools
+                    : view === "trash"
+                      ? copy.shell.trash
+                      : copy.shell.notes;
+
+  return (
+    <header className="sticky top-0 z-20 border-b border-border bg-surface/92 px-3 py-3 shadow-lg shadow-violet-950/5 backdrop-blur-2xl sm:px-4">
+      <div className="flex items-center gap-2 sm:gap-3">
+        <button className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-surface-strong text-foreground/72" onClick={onOpenDrawer} type="button">
+          <MoreHorizontal className="h-5 w-5" />
+        </button>
+
+        <div className="hidden min-w-0 shrink-0 items-center gap-2 lg:flex">
+          <h1 className="truncate text-lg font-black tracking-tight">{title}</h1>
+          {view === "folder" ? <button className="rounded-full p-2 text-foreground/45 hover:bg-surface-strong" onClick={onOpenFolderMenu} type="button"><MoreHorizontal className="h-4 w-4" /></button> : null}
+        </div>
+
+        <label className="flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-2xl border border-border bg-surface-strong px-4 shadow-inner shadow-violet-950/4">
+          <Search className="h-5 w-5 shrink-0 text-foreground/38" />
+          <input className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-foreground/38" onChange={(event) => setSearchQuery(event.target.value)} placeholder={copy.shell.search} value={searchQuery} />
+        </label>
+
+        <div className="relative shrink-0" ref={filtersRef}>
+          <button className={`flex h-12 shrink-0 items-center gap-2 rounded-2xl border border-border px-4 text-sm font-bold ${filtersOpen ? "bg-foreground text-background" : "bg-surface-strong text-foreground/72"}`} onClick={onOpenFilters} type="button">
+            <SlidersHorizontal className="h-4 w-4" />
+            <span className="hidden sm:inline">{copy.shell.filters}</span>
+          </button>
+        </div>
+
+        <div className="relative shrink-0" ref={profileRef}>
+          <button className="flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-surface-strong" onClick={() => setProfileOpen(!profileOpen)} type="button">
+            <UserRound className="h-5 w-5" />
+          </button>
+
+          {profileOpen ? (
+            <div className="absolute right-0 top-[calc(100%+0.75rem)] w-72 rounded-[1.5rem] border border-border bg-surface p-3 shadow-2xl shadow-violet-950/16 backdrop-blur-2xl">
+              <div className="rounded-2xl bg-surface-strong p-3">
+                <div className="flex items-center gap-2">
+                  <p className="flex-1 text-sm font-black">Alex Smart</p>
+                  <button className="rounded-full p-2 text-foreground/48 hover:bg-background" type="button">
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                </div>
+                <button className="mt-2 flex w-full items-center justify-between rounded-xl bg-background/70 px-3 py-2 text-left text-xs font-bold text-foreground/56" type="button">
+                  UID: user_2f9b...91
+                  <Copy className="h-3.5 w-3.5" />
+                </button>
+              </div>
+
+              <button className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-rose-500/10 px-4 py-3 text-sm font-black text-rose-500" type="button">
+                <LogOut className="h-4 w-4" />
+                {copy.shell.logout}
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="mt-3 flex items-center gap-2 lg:hidden">
+        <h1 className="truncate text-base font-black tracking-tight">{title}</h1>
+        {view === "folder" ? <button className="rounded-full p-2 text-foreground/45 hover:bg-surface-strong" onClick={onOpenFolderMenu} type="button"><MoreHorizontal className="h-4 w-4" /></button> : null}
+      </div>
+    </header>
+  );
+}
+
+function Sidebar({ copy, currentView, folders, folderViewMode, isDesktop = false, onClose, onCreateFolder, onOpenFolder, onOpenSheet, onSwitchView }: { copy: ReturnType<typeof getUiCopy>; currentView: AppView; folders: FolderEntity[]; folderViewMode: "compact" | "full"; isDesktop?: boolean; onClose: () => void; onCreateFolder: () => void; onOpenFolder: (folder: FolderEntity) => void; onOpenSheet: (sheet: SheetName) => void; onSwitchView: (view: AppView) => void }) {
+  return (
+    <aside className="flex h-full flex-col border-r border-border bg-surface/94 p-4 shadow-2xl shadow-violet-950/10 backdrop-blur-2xl">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.28em] text-accent">SmartNotes</p>
+          <h1 className="mt-1 text-2xl font-black tracking-tight">{copy.shell.menuTitle}</h1>
+        </div>
+        <button className="rounded-2xl border border-border bg-surface-strong p-2" onClick={onClose} type="button">
+          <X className="h-5 w-5" />
+        </button>
+      </div>
+
+      <nav className="mt-6 space-y-1">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+
+          return (
+            <button className={`flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-semibold transition ${currentView === item.view ? "bg-foreground text-background" : "text-foreground/70 hover:bg-surface-strong"}`} key={item.key} onClick={() => onSwitchView(item.view)} type="button">
+              <Icon className="h-4 w-4" />
+              <span>{copy.shell[item.key]}</span>
+            </button>
+          );
+        })}
+      </nav>
+
+      <SidebarSection action={copy.shell.createFolder} onAction={onCreateFolder} title={copy.shell.folders}>
+        {folders.map((folder) => (
+          <button className="flex w-full items-start gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" key={folder.id} onClick={() => onOpenFolder(folder)} type="button">
+            <Folder className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+            <span>
+              <span className="block text-sm font-semibold">{folder.name}</span>
+              {folderViewMode === "full" && folder.description ? <span className="mt-1 line-clamp-2 block text-xs text-foreground/48">{folder.description}</span> : null}
+            </span>
+          </button>
+        ))}
+      </SidebarSection>
+
+      <SidebarSection title="Приглашения">
+        {invites.map((invite) => (
+          <div className="rounded-2xl bg-surface-strong p-3" key={invite}>
+            <p className="text-sm font-bold">{invite}</p>
+          </div>
+        ))}
+      </SidebarSection>
+
+      <div className="mt-auto grid gap-2 pt-4">
+        <button className="rounded-2xl border border-border bg-surface-strong px-4 py-3 text-left text-sm font-bold hover:bg-background" onClick={() => onOpenSheet("about")} type="button">
+          {copy.shell.about}
+        </button>
+        <Button asChild variant="secondary">
+          <Link href="/settings">{copy.common.settings}</Link>
+        </Button>
+      </div>
+    </aside>
+  );
+}
+
+function SidebarSection({ title, action, children, onAction }: { title: string; action?: string; children: React.ReactNode; onAction?: () => void }) {
+  return (
+    <section className="mt-6">
+      <div className="mb-2 flex items-center justify-between px-1">
+        <h2 className="text-xs font-black uppercase tracking-[0.2em] text-foreground/42">{title}</h2>
+        {action ? <button className="text-xs font-black text-accent" onClick={onAction} type="button">{action}</button> : null}
+      </div>
+      <div className="space-y-2">{children}</div>
+    </section>
+  );
+}
+
+function MainSurface({ copy, view, folders, hiddenFolders, trashedFolders, notes, activeFolder, folderViewMode, notesPerPage, onOpenFolder, onOpenNote, onOpenSheet }: { copy: ReturnType<typeof getUiCopy>; view: AppView; folders: FolderEntity[]; hiddenFolders: FolderEntity[]; trashedFolders: FolderEntity[]; notes: Note[]; activeFolder: FolderEntity | null; folderViewMode: "compact" | "full"; notesPerPage: 5 | 10 | 20 | 50; onOpenFolder: (folder: FolderEntity) => void; onOpenNote: (noteId: string) => void; onOpenSheet: (sheet: SheetName) => void }) {
+  if (view === "admin_tools") {
+    return <section className="min-h-[calc(100vh-4.8rem)] border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><AdminToolsView notes={notes} /></section>;
+  }
+
+  if (view === "hidden_folders") {
+    return <section className="min-h-[calc(100vh-4.8rem)] border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><FoldersGrid emptyText={copy.shell.hiddenFolders} folderViewMode={folderViewMode} folders={hiddenFolders} mode="hidden" onOpenFolder={onOpenFolder} /></section>;
+  }
+
+  if (view === "folders") {
+    return <section className="min-h-[calc(100vh-4.8rem)] border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><FoldersGrid emptyText={copy.shell.folders} folderViewMode={folderViewMode} folders={folders} mode="active" onOpenFolder={onOpenFolder} /></section>;
+  }
+
+  if (view === "trash") {
+    return <section className="min-h-[calc(100vh-4.8rem)] border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><TrashView copy={copy} notes={notes} notesPerPage={notesPerPage} onOpenNote={onOpenNote} onOpenSheet={onOpenSheet} trashedFolders={trashedFolders} /></section>;
+  }
+
+  if (view === "folder" && activeFolder) {
+    return <section className="min-h-[calc(100vh-4.8rem)] border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><NotesView copy={copy} emptyText={copy.shell.prompts.noMatches} notes={notes} notesPerPage={notesPerPage} onOpenNote={onOpenNote} onOpenSheet={onOpenSheet} title={activeFolder.name} view={view} /></section>;
+  }
+
+  return (
+    <section className="min-h-[calc(100vh-4.8rem)] border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl">
+      <NotesView
+        copy={copy}
+        emptyText="Здесь пока пусто"
+        notes={notes}
+        notesPerPage={notesPerPage}
+        onOpenNote={onOpenNote}
+        onOpenSheet={onOpenSheet}
+        title={
+          view === "favorites"
+          ? copy.shell.favorites
+            : view === "archive"
+              ? copy.shell.archive
+              : view === "reminders"
+                ? copy.shell.reminders
+                : view === "locked"
+                  ? copy.shell.locked
+                  : copy.shell.notes
+        }
+        view={view}
+      />
+    </section>
+  );
+}
+
+function FoldersGrid({ folders, mode, emptyText, folderViewMode, onOpenFolder }: { folders: FolderEntity[]; mode: "active" | "hidden"; emptyText: string; folderViewMode: "compact" | "full"; onOpenFolder: (folder: FolderEntity) => void }) {
+  const notes = useNotesStore((state) => state.notes);
+
+  if (!folders.length) {
+    return (
+      <div className="flex h-full min-h-[calc(100vh-7.5rem)] items-center justify-center p-6 text-center">
+        <div>
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[1.8rem] bg-foreground/6 text-foreground/34"><Folder className="h-9 w-9" /></div>
+          <h2 className="mt-6 text-2xl font-black tracking-tight sm:text-3xl">{emptyText}</h2>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`grid gap-3 p-4 ${folderViewMode === "compact" ? "sm:grid-cols-3 xl:grid-cols-4" : "sm:grid-cols-2 xl:grid-cols-3"}`}>
+      {folders.map((folder) => {
+        const notesCount = notes.filter((note) => note.folderId === folder.id && !note.trashedAt).length;
+
+        return (
+          <div className="rounded-[1.6rem] border border-border bg-surface-strong p-5 text-left shadow-lg shadow-violet-950/4" key={folder.id}>
+            <button className="block w-full text-left" onClick={() => onOpenFolder(folder)} type="button">
+              <div className="flex items-center gap-2 text-accent"><Folder className="h-5 w-5" /><span className="text-xs font-black uppercase tracking-[0.2em]">{mode === "hidden" ? "Скрытая папка" : "Папка"}</span></div>
+              <h2 className="mt-4 text-xl font-black tracking-tight">{folder.name}</h2>
+              {folder.description ? <p className={`mt-2 text-sm text-foreground/56 ${folderViewMode === "compact" ? "line-clamp-2 leading-6" : "line-clamp-4 leading-7"}`}>{folder.description}</p> : null}
+            </button>
+            <div className="mt-4 flex items-center justify-between gap-3 text-sm text-foreground/56">
+              <span>{notesCount} заметок</span>
+              {mode === "hidden" ? <button className="rounded-xl bg-background px-3 py-2 font-bold text-accent" onClick={() => unhideFolder(folder.id)} type="button">Показать</button> : null}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function TrashView({ copy, notes, notesPerPage, trashedFolders, onOpenNote, onOpenSheet }: { copy: ReturnType<typeof getUiCopy>; notes: Note[]; notesPerPage: 5 | 10 | 20 | 50; trashedFolders: FolderEntity[]; onOpenNote: (noteId: string) => void; onOpenSheet: (sheet: SheetName) => void }) {
+  return (
+    <div className="space-y-6 p-4 sm:p-5">
+      <div>
+        <h2 className="text-xl font-black tracking-tight sm:text-2xl">{copy.shell.trash}</h2>
+        <p className="mt-1 text-sm text-foreground/52">{notes.length + trashedFolders.length} объектов готовы к восстановлению или удалению.</p>
+      </div>
+
+      {trashedFolders.length ? (
+        <section>
+          <div className="mb-3 text-sm font-black uppercase tracking-[0.2em] text-foreground/42">{copy.shell.sections.deletedFolders}</div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {trashedFolders.map((folder) => (
+              <div className="rounded-[1.2rem] border border-dashed border-rose-300 bg-surface-strong p-4" key={folder.id}>
+                <h3 className="text-base font-black tracking-tight">{folder.name}</h3>
+                <p className="mt-2 text-sm text-foreground/56">{folder.description}</p>
+                <div className="mt-4 flex gap-2">
+                  <button className="rounded-xl bg-background px-3 py-2 text-sm font-bold text-accent" onClick={() => restoreFolder(folder.id)} type="button">{copy.shell.actions.restore}</button>
+                  <button className="rounded-xl bg-background px-3 py-2 text-sm font-bold text-rose-500" onClick={() => permanentlyDeleteFolder(folder.id)} type="button">{copy.shell.actions.delete}</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <NotesView copy={copy} emptyText={copy.shell.sections.trashEmpty} notes={notes} notesPerPage={notesPerPage} onOpenNote={onOpenNote} onOpenSheet={onOpenSheet} title={copy.shell.trash} view="trash" />
+    </div>
+  );
+}
+
+function NotesView({ copy, title, notes, notesPerPage, emptyText, onOpenNote, onOpenSheet, view }: { copy: ReturnType<typeof getUiCopy>; title: string; notes: Note[]; notesPerPage: 5 | 10 | 20 | 50; emptyText: string; onOpenNote: (noteId: string) => void; onOpenSheet: (sheet: SheetName) => void; view: AppView }) {
+  const folders = useFoldersStore((state) => state.folders);
+  const visibleFolders = useMemo(() => folders.filter((folder) => !folder.trashedAt && !folder.isHidden), [folders]);
+  const { pinned, unpinned } = useMemo(() => selectPinnedGroups(notes), [notes]);
+  const pinnedVisible = pinned.slice(0, notesPerPage);
+  const unpinnedVisible = unpinned.slice(0, Math.max(notesPerPage - pinnedVisible.length, 0));
+  const hiddenCount = Math.max(notes.length - pinnedVisible.length - unpinnedVisible.length, 0);
+
+  if (!notes.length) {
+    return (
+      <div className="flex h-full min-h-[calc(100vh-7.5rem)] items-center justify-center p-6 text-center">
+        <div>
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[1.8rem] bg-foreground/6 text-foreground/34"><Sparkles className="h-9 w-9" /></div>
+          <h2 className="mt-6 text-2xl font-black tracking-tight sm:text-3xl">{emptyText}</h2>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 p-4 sm:p-5">
+      <div>
+        <h2 className="text-xl font-black tracking-tight sm:text-2xl">{title}</h2>
+        <p className="mt-1 text-sm text-foreground/52">Показано {pinnedVisible.length + unpinnedVisible.length} из {notes.length} заметок. Размер текущей страницы: {notesPerPage}.</p>
+      </div>
+
+      {hiddenCount ? <div className="rounded-2xl border border-border bg-surface-strong px-4 py-3 text-sm font-semibold text-foreground/60">Еще {hiddenCount} заметок остаются за пределами текущего display limit.</div> : null}
+
+      {pinnedVisible.length ? (
+        <section>
+          <div className="mb-3 flex items-center gap-2 text-sm font-black uppercase tracking-[0.2em] text-accent">
+            <Heart className="h-4 w-4" />
+            {copy.shell.sections.pinned}
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {pinnedVisible.map((note) => (
+              <NoteCard key={note.id} folders={visibleFolders} note={note} onOpenNote={onOpenNote} onOpenSheet={onOpenSheet} view={view} />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {unpinnedVisible.length ? (
+        <section>
+          <div className="mb-3 text-sm font-black uppercase tracking-[0.2em] text-foreground/42">{copy.shell.sections.notes}</div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {unpinnedVisible.map((note) => (
+              <NoteCard key={note.id} folders={visibleFolders} note={note} onOpenNote={onOpenNote} onOpenSheet={onOpenSheet} view={view} />
+            ))}
+          </div>
+        </section>
+      ) : null}
+    </div>
+  );
+}
+
+function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: { note: Note; folders: FolderEntity[]; onOpenNote: (noteId: string) => void; onOpenSheet: (sheet: SheetName) => void; view: AppView }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [folderPickerOpen, setFolderPickerOpen] = useState(false);
+  const setCurrentNoteId = useNotesStore((state) => state.setCurrentNoteId);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  const folderName = folders.find((folder) => folder.id === note.folderId)?.name ?? "Без папки";
+  const previewText = note.lock?.hidden ? maskLockedPreview(note.id) : note.content;
+  const reminderLabel = note.reminderAt
+    ? new Date(note.reminderAt).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
+    : null;
+  const aiBadgeTone = note.aiStatus === "error" ? "text-rose-500 bg-rose-500/10" : note.aiStatus === "pending" ? "text-amber-600 bg-amber-500/10" : note.aiStatus === "analyzing" ? "text-sky-600 bg-sky-500/10" : "text-emerald-600 bg-emerald-500/10";
+
+  useEffect(() => {
+    if (!menuOpen) {
+      return;
+    }
+
+    function handlePointerDown(event: MouseEvent) {
+      if (!menuRef.current?.contains(event.target as Node)) {
+        setMenuOpen(false);
+        setFolderPickerOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [menuOpen]);
+
+  function openReminderSheet() {
+    setCurrentNoteId(note.id);
+    onOpenSheet("reminder");
+    setMenuOpen(false);
+    setFolderPickerOpen(false);
+  }
+
+  return (
+    <article className={`relative overflow-visible rounded-[1.35rem] border bg-surface-strong p-4 text-left shadow-md shadow-violet-950/4 transition hover:-translate-y-0.5 hover:shadow-lg ${menuOpen ? "z-20" : "z-0"} ${note.trashedAt ? "border-dashed border-rose-300" : "border-border"}`}>
+      <div className="absolute right-3 top-3 z-10 flex items-start gap-1">
+        {view === "trash" ? null : (
+          <>
+            <button className={`flex h-9 w-9 items-center justify-center rounded-xl bg-surface/92 text-foreground/56 backdrop-blur hover:bg-background ${note.pinned ? "text-accent" : ""}`} onClick={() => togglePinned(note.id)} type="button">
+              <PinGlyph active={note.pinned} />
+            </button>
+            <button className={`flex h-9 w-9 items-center justify-center rounded-xl bg-surface/92 backdrop-blur hover:bg-background ${note.favorite ? "text-rose-500" : "text-foreground/56"}`} onClick={() => toggleFavorite(note.id)} type="button">
+              <Heart className={`h-4 w-4 ${note.favorite ? "fill-current" : ""}`} />
+            </button>
+          </>
+        )}
+
+        <div className="relative" ref={menuRef}>
+          <button className="flex h-9 w-9 items-center justify-center rounded-xl bg-surface/92 text-foreground/56 backdrop-blur hover:bg-background" onClick={() => setMenuOpen((value) => !value)} type="button">
+            <MoreHorizontal className="h-4 w-4" />
+          </button>
+
+          {menuOpen ? (
+            <div className="absolute right-0 top-[calc(100%+0.45rem)] z-20 w-64 rounded-[1.2rem] border border-border bg-surface p-2 shadow-2xl shadow-violet-950/16 backdrop-blur-2xl">
+              {view === "trash" ? (
+                <div className="space-y-1">
+                  <MenuAction icon={RotateCcw} label="Восстановить" onClick={() => { restoreNote(note.id); setMenuOpen(false); }} />
+                  <MenuAction destructive icon={Trash2} label="Удалить навсегда" onClick={() => { permanentlyDeleteNote(note.id); setMenuOpen(false); }} />
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <MenuAction icon={Archive} label={note.isArchived ? "Вернуть из архива" : "В архив"} onClick={() => { setArchived(note.id, !note.isArchived); setMenuOpen(false); setFolderPickerOpen(false); }} />
+                  <MenuAction icon={Bell} label={note.reminderAt ? "Изменить напоминание" : "Поставить напоминание"} onClick={() => { if (note.reminderAt) { openReminderSheet(); return; } openReminderSheet(); }} />
+                  <MenuAction icon={FolderInput} label={`Переместить: ${folderName}`} onClick={() => setFolderPickerOpen((value) => !value)} />
+                  {folderPickerOpen ? <div className="rounded-xl bg-surface-strong/72 p-1"> <div className="px-3 py-2 text-[11px] font-bold uppercase tracking-[0.18em] text-foreground/36">Папки</div><div className="max-h-40 space-y-1 overflow-y-auto"><MenuAction active={note.folderId === null} icon={Folder} label="Без папки" onClick={() => { moveNoteToFolder(note.id, null); setMenuOpen(false); setFolderPickerOpen(false); }} />{folders.map((folder) => (<MenuAction active={note.folderId === folder.id} icon={Folder} key={folder.id} label={folder.name} onClick={() => { moveNoteToFolder(note.id, folder.id); setMenuOpen(false); setFolderPickerOpen(false); }} />))}</div></div> : null}
+                  <div className="my-1 h-px bg-border" />
+                  <MenuAction destructive icon={Trash2} label="Удалить" onClick={() => { trashNote(note.id); setMenuOpen(false); setFolderPickerOpen(false); }} />
+                </div>
+              )}
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      <button className="block w-full text-left" onClick={() => onOpenNote(note.id)} type="button">
+        <div className="flex min-h-7 flex-wrap items-center gap-2 pr-28 text-[11px] font-black uppercase tracking-[0.18em] text-foreground/42">
+          {note.reminderAt ? <span className="rounded-full bg-amber-500/10 px-2 py-1 text-amber-600">{reminderLabel}</span> : null}
+          {note.lock ? <span className="rounded-full bg-foreground/8 px-2 py-1">Locked</span> : null}
+          {note.isArchived ? <span className="rounded-full bg-foreground/8 px-2 py-1">Archive</span> : null}
+          <span className={`rounded-full px-2 py-1 ${aiBadgeTone}`}>AI: {note.aiStatus}</span>
+          <span className="rounded-full border border-border px-2 py-1">{folderName}</span>
+        </div>
+        <h3 className="mt-2 pr-28 text-base leading-6 font-black tracking-tight">{note.title}</h3>
+        <p className={`mt-2 line-clamp-3 text-sm leading-6 text-foreground/58 ${note.lock?.hidden ? "select-none" : ""}`}>{previewText}</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {note.userTags.map((tag) => (
+            <span className="rounded-full border border-border px-3 py-1 text-xs font-semibold text-foreground/56" key={tag}>
+              #{tag}
+            </span>
+          ))}
+        </div>
+      </button>
+    </article>
+  );
+}
+
+function MenuAction({ label, icon: Icon, onClick, destructive = false, active = false }: { label: string; icon: typeof Folder; onClick: () => void; destructive?: boolean; active?: boolean }) {
+  return (
+    <button className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition ${destructive ? "text-rose-500 hover:bg-rose-500/8" : active ? "bg-accent/10 text-accent" : "text-foreground/78 hover:bg-surface-strong"}`} onClick={onClick} type="button">
+      <Icon className="h-4 w-4 shrink-0" />
+      <span className="min-w-0 truncate">{label}</span>
+    </button>
+  );
+}
+
+function PinGlyph({ active }: { active: boolean }) {
+  return (
+    <svg aria-hidden="true" className={`h-4 w-4 ${active ? "fill-current" : ""}`} viewBox="0 0 24 24">
+      <path d="M15 3a1 1 0 0 1 .7 1.7l-1.47 1.46 4.61 4.61a1 1 0 0 1 0 1.41l-.7.71a1 1 0 0 1-1.42 0l-1.41-1.42-3.89 3.9v4.25a1 1 0 0 1-1.7.7l-1-1a1 1 0 0 1-.3-.7v-3.25l3.9-3.89-4.62-4.62L5.3 8.7A1 1 0 0 1 3.6 8l1.06-1.06a1 1 0 0 1 1.41 0L10.68 11l3.9-3.9-1.29-1.28A1 1 0 0 1 14 3h1Z" />
+    </svg>
+  );
+}
+
+function TopFiltersPopup({ notesFilter, folders, tagDraft, tagSuggestions, onSetNotesSort, onToggleFolderFilter, onToggleTagFilter, onSetUpdatedWindowDays, onResetFilters, onTagDraftChange }: { notesFilter: { sort: NotesSort; folders: Array<string | null>; tags: string[]; updatedWindowDays: number | null }; folders: FolderEntity[]; tagDraft: string; tagSuggestions: string[]; onSetNotesSort: (sort: NotesSort) => void; onToggleFolderFilter: (folderId: string | null) => void; onToggleTagFilter: (tag: string) => void; onSetUpdatedWindowDays: (days: number | null) => void; onResetFilters: () => void; onTagDraftChange: (value: string) => void }) {
+  return (
+    <section className="rounded-[1.6rem] border border-border bg-surface/96 p-4 shadow-2xl shadow-violet-950/16 backdrop-blur-2xl">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h2 className="text-sm font-black uppercase tracking-[0.2em] text-foreground/54">Фильтры</h2>
+        <button className="rounded-full border border-border bg-surface-strong px-3 py-1.5 text-xs font-bold" onClick={onResetFilters} type="button">Сбросить</button>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {sortOptions.map((option) => (
+          <button className={`rounded-full border px-3 py-2 text-sm font-bold ${notesFilter.sort === option.value ? "border-accent bg-accent/10 text-accent" : "border-border bg-surface-strong"}`} key={option.value} onClick={() => onSetNotesSort(option.value)} type="button">
+            {option.label}
+          </button>
+        ))}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">{[7, 30, null].map((days) => (<button className={`rounded-2xl border px-4 py-2.5 text-left text-sm font-bold ${notesFilter.updatedWindowDays === days ? "border-accent bg-accent/10 text-accent" : "border-border bg-surface-strong"}`} key={String(days)} onClick={() => onSetUpdatedWindowDays(days)} type="button">{days === null ? "За все время" : `${days} дней`}</button>))}</div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button className={`rounded-full border px-3 py-2 text-sm font-bold ${notesFilter.folders.includes(null) ? "border-accent bg-accent/10 text-accent" : "border-border bg-surface-strong"}`} onClick={() => onToggleFolderFilter(null)} type="button">
+          Без папки
+        </button>
+        {folders.map((folder) => (
+          <button className={`rounded-full border px-3 py-2 text-sm font-bold ${notesFilter.folders.includes(folder.id) ? "border-accent bg-accent/10 text-accent" : "border-border bg-surface-strong"}`} key={folder.id} onClick={() => onToggleFolderFilter(folder.id)} type="button">
+            {folder.name}
+          </button>
+        ))}
+      </div>
+      <div className="mt-3 rounded-2xl border border-border bg-surface-strong p-3">
+        <label className="block text-sm font-bold text-foreground/66">Тег</label>
+        <input className="mt-2 h-11 w-full rounded-xl border border-border bg-background px-3 outline-none" onChange={(event) => onTagDraftChange(event.target.value)} placeholder="Начни вводить тег" value={tagDraft} />
+        {tagSuggestions.length ? <div className="mt-3 flex flex-wrap gap-2">{tagSuggestions.map((tag) => <button className={`rounded-full border px-3 py-1.5 text-sm font-bold ${notesFilter.tags.includes(tag) ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={tag} onClick={() => onToggleTagFilter(tag)} type="button">#{tag}</button>)}</div> : <p className="mt-3 text-sm text-foreground/52">Совпадений пока нет.</p>}
+        {tagDraft.trim() ? <button className="mt-3 rounded-xl border border-border bg-background px-3 py-2 text-sm font-bold" onClick={() => onToggleTagFilter(tagDraft.trim())} type="button">Применить тег `#{tagDraft.trim()}`</button> : null}
+      </div>
+    </section>
+  );
+}
+
+function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setToolbarVisible }: { note: Note; onClose: () => void; onOpenSheet: (sheet: SheetName) => void; toolbarVisible: boolean; setToolbarVisible: (visible: boolean) => void }) {
+  const [pageIndex, setPageIndex] = useState(0);
+  const currentPage = note.pages[pageIndex] ?? note.pages[0];
+  const editorDirty = useNotesStore((state) => state.editorDirty);
+  const markEditorDirty = useNotesStore((state) => state.markEditorDirty);
+
+  useEffect(() => {
+    if (pageIndex > note.pages.length - 1) {
+      setPageIndex(Math.max(0, note.pages.length - 1));
+    }
+  }, [note.pages.length, pageIndex]);
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        markEditorDirty(false);
+        onClose();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [markEditorDirty, onClose]);
+
+  if (!currentPage) {
+    return null;
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-background/96 backdrop-blur-2xl">
+      <div className="mx-auto flex h-full max-w-6xl flex-col px-3 py-3 sm:px-5">
+        <header className="flex items-center gap-2 rounded-[1.5rem] border border-border bg-surface/90 p-2 shadow-xl shadow-violet-950/8">
+          <button className="rounded-2xl p-3 hover:bg-surface-strong" onClick={onClose} type="button"><ChevronLeft className="h-5 w-5" /></button>
+          <div className="flex items-center gap-1 rounded-2xl bg-surface-strong px-2 py-1 text-sm font-black">
+            <button className="rounded-lg p-1 hover:bg-background disabled:opacity-35" disabled={pageIndex === 0} onClick={() => setPageIndex((value) => Math.max(0, value - 1))} type="button"><ChevronLeft className="h-4 w-4" /></button>
+            {pageIndex + 1}/{note.pages.length}
+            <button className="rounded-lg p-1 hover:bg-background disabled:opacity-35" disabled={pageIndex >= note.pages.length - 1} onClick={() => setPageIndex((value) => Math.min(note.pages.length - 1, value + 1))} type="button"><ChevronRight className="h-4 w-4" /></button>
+          </div>
+          <button className="rounded-2xl p-3 hover:bg-surface-strong" onClick={() => onOpenSheet("pages")} type="button"><Folder className="h-5 w-5" /></button>
+          <div className="ml-auto flex items-center gap-1">
+            <button className="rounded-2xl p-3 hover:bg-surface-strong" type="button"><Undo2 className="h-5 w-5" /></button>
+            <button className="rounded-2xl p-3 hover:bg-surface-strong" type="button"><Share2 className="h-5 w-5" /></button>
+            <button className="rounded-2xl p-3 hover:bg-surface-strong" onClick={() => onOpenSheet("note")} type="button"><MoreHorizontal className="h-5 w-5" /></button>
+            <button className="rounded-2xl p-3 hover:bg-surface-strong" onClick={() => setToolbarVisible(!toolbarVisible)} type="button"><ChevronDown className="h-5 w-5" /></button>
+          </div>
+        </header>
+
+        <section className="mt-3 min-h-0 flex-1 overflow-y-auto rounded-[2rem] border border-border bg-surface/88 p-4 shadow-2xl shadow-violet-950/8 sm:p-8">
+          <input className="w-full bg-transparent text-3xl font-black tracking-tight outline-none placeholder:text-foreground/28 sm:text-5xl" onChange={(event) => { markEditorDirty(true); patchNote(note.id, { title: event.target.value || currentPage.title || "Untitled note" }, { scheduleAnalysis: false }); }} placeholder="Заголовок" value={note.title} />
+          {toolbarVisible ? <div className="sticky top-0 z-10 mt-5 flex gap-2 overflow-x-auto rounded-2xl border border-border bg-surface-strong/92 p-2 backdrop-blur-xl">{["B", "I", "U", "List", "Link"].map((tool) => <button className="shrink-0 rounded-xl px-3 py-2 text-sm font-black hover:bg-background" key={tool} type="button">{tool}</button>)}</div> : null}
+          <input className="mt-5 w-full rounded-2xl border border-border bg-surface-strong px-4 py-3 text-sm font-semibold outline-none" maxLength={80} onChange={(event) => { markEditorDirty(true); updatePage(note.id, currentPage.id, { title: event.target.value }); }} placeholder="Название страницы" value={currentPage.title} />
+          <textarea className="mt-5 min-h-[52vh] w-full resize-none bg-transparent text-lg leading-9 outline-none" onChange={(event) => { markEditorDirty(true); updatePage(note.id, currentPage.id, { content: event.target.value }); }} placeholder="Начни писать..." value={currentPage.content} />
+        </section>
+
+        <footer className="mt-3 flex items-center gap-2 rounded-[1.5rem] border border-border bg-surface/92 p-2 shadow-xl shadow-violet-950/8">
+          <label className="flex min-h-11 flex-1 items-center gap-2 rounded-2xl bg-surface-strong px-3"><Tag className="h-4 w-4 text-accent" /><input className="min-w-0 flex-1 bg-transparent outline-none" defaultValue={note.userTags.join(", ")} onBlur={(event) => { markEditorDirty(true); patchNote(note.id, { userTags: event.target.value.split(",").map((tag) => tag.trim()).filter(Boolean) }, { scheduleAnalysis: false }); }} placeholder="tag1, tag2" /></label>
+          <div className="text-xs font-bold text-foreground/48">{editorDirty ? "Есть несохраненные локальные изменения" : "Все изменения в локальном state"}</div>
+          <Button className="h-11 rounded-2xl" onClick={() => { markEditorDirty(false); onClose(); }} type="button"><Save className="mr-2 h-4 w-4" />Готово</Button>
+        </footer>
+      </div>
+    </div>
+  );
+}
+
+function BottomSheet({ name, activeFolder, editorDirty, onClose }: { name: SheetName; activeFolder: FolderEntity | null; editorDirty: boolean; onClose: () => void }) {
+  if (!name) {
+    return null;
+  }
+
+  const title = name === "folder" ? "Папка" : name === "note" ? "Действия заметки" : name === "pages" ? "Страницы" : name === "lock" ? "Lock Center" : name === "create-folder" ? "Создать папку" : name === "reminder" ? "Напоминание" : "О приложении";
+  const centered = name === "about";
+
+  return (
+    <div className="fixed inset-0 z-50">
+      <button className="absolute inset-0 bg-foreground/42 backdrop-blur-sm" onClick={onClose} type="button" />
+      <section className={`absolute border border-border bg-surface p-4 shadow-2xl shadow-violet-950/20 backdrop-blur-2xl ${centered ? "left-1/2 top-1/2 w-[min(92vw,34rem)] -translate-x-1/2 -translate-y-1/2 rounded-[2rem]" : "inset-x-0 bottom-0 max-h-[86vh] overflow-y-auto rounded-t-[2rem] lg:inset-auto lg:bottom-6 lg:right-6 lg:w-[420px] lg:rounded-[2rem]"}`}>
+        <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-foreground/18 lg:hidden" />
+        <div className="flex items-center justify-between"><h2 className="text-xl font-black">{title}</h2><button className="rounded-full p-2 hover:bg-surface-strong" onClick={onClose} type="button"><X className="h-5 w-5" /></button></div>
+        {name === "folder" ? <FolderActionList activeFolder={activeFolder} /> : null}
+        {name === "note" ? <ActionList items={["Архивировать", "Заблокировать", "Переместить", "Напомнить", "Удалить"]} /> : null}
+        {name === "pages" ? <PagesContent /> : null}
+        {name === "lock" ? <LockContent onClose={onClose} /> : null}
+        {name === "about" ? <AboutContent /> : null}
+        {name === "create-folder" ? <CreateFolderContent onClose={onClose} /> : null}
+        {name === "reminder" ? <ReminderContent onClose={onClose} /> : null}
+      </section>
+    </div>
+  );
+}
+
+function ActionList({ items }: { items: string[] }) {
+  return <div className="mt-4 space-y-2">{items.map((item) => <button className={`flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong ${item.includes("Удал") ? "text-rose-500" : ""}`} key={item} type="button"><span className="font-bold">{item}</span></button>)}</div>;
+}
+
+function FolderActionList({ activeFolder }: { activeFolder: FolderEntity | null }) {
+  if (!activeFolder) {
+    return null;
+  }
+
+  return (
+    <div className="mt-4 space-y-2">
+      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" type="button">Поделиться</button>
+      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={() => renameFolder(activeFolder.id, `${activeFolder.name} Updated`)} type="button">Переименовать</button>
+      {activeFolder.isHidden ? <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={() => unhideFolder(activeFolder.id)} type="button">Показать</button> : <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={() => hideFolder(activeFolder.id)} type="button">Скрыть</button>}
+      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left text-rose-500 hover:bg-surface-strong" onClick={() => trashFolder(activeFolder.id)} type="button">Удалить</button>
+    </div>
+  );
+}
+
+function PagesContent() {
+  const currentNoteId = useNotesStore((state) => state.currentNoteId);
+  const note = useNotesStore((state) => state.notes.find((item) => item.id === state.currentNoteId) ?? null);
+
+  if (!currentNoteId || !note) {
+    return null;
+  }
+
+  return <div className="mt-4 space-y-2">{note.pages.map((page, index) => <div className="flex items-center gap-3 rounded-2xl bg-surface-strong p-3" key={page.id}><span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/12 text-sm font-black text-accent">{index + 1}</span><span className="flex-1 font-bold">{page.title}</span>{note.pages.length > 1 ? <button className="rounded-xl px-3 py-2 text-xs font-bold text-rose-500 hover:bg-background" onClick={() => deletePage(currentNoteId, page.id)} type="button">Удалить</button> : null}</div>)}<Button className="mt-2 w-full rounded-2xl" onClick={() => addPage(currentNoteId)} type="button" variant="secondary">Добавить страницу</Button></div>;
+}
+
+function LockContent({ onClose }: { onClose: () => void }) {
+  const currentNoteId = useNotesStore((state) => state.currentNoteId);
+  const note = useNotesStore((state) => state.notes.find((item) => item.id === state.currentNoteId) ?? null);
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  if (!currentNoteId || !note?.lock) {
+    return null;
+  }
+
+  const noteId = currentNoteId;
+  const currentLock = note.lock;
+
+  async function handleUnlock() {
+    const valid = await verifyNoteLock(currentLock, password);
+
+    if (!valid) {
+      setError("Неверный пароль");
+      return;
+    }
+
+    patchNote(noteId, { lock: { ...currentLock, hidden: false } }, { scheduleAnalysis: false });
+    setError(null);
+    setPassword("");
+    onClose();
+  }
+
+  return <div className="mt-4 space-y-3"><p className="text-sm leading-6 text-foreground/58">Контент заметки скрыт до локальной verify-проверки. Preview уже замаскирован в карточке.</p><input autoComplete="off" className="h-12 w-full rounded-2xl border border-border bg-surface-strong px-4 outline-none" name={`lock_${noteId.slice(0, 6)}`} onChange={(event) => setPassword(event.target.value)} placeholder="Пароль заметки" type="password" value={password} />{error ? <p className="text-sm font-bold text-rose-500">{error}</p> : null}<Button className="w-full rounded-2xl" onClick={() => void handleUnlock()} type="button">Unlock</Button></div>;
+}
+
+function AboutContent() {
+  return <div className="mt-5 grid gap-3 sm:grid-cols-2"><button className="rounded-[1.5rem] border border-border bg-surface-strong p-5 text-left hover:bg-background" type="button"><p className="text-xs font-black uppercase tracking-[0.2em] text-accent">О нас</p><h3 className="mt-3 text-xl font-black">SmartNotes</h3><p className="mt-2 text-sm leading-6 text-foreground/58">Создал и забыл: заметки, которые сами помогают находить важное.</p></button><button className="rounded-[1.5rem] border border-border bg-surface-strong p-5 text-left hover:bg-background" type="button"><p className="text-xs font-black uppercase tracking-[0.2em] text-accent">Оценить</p><h3 className="mt-3 text-xl font-black">Feedback</h3><p className="mt-2 text-sm leading-6 text-foreground/58">Оценить продукт и оставить отзыв по текущей реализации.</p></button></div>;
+}
+
+function CreateFolderContent({ onClose }: { onClose: () => void }) {
+  const [name, setName] = useState("");
+
+  function handleCreate() {
+    const normalized = name.trim();
+
+    if (!normalized) {
+      return;
+    }
+
+    addFolder({ name: normalized, description: null, isHidden: false }, "local-user");
+    setName("");
+    onClose();
+  }
+
+  return <div className="mt-4 space-y-3"><input className="h-12 w-full rounded-2xl border border-border bg-surface-strong px-4 outline-none" onChange={(event) => setName(event.target.value)} placeholder="Введите название папки" value={name} /><Button className="w-full rounded-2xl" disabled={!name.trim()} onClick={handleCreate} type="button">Создать папку</Button></div>;
+}
+
+function ReminderContent({ onClose }: { onClose: () => void }) {
+  const currentNoteId = useNotesStore((state) => state.currentNoteId);
+  const note = useNotesStore((state) => state.notes.find((item) => item.id === state.currentNoteId) ?? null);
+  const [value, setValue] = useState(note?.reminderAt ? note.reminderAt.slice(0, 16) : "");
+
+  if (!currentNoteId || !note) {
+    return null;
+  }
+
+  return <div className="mt-4 space-y-3"><input className="h-12 w-full rounded-2xl border border-border bg-surface-strong px-4 outline-none" onChange={(event) => setValue(event.target.value)} type="datetime-local" value={value} /><div className="grid grid-cols-2 gap-2"><Button className="rounded-2xl" disabled={!value} onClick={() => { setReminder(currentNoteId, new Date(value).toISOString()); onClose(); }} type="button">Сохранить</Button><Button className="rounded-2xl" onClick={() => { setReminder(currentNoteId, null); onClose(); }} type="button" variant="secondary">Очистить</Button></div></div>;
+}
+
+function AdminToolsView({ notes }: { notes: Note[] }) {
+  const pending = notes.filter((note) => note.aiStatus === "pending").length;
+  const failed = notes.filter((note) => note.aiStatus === "error").length;
+  const analyzing = notes.filter((note) => note.aiStatus === "analyzing").length;
+  const queued = listPendingAiAnalysis().length;
+  const syncBacklog = listSyncQueue().length;
+
+  return (
+    <div className="grid gap-4 p-4 sm:grid-cols-2 xl:grid-cols-3">
+      {[
+        { title: "AI pending / queued", value: `${pending} / ${queued}`, icon: Brain },
+        { title: "AI analyzing / errors", value: `${analyzing} / ${failed}`, icon: Shield },
+        { title: "Sync backlog", value: syncBacklog, icon: RotateCcw },
+      ].map((card) => {
+        const Icon = card.icon;
+
+        return (
+          <div className="rounded-[1.6rem] border border-border bg-surface-strong p-5 shadow-lg shadow-violet-950/4" key={card.title}>
+            <div className="flex items-center gap-2 text-accent"><Icon className="h-5 w-5" /><span className="text-xs font-black uppercase tracking-[0.2em]">Admin</span></div>
+            <h2 className="mt-4 text-3xl font-black tracking-tight">{card.value}</h2>
+            <p className="mt-2 text-sm text-foreground/56">{card.title}</p>
+          </div>
+        );
+      })}
+    </div>
+  );
+}

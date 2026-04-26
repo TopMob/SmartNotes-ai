@@ -1,0 +1,25 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "watcher": {
+    "ignore": [
+      "node_modules/**",
+      ".pnpm-store/**",
+      ".npm/**",
+      ".yarn/**",
+      ".next/**",
+      ".turbo/**",
+      "dist/**",
+      "out/**",
+      "coverage/**",
+      ".vercel/**",
+      "*.log",
+      "*.tsbuildinfo",
+      ".env",
+      ".env.*",
+      "!.env.example",
+      ".git/**",
+      ".idea/**",
+      ".vscode/**"
+    ]
+  }
+}
