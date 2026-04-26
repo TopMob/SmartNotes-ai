@@ -1,6 +1,78 @@
 import type { Note } from "@/entities/note";
 import type { AppView } from "@/shared/store/ui-store";
-import { includesSearchTokens } from "@/shared/lib/search";
+import { normalizeSearchToken } from "@/shared/lib/search";
+
+const ruToEnLayoutMap: Record<string, string> = {
+  й: "q",
+  ц: "w",
+  у: "e",
+  к: "r",
+  е: "t",
+  н: "y",
+  г: "u",
+  ш: "i",
+  щ: "o",
+  з: "p",
+  х: "[",
+  ъ: "]",
+  ф: "a",
+  ы: "s",
+  в: "d",
+  а: "f",
+  п: "g",
+  р: "h",
+  о: "j",
+  л: "k",
+  д: "l",
+  ж: ";",
+  э: "'",
+  я: "z",
+  ч: "x",
+  с: "c",
+  м: "v",
+  и: "b",
+  т: "n",
+  ь: "m",
+  б: ",",
+  ю: ".",
+};
+
+const enToRuLayoutMap = Object.fromEntries(Object.entries(ruToEnLayoutMap).map(([ru, en]) => [en, ru])) as Record<string, string>;
+
+const translitMap: Record<string, string> = {
+  а: "a",
+  б: "b",
+  в: "v",
+  г: "g",
+  д: "d",
+  е: "e",
+  ж: "zh",
+  з: "z",
+  и: "i",
+  й: "y",
+  к: "k",
+  л: "l",
+  м: "m",
+  н: "n",
+  о: "o",
+  п: "p",
+  р: "r",
+  с: "s",
+  т: "t",
+  у: "u",
+  ф: "f",
+  х: "h",
+  ц: "ts",
+  ч: "ch",
+  ш: "sh",
+  щ: "sch",
+  ы: "y",
+  э: "e",
+  ю: "yu",
+  я: "ya",
+  ь: "",
+  ъ: "",
+};
 
 export type NotesSort = "updated" | "ai_relevance" | "importance" | "alphabet" | "text_length" | "manual";
 
@@ -60,10 +132,28 @@ function matchesSearch(note: Note, searchQuery: string) {
     return true;
   }
 
-  return includesSearchTokens(
-    [note.title, note.content, ...note.userTags, ...note.hiddenTags, note.resurfacingClass ?? ""].join(" "),
-    searchQuery,
-  );
+  const haystack = [note.title, note.content, ...note.userTags, ...note.hiddenTags, note.resurfacingClass ?? ""]
+    .join(" ")
+    .toLowerCase()
+    .replaceAll("ё", "е");
+  const tokens = searchQuery
+    .split(/\s+/u)
+    .map(normalizeSearchToken)
+    .filter(Boolean);
+
+  function remapKeyboardLayout(value: string, map: Record<string, string>) {
+    return [...value].map((char) => map[char] ?? char).join("");
+  }
+
+  function transliterateRu(value: string) {
+    return [...value].map((char) => translitMap[char] ?? char).join("");
+  }
+
+  function buildSearchVariants(value: string) {
+    return Array.from(new Set([value, remapKeyboardLayout(value, ruToEnLayoutMap), remapKeyboardLayout(value, enToRuLayoutMap), transliterateRu(value)].filter(Boolean)));
+  }
+
+  return tokens.every((token) => buildSearchVariants(token).some((variant) => buildSearchVariants(haystack).some((candidate) => candidate.includes(variant))));
 }
 
 function matchesFilter(note: Note, filter: NotesFilter, now: Date) {

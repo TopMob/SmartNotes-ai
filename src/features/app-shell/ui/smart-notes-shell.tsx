@@ -4,6 +4,7 @@ import {
   Archive,
   Bell,
   Brain,
+  Bold,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -18,11 +19,13 @@ import {
   MoreHorizontal,
   Pencil,
   Plus,
+  List,
   RotateCcw,
   Save,
   Search,
   Share2,
   Shield,
+  Italic,
   SlidersHorizontal,
   Sparkles,
   Tag,
@@ -33,15 +36,23 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { Editor } from "@tiptap/core";
+import { EditorContent, useEditor } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import LinkExtension from "@tiptap/extension-link";
 
 import type { Folder as FolderEntity } from "@/entities/folder";
 import type { Note } from "@/entities/note";
 import { addFolder, hideFolder, permanentlyDeleteFolder, renameFolder, restoreFolder, trashFolder, unhideFolder } from "@/features/folders/model/folder-actions";
 import { useFoldersStore } from "@/features/folders/model/folders-store";
+import { resolveSimpleMathExpression } from "@/features/editor/lib/math-resolver";
 import { maskLockedPreview, verifyNoteLock } from "@/features/lock-center/lib/lock-service";
 import { addNote, addPage, deletePage, moveNoteToFolder, patchNote, permanentlyDeleteNote, restoreNote, setArchived, setReminder, toggleFavorite, togglePinned, trashNote, updatePage } from "@/features/notes/model/note-actions";
 import { type NotesSort, selectPinnedGroups, selectVisibleNotes } from "@/features/notes/model/note-selectors";
 import { useNotesStore } from "@/features/notes/model/notes-store";
+import { requestNotificationPermission, showNotification } from "@/services/notifications/notification-service";
+import { scheduleReminder } from "@/services/reminders/reminder-service";
+import { subscribe } from "@/services/event-bus";
 import { listPendingAiAnalysis } from "@/services/ai/ai-queue";
 import { listSyncQueue } from "@/services/sync/sync-queue";
 import { getUiCopy } from "@/shared/lib/i18n";
@@ -72,6 +83,60 @@ const sortOptions: Array<{ label: string; value: NotesSort }> = [
   { label: "Важность", value: "importance" },
   { label: "Алфавит", value: "alphabet" },
 ];
+
+function escapeHtml(value: string) {
+  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
+}
+
+function plainTextToEditorContent(value: string) {
+  if (!value.trim()) {
+    return "<p></p>";
+  }
+
+  if (value.includes("<") && value.includes(">")) {
+    return value;
+  }
+
+  return value
+    .split(/\n+/u)
+    .map((line) => `<p>${escapeHtml(line) || "<br>"}</p>`)
+    .join("");
+}
+
+function serializeEditorSnapshot(note: Note) {
+  return JSON.stringify({
+    title: note.title,
+    folderId: note.folderId,
+    userTags: note.userTags,
+    content: note.content,
+    pages: note.pages.map((page) => ({ id: page.id, title: page.title, content: page.content, drawingRevision: page.drawingRevision })),
+  });
+}
+
+function maybeInsertMathResult(editor: Editor) {
+  const { from } = editor.state.selection;
+
+  if (!editor.state.selection.empty) {
+    return false;
+  }
+
+  const blockStart = editor.state.doc.resolve(from).start();
+  const textBeforeCaret = editor.state.doc.textBetween(blockStart, from, "\n", " ");
+  const match = textBeforeCaret.match(/(?:^|\s)([\d+\-*/().\s]+)=\s*$/u);
+
+  if (!match) {
+    return false;
+  }
+
+  const result = resolveSimpleMathExpression(match[1].trim());
+
+  if (!result) {
+    return false;
+  }
+
+  editor.commands.insertContent(result);
+  return true;
+}
 
 export function SmartNotesShell() {
   const rawFolders = useFoldersStore((state) => state.folders);
@@ -137,6 +202,32 @@ export function SmartNotesShell() {
       delete document.documentElement.dataset.motion;
     };
   }, [reduceMotion]);
+
+  useEffect(() => {
+    const unsubscribe = subscribe("reminderTriggered", async ({ noteId }) => {
+      const triggeredNote = useNotesStore.getState().notes.find((item) => item.id === noteId);
+
+      if (!triggeredNote) {
+        return;
+      }
+
+      const permission = await requestNotificationPermission();
+
+      if (permission === "granted") {
+        showNotification(triggeredNote.title || "Reminder", {
+          body: triggeredNote.content.replace(/<[^>]*>/gu, " ").replace(/\s+/gu, " ").trim().slice(0, 120),
+        });
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    notes.forEach((note) => scheduleReminder(note.id, note.reminderAt));
+  }, [notes]);
 
   useEffect(() => {
     function handlePointerDown(event: MouseEvent) {
@@ -236,7 +327,6 @@ export function SmartNotesShell() {
   function closeEditor() {
     setEditorOpen(false);
     setCurrentNoteId(null);
-    markEditorDirty(false);
   }
 
   const desktopSidebarVisible = isDesktop && (desktopSidebarPinned || desktopSidebarOpen);
@@ -775,9 +865,34 @@ function TopFiltersPopup({ notesFilter, folders, tagDraft, tagSuggestions, onSet
 
 function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setToolbarVisible }: { note: Note; onClose: () => void; onOpenSheet: (sheet: SheetName) => void; toolbarVisible: boolean; setToolbarVisible: (visible: boolean) => void }) {
   const [pageIndex, setPageIndex] = useState(0);
+  const snapshotRef = useRef(serializeEditorSnapshot(note));
   const currentPage = note.pages[pageIndex] ?? note.pages[0];
   const editorDirty = useNotesStore((state) => state.editorDirty);
   const markEditorDirty = useNotesStore((state) => state.markEditorDirty);
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({ bulletList: { keepMarks: true, keepAttributes: false } }),
+      LinkExtension.configure({ openOnClick: false, autolink: true, linkOnPaste: true, defaultProtocol: "https" }),
+    ],
+    content: plainTextToEditorContent(currentPage.content),
+    immediatelyRender: false,
+    onUpdate: ({ editor: tiptapEditor }) => {
+      if (maybeInsertMathResult(tiptapEditor)) {
+        return;
+      }
+
+      const nextContent = tiptapEditor.getHTML();
+      updatePage(note.id, currentPage.id, { content: nextContent });
+      markEditorDirty(
+        serializeEditorSnapshot({
+          ...note,
+          content: nextContent,
+          pages: note.pages.map((page) => (page.id === currentPage.id ? { ...page, content: nextContent } : page)),
+        }) !== snapshotRef.current,
+      );
+    },
+  });
 
   useEffect(() => {
     if (pageIndex > note.pages.length - 1) {
@@ -786,16 +901,71 @@ function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setToolbarV
   }, [note.pages.length, pageIndex]);
 
   useEffect(() => {
+    snapshotRef.current = serializeEditorSnapshot(note);
+    markEditorDirty(false);
+    setPageIndex(0);
+  }, [markEditorDirty, note.id]);
+
+  useEffect(() => {
+    editor?.commands.setContent(plainTextToEditorContent(currentPage.content), { emitUpdate: false });
+  }, [currentPage.content, currentPage.id, editor]);
+
+  useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        markEditorDirty(false);
-        onClose();
+        handleClose();
       }
     }
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [markEditorDirty, onClose]);
+
+  function syncDirtyState(nextSnapshot: string) {
+    markEditorDirty(nextSnapshot !== snapshotRef.current);
+  }
+
+  function handleClose() {
+    syncDirtyState(serializeEditorSnapshot(note));
+    onClose();
+  }
+
+  function handleTitleChange(value: string) {
+    const nextTitle = value || currentPage.title || "Untitled note";
+    patchNote(note.id, { title: nextTitle }, { scheduleAnalysis: false });
+    syncDirtyState(
+      serializeEditorSnapshot({
+        ...note,
+        title: nextTitle,
+      }),
+    );
+  }
+
+  function handlePageTitleChange(value: string) {
+    const nextTitle = value.trim().slice(0, 80);
+    updatePage(note.id, currentPage.id, { title: nextTitle });
+    syncDirtyState(
+      serializeEditorSnapshot({
+        ...note,
+        pages: note.pages.map((page) => (page.id === currentPage.id ? { ...page, title: nextTitle } : page)),
+      }),
+    );
+  }
+
+  function handleTagsBlur(value: string) {
+    const tags = value.split(",").map((tag) => tag.trim()).filter(Boolean);
+    patchNote(note.id, { userTags: tags }, { scheduleAnalysis: false });
+    syncDirtyState(
+      serializeEditorSnapshot({
+        ...note,
+        userTags: tags,
+      }),
+    );
+  }
+
+  if (!editor) {
+    return null;
+  }
 
   if (!currentPage) {
     return null;
@@ -805,7 +975,7 @@ function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setToolbarV
     <div className="fixed inset-0 z-50 bg-background/96 backdrop-blur-2xl">
       <div className="mx-auto flex h-full max-w-6xl flex-col px-3 py-3 sm:px-5">
         <header className="flex items-center gap-2 rounded-[1.5rem] border border-border bg-surface/90 p-2 shadow-xl shadow-violet-950/8">
-          <button className="rounded-2xl p-3 hover:bg-surface-strong" onClick={onClose} type="button"><ChevronLeft className="h-5 w-5" /></button>
+          <button className="rounded-2xl p-3 hover:bg-surface-strong" onClick={handleClose} type="button"><ChevronLeft className="h-5 w-5" /></button>
           <div className="flex items-center gap-1 rounded-2xl bg-surface-strong px-2 py-1 text-sm font-black">
             <button className="rounded-lg p-1 hover:bg-background disabled:opacity-35" disabled={pageIndex === 0} onClick={() => setPageIndex((value) => Math.max(0, value - 1))} type="button"><ChevronLeft className="h-4 w-4" /></button>
             {pageIndex + 1}/{note.pages.length}
@@ -821,16 +991,16 @@ function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setToolbarV
         </header>
 
         <section className="mt-3 min-h-0 flex-1 overflow-y-auto rounded-[2rem] border border-border bg-surface/88 p-4 shadow-2xl shadow-violet-950/8 sm:p-8">
-          <input className="w-full bg-transparent text-3xl font-black tracking-tight outline-none placeholder:text-foreground/28 sm:text-5xl" onChange={(event) => { markEditorDirty(true); patchNote(note.id, { title: event.target.value || currentPage.title || "Untitled note" }, { scheduleAnalysis: false }); }} placeholder="Заголовок" value={note.title} />
-          {toolbarVisible ? <div className="sticky top-0 z-10 mt-5 flex gap-2 overflow-x-auto rounded-2xl border border-border bg-surface-strong/92 p-2 backdrop-blur-xl">{["B", "I", "U", "List", "Link"].map((tool) => <button className="shrink-0 rounded-xl px-3 py-2 text-sm font-black hover:bg-background" key={tool} type="button">{tool}</button>)}</div> : null}
-          <input className="mt-5 w-full rounded-2xl border border-border bg-surface-strong px-4 py-3 text-sm font-semibold outline-none" maxLength={80} onChange={(event) => { markEditorDirty(true); updatePage(note.id, currentPage.id, { title: event.target.value }); }} placeholder="Название страницы" value={currentPage.title} />
-          <textarea className="mt-5 min-h-[52vh] w-full resize-none bg-transparent text-lg leading-9 outline-none" onChange={(event) => { markEditorDirty(true); updatePage(note.id, currentPage.id, { content: event.target.value }); }} placeholder="Начни писать..." value={currentPage.content} />
+          <input className="w-full bg-transparent text-3xl font-black tracking-tight outline-none placeholder:text-foreground/28 sm:text-5xl" onChange={(event) => handleTitleChange(event.target.value)} placeholder="Заголовок" value={note.title} />
+          {toolbarVisible ? <div className="sticky top-0 z-10 mt-5 flex gap-2 overflow-x-auto rounded-2xl border border-border bg-surface-strong/92 p-2 backdrop-blur-xl"><button className={`shrink-0 rounded-xl px-3 py-2 text-sm font-black hover:bg-background ${editor.isActive("bold") ? "bg-background text-accent" : ""}`} onClick={() => editor.chain().focus().toggleBold().run()} type="button"><Bold className="h-4 w-4" /></button><button className={`shrink-0 rounded-xl px-3 py-2 text-sm font-black hover:bg-background ${editor.isActive("italic") ? "bg-background text-accent" : ""}`} onClick={() => editor.chain().focus().toggleItalic().run()} type="button"><Italic className="h-4 w-4" /></button><button className={`shrink-0 rounded-xl px-3 py-2 text-sm font-black hover:bg-background ${editor.isActive("bulletList") ? "bg-background text-accent" : ""}`} onClick={() => editor.chain().focus().toggleBulletList().run()} type="button"><List className="h-4 w-4" /></button><button className={`shrink-0 rounded-xl px-3 py-2 text-sm font-black hover:bg-background ${editor.isActive("link") ? "bg-background text-accent" : ""}`} onClick={() => { const url = window.prompt("Ссылка"); if (url) { editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run(); } }} type="button">Link</button></div> : null}
+          <input className="mt-5 w-full rounded-2xl border border-border bg-surface-strong px-4 py-3 text-sm font-semibold outline-none" maxLength={80} onChange={(event) => handlePageTitleChange(event.target.value)} placeholder="Название страницы" value={currentPage.title} />
+          <div className="mt-5 min-h-[52vh] rounded-[1.5rem] border border-border bg-background/36 p-4 text-lg leading-9 outline-none"><EditorContent editor={editor} /></div>
         </section>
 
         <footer className="mt-3 flex items-center gap-2 rounded-[1.5rem] border border-border bg-surface/92 p-2 shadow-xl shadow-violet-950/8">
-          <label className="flex min-h-11 flex-1 items-center gap-2 rounded-2xl bg-surface-strong px-3"><Tag className="h-4 w-4 text-accent" /><input className="min-w-0 flex-1 bg-transparent outline-none" defaultValue={note.userTags.join(", ")} onBlur={(event) => { markEditorDirty(true); patchNote(note.id, { userTags: event.target.value.split(",").map((tag) => tag.trim()).filter(Boolean) }, { scheduleAnalysis: false }); }} placeholder="tag1, tag2" /></label>
+          <label className="flex min-h-11 flex-1 items-center gap-2 rounded-2xl bg-surface-strong px-3"><Tag className="h-4 w-4 text-accent" /><input className="min-w-0 flex-1 bg-transparent outline-none" defaultValue={note.userTags.join(", ")} onBlur={(event) => handleTagsBlur(event.target.value)} placeholder="tag1, tag2" /></label>
           <div className="text-xs font-bold text-foreground/48">{editorDirty ? "Есть несохраненные локальные изменения" : "Все изменения в локальном state"}</div>
-          <Button className="h-11 rounded-2xl" onClick={() => { markEditorDirty(false); onClose(); }} type="button"><Save className="mr-2 h-4 w-4" />Готово</Button>
+          <Button className="h-11 rounded-2xl" onClick={handleClose} type="button"><Save className="mr-2 h-4 w-4" />Готово</Button>
         </footer>
       </div>
     </div>
@@ -872,12 +1042,32 @@ function FolderActionList({ activeFolder }: { activeFolder: FolderEntity | null 
     return null;
   }
 
+  const folder = activeFolder;
+
+  function handleRename() {
+    const nextName = window.prompt("Новое имя папки", folder.name)?.trim();
+
+    if (!nextName) {
+      return;
+    }
+
+    renameFolder(folder.id, nextName);
+  }
+
+  function handleDelete() {
+    if (!window.confirm(`Удалить папку «${folder.name}»?`)) {
+      return;
+    }
+
+    trashFolder(folder.id);
+  }
+
   return (
     <div className="mt-4 space-y-2">
       <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" type="button">Поделиться</button>
-      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={() => renameFolder(activeFolder.id, `${activeFolder.name} Updated`)} type="button">Переименовать</button>
-      {activeFolder.isHidden ? <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={() => unhideFolder(activeFolder.id)} type="button">Показать</button> : <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={() => hideFolder(activeFolder.id)} type="button">Скрыть</button>}
-      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left text-rose-500 hover:bg-surface-strong" onClick={() => trashFolder(activeFolder.id)} type="button">Удалить</button>
+      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={handleRename} type="button">Переименовать</button>
+      {folder.isHidden ? <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={() => unhideFolder(folder.id)} type="button">Показать</button> : <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={() => hideFolder(folder.id)} type="button">Скрыть</button>}
+      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left text-rose-500 hover:bg-surface-strong" onClick={handleDelete} type="button">Удалить</button>
     </div>
   );
 }
@@ -950,11 +1140,20 @@ function ReminderContent({ onClose }: { onClose: () => void }) {
   const note = useNotesStore((state) => state.notes.find((item) => item.id === state.currentNoteId) ?? null);
   const [value, setValue] = useState(note?.reminderAt ? note.reminderAt.slice(0, 16) : "");
 
+  useEffect(() => {
+    if (!currentNoteId || !note) {
+      return;
+    }
+
+    setValue(note.reminderAt ? note.reminderAt.slice(0, 16) : "");
+    scheduleReminder(currentNoteId, note.reminderAt);
+  }, [currentNoteId, note]);
+
   if (!currentNoteId || !note) {
     return null;
   }
 
-  return <div className="mt-4 space-y-3"><input className="h-12 w-full rounded-2xl border border-border bg-surface-strong px-4 outline-none" onChange={(event) => setValue(event.target.value)} type="datetime-local" value={value} /><div className="grid grid-cols-2 gap-2"><Button className="rounded-2xl" disabled={!value} onClick={() => { setReminder(currentNoteId, new Date(value).toISOString()); onClose(); }} type="button">Сохранить</Button><Button className="rounded-2xl" onClick={() => { setReminder(currentNoteId, null); onClose(); }} type="button" variant="secondary">Очистить</Button></div></div>;
+  return <div className="mt-4 space-y-3"><input className="h-12 w-full rounded-2xl border border-border bg-surface-strong px-4 outline-none" onChange={(event) => setValue(event.target.value)} type="datetime-local" value={value} /><div className="grid grid-cols-2 gap-2"><Button className="rounded-2xl" disabled={!value} onClick={async () => { const reminderAt = new Date(value).toISOString(); setReminder(currentNoteId, reminderAt); scheduleReminder(currentNoteId, reminderAt); await requestNotificationPermission(); onClose(); }} type="button">Сохранить</Button><Button className="rounded-2xl" onClick={() => { setReminder(currentNoteId, null); scheduleReminder(currentNoteId, null); onClose(); }} type="button" variant="secondary">Очистить</Button></div></div>;
 }
 
 function AdminToolsView({ notes }: { notes: Note[] }) {
