@@ -8,3 +8,14 @@ export function tokenizeSearchText(value: string) {
     .map(normalizeSearchToken)
     .filter(Boolean);
 }
+
+export function includesSearchTokens(value: string, query: string) {
+  const haystack = normalizeSearchToken(value);
+  const tokens = tokenizeSearchText(query);
+
+  if (!tokens.length) {
+    return true;
+  }
+
+  return tokens.every((token) => haystack.includes(token));
+}

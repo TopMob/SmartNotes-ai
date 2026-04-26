@@ -8,6 +8,7 @@
   --border: rgba(31, 29, 26, 0.14);
   --accent: #7c3aed;
   --accent-foreground: #ffffff;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 @theme inline {
@@ -25,9 +26,15 @@
   box-sizing: border-box;
 }
 
+*::selection {
+  color: var(--accent-foreground);
+  background: var(--accent);
+}
+
 html {
   min-height: 100%;
   background: var(--background);
+  text-size-adjust: 100%;
 }
 
 body {
@@ -37,6 +44,7 @@ body {
   background:
     radial-gradient(circle at top left, rgba(124, 58, 237, 0.16), transparent 34rem),
     linear-gradient(135deg, #f8f0df 0%, #efe7ff 45%, #e6f7f2 100%);
+  overscroll-behavior-y: none;
 }
 
 button,
@@ -44,4 +52,54 @@ input,
 textarea,
 select {
   font: inherit;
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 42%, transparent);
+  outline-offset: 3px;
+}
+
+button {
+  cursor: pointer;
+}
+
+input,
+textarea {
+  border-radius: 0;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  body {
+    padding-bottom: var(--safe-bottom);
+  }
 }

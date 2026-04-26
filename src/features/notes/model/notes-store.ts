@@ -6,6 +6,8 @@ type NotesState = {
   notes: Note[];
   currentNoteId: string | null;
   editorDirty: boolean;
+  addNote: (note: Note) => void;
+  removeNote: (noteId: string) => void;
   setNotes: (notes: Note[]) => void;
   setCurrentNoteId: (noteId: string | null) => void;
   markEditorDirty: (dirty: boolean) => void;
@@ -16,6 +18,12 @@ export const useNotesStore = create<NotesState>((set) => ({
   notes: [],
   currentNoteId: null,
   editorDirty: false,
+  addNote: (note) => set((state) => ({ notes: [note, ...state.notes], currentNoteId: note.id })),
+  removeNote: (noteId) =>
+    set((state) => ({
+      notes: state.notes.filter((note) => note.id !== noteId),
+      currentNoteId: state.currentNoteId === noteId ? null : state.currentNoteId,
+    })),
   setNotes: (notes) => set({ notes }),
   setCurrentNoteId: (currentNoteId) => set({ currentNoteId }),
   markEditorDirty: (editorDirty) => set({ editorDirty }),
