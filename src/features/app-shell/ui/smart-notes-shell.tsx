@@ -51,7 +51,9 @@ import { Button } from "@/shared/ui/button";
 
 type SheetName = "folder" | "note" | "pages" | "lock" | "about" | "create-folder" | "reminder" | null;
 
-const navItems: Array<{ key: keyof ReturnType<typeof getUiCopy>["shell"]; view: AppView; icon: typeof Inbox }> = [
+type ShellNavKey = "notes" | "favorites" | "archive" | "reminders" | "locked" | "trash" | "folders" | "hiddenFolders" | "adminTools";
+
+const navItems: Array<{ key: ShellNavKey; view: AppView; icon: typeof Inbox }> = [
   { key: "notes", view: "notes", icon: Inbox },
   { key: "favorites", view: "favorites", icon: Heart },
   { key: "archive", view: "archive", icon: Archive },
@@ -273,7 +275,7 @@ export function SmartNotesShell() {
             </div>
           ) : null}
 
-          <MainSurface activeFolder={activeFolder} folderViewMode={folderViewMode} folders={folders} hiddenFolders={hiddenFolders} notes={visibleNotes} notesPerPage={notesPerPage} onOpenFolder={openFolder} onOpenNote={openNote} onOpenSheet={setSheet} trashedFolders={trashedFolders} view={view} />
+              <MainSurface copy={copy} activeFolder={activeFolder} folderViewMode={folderViewMode} folders={folders} hiddenFolders={hiddenFolders} notes={visibleNotes} notesPerPage={notesPerPage} onOpenFolder={openFolder} onOpenNote={openNote} onOpenSheet={setSheet} trashedFolders={trashedFolders} view={view} />
         </div>
       </div>
 
@@ -281,7 +283,7 @@ export function SmartNotesShell() {
         <div className="fixed inset-0 z-40 lg:hidden">
           <button aria-label="Закрыть меню" className="absolute inset-0 bg-foreground/42 backdrop-blur-sm" onClick={closeMobileSidebar} type="button" />
           <div className="absolute inset-y-0 left-0 w-[88vw] max-w-sm pr-10">
-              <Sidebar copy={copy} currentView={view} folderViewMode={folderViewMode} folders={folders} onClose={closeMobileSidebar} onCreateFolder={() => setSheet("create-folder")} onOpenFolder={openFolder} onOpenSheet={setSheet} onSwitchView={openView} />
+            <Sidebar copy={copy} currentView={view} folderViewMode={folderViewMode} folders={folders} onClose={closeMobileSidebar} onCreateFolder={() => setSheet("create-folder")} onOpenFolder={openFolder} onOpenSheet={setSheet} onSwitchView={openView} />
           </div>
         </div>
       ) : null}
@@ -397,7 +399,7 @@ function Sidebar({ copy, currentView, folders, folderViewMode, isDesktop = false
           const Icon = item.icon;
 
           return (
-            <button className={`flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-semibold transition ${currentView === item.view ? "bg-foreground text-background" : "text-foreground/70 hover:bg-surface-strong"}`} key={item.label} onClick={() => onSwitchView(item.view)} type="button">
+            <button className={`flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-semibold transition ${currentView === item.view ? "bg-foreground text-background" : "text-foreground/70 hover:bg-surface-strong"}`} key={item.key} onClick={() => onSwitchView(item.view)} type="button">
               <Icon className="h-4 w-4" />
               <span>{copy.shell[item.key]}</span>
             </button>
@@ -449,7 +451,7 @@ function SidebarSection({ title, action, children, onAction }: { title: string; 
   );
 }
 
-function MainSurface({ view, folders, hiddenFolders, trashedFolders, notes, activeFolder, folderViewMode, notesPerPage, onOpenFolder, onOpenNote, onOpenSheet }: { view: AppView; folders: FolderEntity[]; hiddenFolders: FolderEntity[]; trashedFolders: FolderEntity[]; notes: Note[]; activeFolder: FolderEntity | null; folderViewMode: "compact" | "full"; notesPerPage: 5 | 10 | 20 | 50; onOpenFolder: (folder: FolderEntity) => void; onOpenNote: (noteId: string) => void; onOpenSheet: (sheet: SheetName) => void }) {
+function MainSurface({ copy, view, folders, hiddenFolders, trashedFolders, notes, activeFolder, folderViewMode, notesPerPage, onOpenFolder, onOpenNote, onOpenSheet }: { copy: ReturnType<typeof getUiCopy>; view: AppView; folders: FolderEntity[]; hiddenFolders: FolderEntity[]; trashedFolders: FolderEntity[]; notes: Note[]; activeFolder: FolderEntity | null; folderViewMode: "compact" | "full"; notesPerPage: 5 | 10 | 20 | 50; onOpenFolder: (folder: FolderEntity) => void; onOpenNote: (noteId: string) => void; onOpenSheet: (sheet: SheetName) => void }) {
   if (view === "admin_tools") {
     return <section className="min-h-[calc(100vh-4.8rem)] border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><AdminToolsView notes={notes} /></section>;
   }

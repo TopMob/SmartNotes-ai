@@ -1,11 +1,34 @@
-.next/
+# dependencies
 node_modules/
-out/
+.pnpm-store/
+.npm/
+.yarn/
+
+# build output
+.next/
 dist/
+out/
 coverage/
+.turbo/
+
+# environment files
 .env
 .env.*
 !.env.example
+
+# logs and caches
 *.log
 *.tsbuildinfo
-vercel.json
+*.tmp
+*.temp
+.eslintcache
+.stylelintcache
+
+# editor and OS clutter
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# deployment artifacts
+.vercel/

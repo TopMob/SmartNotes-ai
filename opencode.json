@@ -3,12 +3,23 @@
   "watcher": {
     "ignore": [
       "node_modules/**",
+      ".pnpm-store/**",
+      ".npm/**",
+      ".yarn/**",
       ".next/**",
       ".turbo/**",
       "dist/**",
-      "package-lock.json",
+      "out/**",
+      "coverage/**",
+      ".vercel/**",
       "*.log",
-      ".env*"
+      "*.tsbuildinfo",
+      ".env",
+      ".env.*",
+      "!.env.example",
+      ".git/**",
+      ".idea/**",
+      ".vscode/**"
     ]
   }
 }
