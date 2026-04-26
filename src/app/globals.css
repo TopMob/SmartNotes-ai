@@ -13,6 +13,10 @@
     radial-gradient(circle at top left, rgba(124, 58, 237, 0.16), transparent 34rem),
     linear-gradient(135deg, #f8f0df 0%, #efe7ff 45%, #e6f7f2 100%);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --ui-opacity: 0.88;
+  --cards-opacity: 0.92;
+  --main-background-url: none;
+  --sidebar-background-url: none;
 }
 
 :root[data-theme="smarthub"] {
@@ -124,6 +128,26 @@ body {
   background: var(--wallpaper);
   background-attachment: fixed;
   overscroll-behavior-y: none;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image: var(--main-background-url);
+  background-position: center;
+  background-size: cover;
+  opacity: var(--ui-opacity);
+  mix-blend-mode: soft-light;
+}
+
+.app-surface {
+  background: color-mix(in srgb, var(--surface) calc(var(--ui-opacity) * 100%), transparent);
+}
+
+.app-card {
+  background: color-mix(in srgb, var(--surface-strong) calc(var(--cards-opacity) * 100%), transparent);
 }
 
 button,
