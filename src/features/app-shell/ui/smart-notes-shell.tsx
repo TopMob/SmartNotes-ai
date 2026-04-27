@@ -498,7 +498,7 @@ export function SmartNotesShell() {
 
       {mobileSidebarOpen ? (
         <div className="fixed inset-0 z-40 lg:hidden">
-          <button aria-label="Закрыть меню" className="absolute inset-0 bg-foreground/42 backdrop-blur-sm" onClick={closeMobileSidebar} type="button" />
+          <button aria-label="Закрыть меню" className="absolute inset-0 bg-black/40 backdrop-blur-md" onClick={closeMobileSidebar} type="button" />
         <div className="absolute inset-y-0 left-0 w-[85vw] max-w-[320px]">
           <Sidebar copy={copy} currentView={view} folderViewMode={folderViewMode} folders={folders} activeFolderId={activeFolderId} onClose={closeMobileSidebar} onCreateFolder={(anchor) => openSheet("create-folder", anchor)} onOpenFolder={openFolder} onOpenSheet={openSheet} onSwitchView={openView} />
         </div>
