@@ -1,0 +1,115 @@
+import { Archive, Bell, EyeOff, Folder, Heart, Inbox, Lock, Shield, Trash2, X, type LucideIcon } from "lucide-react";
+import Link from "next/link";
+import type React from "react";
+
+import type { Folder as FolderEntity } from "@/entities/folder";
+import { getUiCopy } from "@/shared/lib/i18n";
+import type { AppView } from "@/shared/store/ui-store";
+import { Button } from "@/shared/ui/button";
+
+import { getSheetAnchor, type SheetAnchor, type SheetName } from "./shared";
+
+type ShellNavKey = "notes" | "favorites" | "archive" | "reminders" | "locked" | "trash" | "folders" | "hiddenFolders" | "adminTools";
+
+const navItems: Array<{ key: ShellNavKey; view: AppView; icon: LucideIcon }> = [
+  { key: "notes", view: "notes", icon: Inbox },
+  { key: "favorites", view: "favorites", icon: Heart },
+  { key: "archive", view: "archive", icon: Archive },
+  { key: "reminders", view: "reminders", icon: Bell },
+  { key: "locked", view: "locked", icon: Lock },
+  { key: "trash", view: "trash", icon: Trash2 },
+  { key: "folders", view: "folders", icon: Folder },
+  { key: "hiddenFolders", view: "hidden_folders", icon: EyeOff },
+];
+
+type SidebarProps = {
+  copy: ReturnType<typeof getUiCopy>;
+  currentView: AppView;
+  folders: FolderEntity[];
+  folderViewMode: "compact" | "full";
+  activeFolderId: string | null;
+  isDesktop?: boolean;
+  onClose: () => void;
+  onCreateFolder: (anchor: SheetAnchor) => void;
+  onOpenFolder: (folder: FolderEntity) => void;
+  onOpenSheet: (sheet: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void;
+  onSwitchView: (view: AppView) => void;
+};
+
+export function Sidebar({ copy, currentView, folders, folderViewMode, activeFolderId, isDesktop = false, onClose, onCreateFolder, onOpenFolder, onOpenSheet, onSwitchView }: SidebarProps) {
+  return (
+    <aside className="sidebar-glass panel-card flex h-full flex-col overflow-hidden p-4 shadow-2xl shadow-violet-950/10">
+      <div className="mb-1 flex shrink-0 items-center justify-between gap-2">
+        <div>
+          <p className="text-sm font-black uppercase tracking-[0.22em] text-accent">SmartNotes</p>
+        </div>
+        {!isDesktop ? (
+          <button className="flex h-10 w-10 items-center justify-center rounded-2xl border border-border bg-surface-strong" onClick={onClose} type="button">
+            <X className="h-5 w-5" />
+          </button>
+        ) : null}
+      </div>
+
+      <div className="min-h-0 flex flex-1 flex-col">
+        <div className="flex-1 min-h-0 overflow-y-auto pr-2">
+          <nav className="mt-0 space-y-1">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = currentView === item.view;
+
+              return (
+                <button className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left text-sm font-bold transition ${isActive ? "border-accent bg-accent/15 text-accent ring-1 ring-accent/50" : "border-transparent text-foreground/70 hover:border-border hover:bg-surface-strong"}`} key={item.key} onClick={() => onSwitchView(item.view)} type="button">
+                  <Icon className="h-[18px] w-[18px]" />
+                  <span>{copy.shell[item.key]}</span>
+                </button>
+              );
+            })}
+          </nav>
+
+          <SidebarSection action={copy.shell.createFolder} className="mt-0.5" onAction={(event) => onCreateFolder(getSheetAnchor(event.currentTarget.getBoundingClientRect()))} title={copy.shell.folders}>
+            {folders.map((folder) => {
+              const isActive = activeFolderId === folder.id && currentView === "folder";
+
+              return (
+                <button className={`flex w-full items-start gap-3 rounded-2xl border p-3 text-left transition ${isActive ? "border-accent bg-accent/15 text-accent ring-1 ring-accent/50" : "border-transparent hover:border-border hover:bg-surface-strong"}`} key={folder.id} onClick={() => onOpenFolder(folder)} type="button">
+                  <Folder className={`mt-0.5 h-[18px] w-[18px] shrink-0 ${isActive ? "text-accent" : "text-foreground/50"}`} />
+                  <span>
+                    <span className="block text-sm font-bold">{folder.name}</span>
+                    {folderViewMode === "full" && folder.description ? <span className="mt-1 block line-clamp-2 text-xs text-foreground/48">{folder.description}</span> : null}
+                  </span>
+                </button>
+              );
+            })}
+            <button className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left text-sm font-bold transition ${currentView === "admin_tools" ? "border-accent bg-accent/15 text-accent ring-1 ring-accent/50" : "border-transparent text-foreground/70 hover:border-border hover:bg-surface-strong"}`} onClick={() => onSwitchView("admin_tools")} type="button">
+              <Shield className="h-[18px] w-[18px]" />
+              <span>{copy.shell.adminTools}</span>
+            </button>
+          </SidebarSection>
+        </div>
+
+      <div className="mt-3 shrink-0 border-t border-border/80 pt-3 pr-2">
+        <div className="grid gap-2 rounded-[1.25rem] border border-border bg-surface-strong/55 p-2">
+        <button className="flex w-full items-center justify-center rounded-xl border border-border bg-background/40 px-4 py-2.5 text-sm font-bold hover:bg-background/70" onClick={(event) => onOpenSheet("about", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button">
+          {copy.shell.about}
+        </button>
+        <Button asChild className="min-h-10 w-full rounded-xl border border-border bg-background/40 px-4 py-2.5 text-sm font-bold shadow-none hover:bg-background/70" variant="ghost">
+          <Link href="/settings">{copy.common.settings}</Link>
+        </Button>
+        </div>
+      </div>
+      </div>
+    </aside>
+  );
+}
+
+function SidebarSection({ title, action, children, onAction, className }: { title: string; action?: string; children: React.ReactNode; onAction?: (event: React.MouseEvent<HTMLButtonElement>) => void; className?: string }) {
+  return (
+    <section className={className ?? "mt-0"}>
+      <div className="mb-2 flex items-center justify-between px-0.5">
+        <h2 className="text-xs font-black uppercase tracking-[0.2em] text-foreground/42">{title}</h2>
+        {action ? <button className="text-xs font-black text-accent" onClick={onAction} type="button">{action}</button> : null}
+      </div>
+      <div className="space-y-1">{children}</div>
+    </section>
+  );
+}

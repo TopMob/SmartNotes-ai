@@ -13,6 +13,9 @@ import {
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
+import { Panel } from "./components/Panel";
+import { SectionIntro } from "./components/SectionIntro";
+
 import { getUiCopy } from "@/shared/lib/i18n";
 import { useThemeStore } from "@/shared/store/theme-store";
 
@@ -277,29 +280,5 @@ export default function SettingsPage() {
         </section>
       </div>
     </main>
-  );
-}
-
-function SectionIntro({ title, text }: { title: string; text: string }) {
-  return (
-    <div className="flex items-start gap-3">
-      <Sparkles className="mt-0.5 h-4 w-4 text-accent sm:mt-1 sm:h-5 sm:w-5" />
-      <div>
-        <h2 className="text-xl font-black tracking-tight sm:text-3xl">{title}</h2>
-        <p className="mt-1 max-w-2xl text-xs leading-5 text-foreground/62 sm:mt-2 sm:text-sm sm:leading-7">{text}</p>
-      </div>
-    </div>
-  );
-}
-
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-2xl border border-border bg-surface-strong p-3 text-left sm:rounded-[1.4rem] sm:p-4">
-      <div className="mb-4 flex items-center gap-2">
-        <Sparkles className="h-4 w-4 text-accent" />
-        <h3 className="font-black">{title}</h3>
-      </div>
-      {children}
-    </section>
   );
 }
