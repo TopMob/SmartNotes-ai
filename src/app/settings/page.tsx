@@ -85,9 +85,9 @@ export default function SettingsPage() {
   );
 
   return (
-    <main className="min-h-screen px-4 py-4 sm:px-6 lg:p-6">
-      <div className="mx-auto grid max-w-7xl gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
-        <aside className="app-surface border border-border p-4 shadow-2xl shadow-violet-950/8 backdrop-blur-2xl lg:sticky lg:top-6 lg:self-start">
+    <main className="min-h-screen overflow-x-hidden px-4 py-4 sm:px-6 lg:p-6">
+      <div className="mx-auto grid max-w-7xl min-w-0 gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
+        <aside className="app-surface min-w-0 border border-border p-4 shadow-2xl shadow-violet-950/8 backdrop-blur-2xl lg:sticky lg:top-6 lg:self-start">
           <Link className="inline-flex items-center gap-2 rounded-full bg-surface-strong px-4 py-2 text-sm font-bold text-foreground/70 hover:bg-background" href="/">
             <ArrowLeft className="h-4 w-4" />
             {copy.common.back}
@@ -96,14 +96,14 @@ export default function SettingsPage() {
           <h1 className="mt-5 text-2xl lg:text-3xl font-black tracking-tight">{copy.settings.title}</h1>
           <p className="mt-2 text-xs leading-5 text-foreground/58 sm:text-sm sm:leading-6">{copy.settings.description}</p>
 
-          <nav className="mt-6 flex gap-2 overflow-x-auto pb-1 lg:block lg:space-y-2 lg:overflow-visible lg:pb-0">
+          <nav className="mt-6 flex w-full max-w-full gap-2 overflow-x-auto overflow-y-hidden pb-1 no-scrollbar lg:block lg:space-y-2 lg:overflow-visible lg:pb-0">
             {sections.map((section) => {
               const Icon = section.icon;
               const label = copy.settings.sections[section.id];
 
               return (
                 <button
-                  className={`flex items-center gap-2 rounded-xl px-3 py-2 text-left transition lg:w-full whitespace-nowrap sm:min-w-[10rem] sm:p-3 ${activeSection === section.id ? "bg-foreground text-background" : "hover:bg-surface-strong"}`}
+                  className={`shrink-0 flex items-center gap-2 rounded-xl px-3 py-2 text-left whitespace-nowrap transition lg:w-full sm:min-w-[10rem] sm:p-3 ${activeSection === section.id ? "bg-foreground text-background" : "hover:bg-surface-strong"}`}
                   key={section.id}
                   onClick={() => setActiveSection(section.id)}
                   type="button"
@@ -115,13 +115,13 @@ export default function SettingsPage() {
             })}
           </nav>
 
-          <div className="mt-4 rounded-xl border border-border bg-surface-strong p-3 text-xs text-foreground/62 sm:mt-6 sm:rounded-[1.4rem] sm:p-4 sm:text-sm">
+          <div className="mt-4 w-full min-w-0 rounded-xl border border-border bg-surface-strong p-3 text-xs text-foreground/62 sm:mt-6 sm:rounded-[1.4rem] sm:p-4 sm:text-sm">
             <p className="font-black text-foreground">{copy.settings.appearance.pendingSync}</p>
             <p className="mt-2">{pendingSyncAt ? new Date(pendingSyncAt).toLocaleString(lang === "ru" ? "ru-RU" : "en-US") : copy.settings.appearance.noPendingSync}</p>
           </div>
         </aside>
 
-        <section className="app-surface border border-border p-4 shadow-2xl shadow-violet-950/8 backdrop-blur-2xl sm:p-7">
+        <section className="app-surface min-w-0 border border-border p-4 shadow-2xl shadow-violet-950/8 backdrop-blur-2xl sm:p-7">
           {activeSection === "appearance" ? (
             <div className="space-y-4">
               <SectionIntro title={copy.settings.appearance.title} text={copy.settings.appearance.subtitle} />
@@ -135,24 +135,24 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                  <label className="block text-sm font-bold text-foreground/72">
+                  <label className="flex w-full min-w-0 flex-col overflow-hidden text-sm font-bold text-foreground/72">
                     UI opacity: {uiOpacity.toFixed(2)}
-                    <input className="mt-2 w-full" max="1" min="0.4" onChange={(event) => setUiOpacity(Number(event.target.value))} step="0.02" type="range" value={uiOpacity} />
+                    <input className="mt-2 w-full min-w-0" max="1" min="0.4" onChange={(event) => setUiOpacity(Number(event.target.value))} step="0.02" type="range" value={uiOpacity} />
                   </label>
-                  <label className="block text-sm font-bold text-foreground/72">
+                  <label className="flex w-full min-w-0 flex-col overflow-hidden text-sm font-bold text-foreground/72">
                     Cards opacity: {cardsOpacity.toFixed(2)}
-                    <input className="mt-2 w-full" max="1" min="0.4" onChange={(event) => setCardsOpacity(Number(event.target.value))} step="0.02" type="range" value={cardsOpacity} />
+                    <input className="mt-2 w-full min-w-0" max="1" min="0.4" onChange={(event) => setCardsOpacity(Number(event.target.value))} step="0.02" type="range" value={cardsOpacity} />
                   </label>
                 </div>
 
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                  <label className="block text-sm font-bold text-foreground/72">
+                  <label className="block w-full min-w-0 truncate text-sm font-bold text-foreground/72">
                     {copy.settings.appearance.mainBackgroundUrl}
-                    <input className="mt-2 w-full rounded-2xl border border-border bg-background px-3 py-2 text-xs sm:px-4 sm:py-3 sm:text-sm" onChange={(event) => setMainBackgroundUrl(event.target.value || null)} placeholder="https://..." type="url" value={mainBackgroundUrl ?? ""} />
+                    <input className="mt-2 w-full min-w-0 rounded-2xl border border-border bg-background px-3 py-2 text-xs sm:px-4 sm:py-3 sm:text-sm" onChange={(event) => setMainBackgroundUrl(event.target.value || null)} placeholder="https://..." type="url" value={mainBackgroundUrl ?? ""} />
                   </label>
-                  <label className="block text-sm font-bold text-foreground/72">
+                  <label className="block w-full min-w-0 truncate text-sm font-bold text-foreground/72">
                     {copy.settings.appearance.sidebarBackgroundUrl}
-                    <input className="mt-2 w-full rounded-2xl border border-border bg-background px-3 py-2 text-xs sm:px-4 sm:py-3 sm:text-sm" onChange={(event) => setSidebarBackgroundUrl(event.target.value || null)} placeholder="https://..." type="url" value={sidebarBackgroundUrl ?? ""} />
+                    <input className="mt-2 w-full min-w-0 rounded-2xl border border-border bg-background px-3 py-2 text-xs sm:px-4 sm:py-3 sm:text-sm" onChange={(event) => setSidebarBackgroundUrl(event.target.value || null)} placeholder="https://..." type="url" value={sidebarBackgroundUrl ?? ""} />
                   </label>
                 </div>
               </Panel>
@@ -185,12 +185,12 @@ export default function SettingsPage() {
               </Panel>
 
               <Panel title={copy.settings.appearance.customPresets}>
-                <div className="flex flex-wrap gap-2">
-                  <input className="min-w-[16rem] flex-1 rounded-2xl border border-border bg-background px-3 py-2 text-xs sm:px-4 sm:py-3 sm:text-sm" onChange={(event) => setPresetName(event.target.value)} placeholder={copy.settings.appearance.customPresets} value={presetName} />
-                  <button className="min-h-9 rounded-2xl bg-accent px-3 py-1.5 text-xs font-bold text-accent-foreground sm:min-h-11 sm:px-3 sm:py-2 sm:text-sm" onClick={() => { saveCurrentThemePreset(presetName); setPresetName(""); }} type="button">
+                <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap">
+                  <input className="w-full min-w-0 rounded-2xl border border-border bg-background px-3 py-2 text-xs sm:min-w-[16rem] sm:flex-1 sm:px-4 sm:py-3 sm:text-sm" onChange={(event) => setPresetName(event.target.value)} placeholder={copy.settings.appearance.customPresets} value={presetName} />
+                  <button className="w-full min-h-9 rounded-2xl bg-accent px-3 py-1.5 text-xs font-bold text-accent-foreground sm:min-h-11 sm:w-auto sm:px-3 sm:py-2 sm:text-sm" onClick={() => { saveCurrentThemePreset(presetName); setPresetName(""); }} type="button">
                     {copy.settings.appearance.savePreset}
                   </button>
-                  <button className="min-h-9 rounded-2xl border border-border bg-background px-3 py-1.5 text-xs font-bold sm:min-h-11 sm:px-3 sm:py-2 sm:text-sm" onClick={() => resetThemeSettings()} type="button">
+                  <button className="w-full min-h-9 rounded-2xl border border-border bg-background px-3 py-1.5 text-xs font-bold sm:min-h-11 sm:w-auto sm:px-3 sm:py-2 sm:text-sm" onClick={() => resetThemeSettings()} type="button">
                     {copy.settings.appearance.resetAppearance}
                   </button>
                 </div>
@@ -227,10 +227,10 @@ export default function SettingsPage() {
               <Panel title={copy.settings.editor.tools}>
                 <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                   {editorGroups.map(([key, label]) => (
-                    <button className={`flex items-center justify-between rounded-2xl border px-3 py-2 text-left text-xs font-bold sm:px-3 sm:py-2 sm:text-sm ${editor[key] ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={key} onClick={() => toggleEditorTool(key)} type="button">
-                      <span>{label}</span>
-                      <span>{editor[key] ? copy.settings.editor.on : copy.settings.editor.off}</span>
-                    </button>
+                     <button className={`flex w-full min-w-0 items-center justify-between rounded-2xl border px-3 py-2 text-left text-xs font-bold sm:px-3 sm:py-2 sm:text-sm ${editor[key] ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={key} onClick={() => toggleEditorTool(key)} type="button">
+                       <span className="truncate pr-3">{label}</span>
+                       <span>{editor[key] ? copy.settings.editor.on : copy.settings.editor.off}</span>
+                     </button>
                   ))}
                 </div>
               </Panel>
@@ -247,8 +247,8 @@ export default function SettingsPage() {
                     ["showTagFilter", "Tag filter"],
                     ["showUpdatedPeriodFilter", "Updated period filter"],
                   ] as const).map(([key, label]) => (
-                    <button className={`flex w-full items-center justify-between rounded-2xl border px-3 py-2 text-xs font-bold sm:px-3 sm:py-2 sm:text-sm ${interfaceSettings[key] ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={key} onClick={() => toggleInterfaceSection(key)} type="button">
-                      <span>{label}</span>
+                    <button className={`flex w-full min-w-0 items-center justify-between rounded-2xl border px-3 py-2 text-xs font-bold sm:px-3 sm:py-2 sm:text-sm ${interfaceSettings[key] ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={key} onClick={() => toggleInterfaceSection(key)} type="button">
+                      <span className="truncate pr-3">{label}</span>
                       <span>{interfaceSettings[key] ? copy.common.on : copy.common.off}</span>
                     </button>
                   ))}
@@ -261,11 +261,11 @@ export default function SettingsPage() {
             <div className="space-y-4">
               <SectionIntro title={copy.settings.data.title} text={copy.settings.data.subtitle} />
               <Panel title={copy.settings.data.maintenance}>
-                <div className="flex flex-wrap gap-2">
-                    <button className="min-h-9 rounded-2xl border border-border bg-background px-3 py-1.5 text-xs font-bold sm:min-h-11 sm:px-3 sm:py-2 sm:text-sm" onClick={() => resetThemeCache()} type="button">
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                     <button className="w-full min-h-9 rounded-2xl border border-border bg-background px-3 py-1.5 text-xs font-bold sm:min-h-11 sm:w-auto sm:px-3 sm:py-2 sm:text-sm" onClick={() => resetThemeCache()} type="button">
                     {copy.settings.data.resetCache}
                   </button>
-                    <button className="min-h-9 rounded-2xl bg-accent px-3 py-1.5 text-xs font-bold text-accent-foreground sm:min-h-11 sm:px-3 sm:py-2 sm:text-sm" onClick={() => resetThemeSettings()} type="button">
+                    <button className="w-full min-h-9 rounded-2xl bg-accent px-3 py-1.5 text-xs font-bold text-accent-foreground sm:min-h-11 sm:w-auto sm:px-3 sm:py-2 sm:text-sm" onClick={() => resetThemeSettings()} type="button">
                     {copy.settings.data.resetSettings}
                   </button>
                 </div>
