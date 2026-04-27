@@ -90,7 +90,7 @@ export default function SettingsPage() {
             {copy.common.back}
           </Link>
 
-          <h1 className="mt-5 text-2xl font-black tracking-tight lg:text-3xl">{copy.settings.title}</h1>
+          <h1 className="mt-5 text-2xl lg:text-3xl font-black tracking-tight">{copy.settings.title}</h1>
           <p className="mt-2 text-xs leading-5 text-foreground/58 sm:text-sm sm:leading-6">{copy.settings.description}</p>
 
           <nav className="mt-6 flex gap-2 overflow-x-auto pb-1 lg:block lg:space-y-2 lg:overflow-visible lg:pb-0">
@@ -100,13 +100,13 @@ export default function SettingsPage() {
 
               return (
                 <button
-                  className={`flex items-center gap-2 rounded-xl px-3 py-2 text-left transition whitespace-nowrap sm:min-w-[10rem] sm:p-3 lg:w-full ${activeSection === section.id ? "bg-foreground text-background" : "hover:bg-surface-strong"}`}
+                  className={`flex items-center gap-2 rounded-xl px-3 py-2 text-left transition lg:w-full whitespace-nowrap sm:min-w-[10rem] sm:p-3 ${activeSection === section.id ? "bg-foreground text-background" : "hover:bg-surface-strong"}`}
                   key={section.id}
                   onClick={() => setActiveSection(section.id)}
                   type="button"
                 >
                   <Icon className="h-5 w-5 shrink-0" />
-                  <span className="text-xs font-black sm:text-sm">{label}</span>
+                  <span className="text-xs sm:text-sm font-black">{label}</span>
                 </button>
               );
             })}
@@ -157,26 +157,26 @@ export default function SettingsPage() {
               <Panel title={copy.settings.appearance.localeAndLayout}>
                 <div className="flex flex-wrap gap-2">
                   {(["ru", "en"] as const).map((item) => (
-                    <button className={`min-h-9 rounded-xl border px-3 py-2 text-xs font-black sm:min-h-11 sm:text-sm ${lang === item ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={item} onClick={() => setLang(item)} type="button">
+                    <button className={`min-h-9 rounded-xl border px-3 py-2 text-xs font-black sm:min-h-11 sm:px-4 sm:py-3 sm:text-sm ${lang === item ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={item} onClick={() => setLang(item)} type="button">
                       {item.toUpperCase()}
                     </button>
                   ))}
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
                   {(["compact", "full"] as const).map((item) => (
-                    <button className={`min-h-9 rounded-xl border px-3 py-2 text-xs font-black sm:min-h-11 sm:text-sm ${folderViewMode === item ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={item} onClick={() => setFolderViewMode(item)} type="button">
+                    <button className={`min-h-9 rounded-xl border px-3 py-2 text-xs font-black sm:min-h-11 sm:px-4 sm:py-3 sm:text-sm ${folderViewMode === item ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={item} onClick={() => setFolderViewMode(item)} type="button">
                       {item}
                     </button>
                   ))}
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
                   {([5, 10, 20, 50] as const).map((item) => (
-                    <button className={`min-h-9 rounded-xl border px-3 py-2 text-xs font-black sm:min-h-11 sm:text-sm ${notesPerPage === item ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={item} onClick={() => setNotesPerPage(item)} type="button">
+                    <button className={`min-h-9 rounded-xl border px-3 py-2 text-xs font-black sm:min-h-11 sm:px-4 sm:py-3 sm:text-sm ${notesPerPage === item ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={item} onClick={() => setNotesPerPage(item)} type="button">
                       {item} / page
                     </button>
                   ))}
                 </div>
-                <button className={`mt-4 min-h-9 rounded-2xl border px-4 py-3 text-left text-sm font-bold sm:min-h-11 ${reduceMotion ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} onClick={() => setReduceMotion(!reduceMotion)} type="button">
+                <button className={`mt-4 min-h-9 rounded-2xl border px-3 py-2 text-left text-xs font-bold sm:min-h-11 sm:px-4 sm:py-3 sm:text-sm ${reduceMotion ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} onClick={() => setReduceMotion(!reduceMotion)} type="button">
                   {reduceMotion ? `${copy.common.on}` : `${copy.common.off}`}
                 </button>
               </Panel>
@@ -184,10 +184,10 @@ export default function SettingsPage() {
               <Panel title={copy.settings.appearance.customPresets}>
                 <div className="flex flex-wrap gap-2">
                   <input className="min-w-[16rem] flex-1 rounded-2xl border border-border bg-background px-3 py-2 text-xs sm:px-4 sm:py-3 sm:text-sm" onChange={(event) => setPresetName(event.target.value)} placeholder={copy.settings.appearance.customPresets} value={presetName} />
-                  <button className="rounded-2xl bg-accent px-4 py-3 text-sm font-bold text-accent-foreground" onClick={() => { saveCurrentThemePreset(presetName); setPresetName(""); }} type="button">
+                  <button className="min-h-9 rounded-2xl bg-accent px-3 py-2 text-xs font-bold text-accent-foreground sm:min-h-11 sm:px-4 sm:py-3 sm:text-sm" onClick={() => { saveCurrentThemePreset(presetName); setPresetName(""); }} type="button">
                     {copy.settings.appearance.savePreset}
                   </button>
-                  <button className="rounded-2xl border border-border bg-background px-4 py-3 text-sm font-bold" onClick={() => resetThemeSettings()} type="button">
+                  <button className="min-h-9 rounded-2xl border border-border bg-background px-3 py-2 text-xs font-bold sm:min-h-11 sm:px-4 sm:py-3 sm:text-sm" onClick={() => resetThemeSettings()} type="button">
                     {copy.settings.appearance.resetAppearance}
                   </button>
                 </div>
@@ -205,7 +205,7 @@ export default function SettingsPage() {
                             <RotateCcw className="h-4 w-4" />
                           </button>
                         </div>
-                        <button className="mt-4 inline-flex items-center gap-2 rounded-xl bg-accent px-3 py-2 text-sm font-bold text-accent-foreground" onClick={() => applyCustomPreset(item.id)} type="button">
+                        <button className="mt-4 inline-flex min-h-9 items-center gap-2 rounded-xl bg-accent px-3 py-2 text-xs font-bold text-accent-foreground sm:min-h-11 sm:px-4 sm:py-3 sm:text-sm" onClick={() => applyCustomPreset(item.id)} type="button">
                           {copy.common.apply}
                         </button>
                       </div>
@@ -259,10 +259,10 @@ export default function SettingsPage() {
               <SectionIntro title={copy.settings.data.title} text={copy.settings.data.subtitle} />
               <Panel title={copy.settings.data.maintenance}>
                 <div className="flex flex-wrap gap-2">
-                  <button className="rounded-2xl border border-border bg-background px-4 py-3 text-sm font-bold" onClick={() => resetThemeCache()} type="button">
+                    <button className="min-h-9 rounded-2xl border border-border bg-background px-3 py-2 text-xs font-bold sm:min-h-11 sm:px-4 sm:py-3 sm:text-sm" onClick={() => resetThemeCache()} type="button">
                     {copy.settings.data.resetCache}
                   </button>
-                  <button className="rounded-2xl bg-accent px-4 py-3 text-sm font-bold text-accent-foreground" onClick={() => resetThemeSettings()} type="button">
+                   <button className="min-h-9 rounded-2xl bg-accent px-3 py-2 text-xs font-bold text-accent-foreground sm:min-h-11 sm:px-4 sm:py-3 sm:text-sm" onClick={() => resetThemeSettings()} type="button">
                     {copy.settings.data.resetSettings}
                   </button>
                 </div>

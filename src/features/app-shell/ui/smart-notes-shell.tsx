@@ -498,7 +498,7 @@ export function SmartNotesShell() {
 
       {mobileSidebarOpen ? (
         <div className="fixed inset-0 z-40 lg:hidden">
-          <button aria-label="Закрыть меню" className="absolute inset-0 bg-black/40 backdrop-blur-md" onClick={closeMobileSidebar} type="button" />
+          <button aria-label="Закрыть меню" className="absolute inset-0 bg-black/50 backdrop-blur-md" onClick={closeMobileSidebar} type="button" />
         <div className="absolute inset-y-0 left-0 w-[85vw] max-w-[320px]">
           <Sidebar copy={copy} currentView={view} folderViewMode={folderViewMode} folders={folders} activeFolderId={activeFolderId} onClose={closeMobileSidebar} onCreateFolder={(anchor) => openSheet("create-folder", anchor)} onOpenFolder={openFolder} onOpenSheet={openSheet} onSwitchView={openView} />
         </div>
@@ -847,7 +847,7 @@ function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: { note: Note
   }
 
   return (
-    <article className={`note-card relative overflow-visible rounded-[1.5rem] border bg-surface-strong p-6 text-left shadow-md shadow-violet-950/4 transition hover:-translate-y-0.5 hover:shadow-lg border-border ${note.trashedAt ? "border-dashed border-rose-300" : "border-border"}`}>
+    <article className={`note-card relative overflow-visible rounded-[1.5rem] border bg-surface-strong p-4 text-left shadow-md shadow-violet-950/4 transition hover:-translate-y-0.5 hover:shadow-lg sm:p-5 border-border ${note.trashedAt ? "border-dashed border-rose-300" : "border-border"}`}>
       <div className="absolute right-3 top-3 z-10 flex items-start gap-1">
         {view === "trash" ? null : (
           <>
@@ -874,9 +874,9 @@ function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: { note: Note
           {note.isArchived ? <span className="rounded-full bg-foreground/8 px-2 py-1">Archive</span> : null}
           <span className={`rounded-full px-2 py-1 ${aiBadgeTone}`}>AI: {note.aiStatus}</span>
         </div>
-        <h3 className="mt-3 pr-20 text-xl leading-7 font-black tracking-tight">{note.title}</h3>
-        <p className={`mt-3 line-clamp-3 text-[1rem] leading-7 text-foreground/60 ${note.lock?.hidden ? "select-none" : ""}`}>{previewText}</p>
-        <div className="mt-3 flex flex-wrap gap-2">
+        <h3 className="mt-3 pr-20 text-base font-black tracking-tight sm:text-lg">{note.title}</h3>
+        <p className={`mt-2 line-clamp-3 text-sm leading-6 text-foreground/60 ${note.lock?.hidden ? "select-none" : ""}`}>{previewText}</p>
+        <div className="mt-2 flex flex-wrap gap-2">
           {note.userTags.map((tag) => (
             <span className="rounded-full border border-border px-3.5 py-1 text-xs font-semibold text-foreground/56" key={tag}>
               #{tag}
@@ -1048,7 +1048,7 @@ function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setToolbarV
         <section className="mt-3 min-h-0 flex-1 overflow-y-auto rounded-[2rem] border border-border bg-surface/88 p-4 shadow-2xl shadow-violet-950/8 sm:p-8">
           <input className="w-full bg-transparent text-2xl font-black tracking-tight outline-none placeholder:text-foreground/28 sm:text-4xl" onChange={(event) => handleTitleChange(event.target.value)} placeholder="Заголовок" value={note.title} />
           {toolbarVisible ? (
-            <div className="sticky top-0 z-10 mt-5 flex gap-1 overflow-x-auto rounded-2xl border border-border bg-surface-strong/92 p-2 backdrop-blur-xl sm:gap-2">
+            <div className="sticky top-0 z-10 mt-4 flex flex-nowrap items-center gap-1.5 overflow-x-auto overflow-y-hidden rounded-2xl border border-border bg-surface-strong/92 p-1.5 backdrop-blur-xl">
               <ToolButton active={editor.isActive("bold")} icon={Bold} onClick={() => editor.chain().focus().toggleBold().run()} />
               <ToolButton active={editor.isActive("italic")} icon={Italic} onClick={() => editor.chain().focus().toggleItalic().run()} />
               <ToolButton active={editor.isActive("underline")} icon={Underline} onClick={() => editor.chain().focus().toggleUnderline().run()} />
@@ -1070,9 +1070,9 @@ function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setToolbarV
         </section>
 
         <footer className="mt-3 flex items-center gap-2 rounded-[1.5rem] border border-border bg-surface/92 p-2 shadow-xl shadow-violet-950/8">
-          <label className="flex min-h-11 flex-1 items-center gap-2 rounded-2xl bg-surface-strong px-3"><Tag className="h-4 w-4 text-accent" /><input className="min-w-0 flex-1 bg-transparent outline-none" defaultValue={note.userTags.join(", ")} onBlur={(event) => handleTagsBlur(event.target.value)} placeholder="tag1, tag2" /></label>
+          <label className="flex min-h-9 flex-1 items-center gap-2 rounded-2xl bg-surface-strong px-3 sm:min-h-11"><Tag className="h-4 w-4 text-accent" /><input className="min-w-0 flex-1 bg-transparent outline-none" defaultValue={note.userTags.join(", ")} onBlur={(event) => handleTagsBlur(event.target.value)} placeholder="tag1, tag2" /></label>
           <div className="text-xs font-bold text-foreground/48">{editorDirty ? "Есть несохраненные локальные изменения" : "Все изменения в локальном state"}</div>
-          <Button className="h-11 rounded-2xl" onClick={handleClose} type="button"><Save className="mr-2 h-4 w-4" />Готово</Button>
+          <Button className="h-10 rounded-2xl sm:h-11" onClick={handleClose} type="button"><Save className="mr-2 h-4 w-4" />Готово</Button>
         </footer>
       </div>
     </div>
@@ -1122,7 +1122,7 @@ function BottomSheet({ sheet, activeFolder, editorDirty, isDesktop, onClose }: {
       </div>
     ) : (
       <div className="fixed inset-0 z-50">
-        <button className="absolute inset-0 bg-foreground/42 backdrop-blur-sm" onClick={onClose} type="button" />
+        <button className="absolute inset-0 bg-black/50 backdrop-blur-md" onClick={onClose} type="button" />
         {renderSheetContent()}
       </div>
     )
@@ -1177,7 +1177,7 @@ function NoteActionSheet() {
 
 function ActionCard({ label, onClick, destructive = false }: { label: string; onClick: () => void; destructive?: boolean }) {
   return (
-    <button className={`min-h-14 rounded-2xl border px-4 py-3 text-left text-sm font-bold transition ${destructive ? "border-rose-200 bg-rose-500/6 text-rose-600 hover:bg-rose-500/10" : "border-border bg-surface-strong hover:bg-background"}`} onClick={onClick} type="button">
+    <button className={`min-h-10 rounded-2xl border px-4 py-3 text-left text-sm font-bold transition sm:min-h-11 ${destructive ? "border-rose-200 bg-rose-500/6 text-rose-600 hover:bg-rose-500/10" : "border-border bg-surface-strong hover:bg-background"}`} onClick={onClick} type="button">
       {label}
     </button>
   );
@@ -1294,7 +1294,7 @@ function LockContent({ onClose }: { onClose: () => void }) {
     onClose();
   }
 
-  return <div className="mt-4 space-y-3"><p className="text-sm leading-6 text-foreground/58">Контент заметки скрыт до локальной verify-проверки. Preview уже замаскирован в карточке.</p><input autoComplete="off" className="h-12 w-full rounded-2xl border border-border bg-surface-strong px-4 outline-none" name={`lock_${noteId.slice(0, 6)}`} onChange={(event) => setPassword(event.target.value)} placeholder="Пароль заметки" type="password" value={password} />{error ? <p className="text-sm font-bold text-rose-500">{error}</p> : null}<Button className="w-full rounded-2xl" onClick={() => void handleUnlock()} type="button">Unlock</Button></div>;
+  return <div className="mt-4 space-y-3"><p className="text-sm leading-6 text-foreground/58">Контент заметки скрыт до локальной verify-проверки. Preview уже замаскирован в карточке.</p><input autoComplete="off" className="h-10 w-full rounded-2xl border border-border bg-surface-strong px-4 outline-none sm:h-12" name={`lock_${noteId.slice(0, 6)}`} onChange={(event) => setPassword(event.target.value)} placeholder="Пароль заметки" type="password" value={password} />{error ? <p className="text-sm font-bold text-rose-500">{error}</p> : null}<Button className="h-10 w-full rounded-2xl sm:h-11" onClick={() => void handleUnlock()} type="button">Unlock</Button></div>;
 }
 
 function AboutContent() {
@@ -1346,7 +1346,7 @@ function AboutContent() {
 
 function ToolButton({ icon: Icon, label, active = false, onClick }: { icon?: ComponentType<{ className?: string }>; label?: string; active?: boolean; onClick: () => void }) {
   return (
-    <button className={`shrink-0 rounded-xl px-3 py-2 text-sm font-black hover:bg-background ${active ? "bg-background text-accent" : ""}`} onClick={onClick} type="button">
+    <button className={`shrink-0 rounded-xl px-2.5 py-1.5 text-xs font-black hover:bg-background sm:px-3 sm:py-2 sm:text-sm ${active ? "bg-background text-accent" : ""}`} onClick={onClick} type="button">
       {Icon ? <Icon className="h-4 w-4" /> : label}
     </button>
   );
@@ -1367,7 +1367,7 @@ function CreateFolderContent({ onClose }: { onClose: () => void }) {
     onClose();
   }
 
-  return <div className="mt-4 space-y-3"><input className="h-12 w-full rounded-2xl border border-border bg-surface-strong px-4 outline-none" onChange={(event) => setName(event.target.value)} placeholder="Введите название папки" value={name} /><Button className="w-full rounded-2xl" disabled={!name.trim()} onClick={handleCreate} type="button">Создать папку</Button></div>;
+  return <div className="mt-4 space-y-3"><input className="h-10 w-full rounded-2xl border border-border bg-surface-strong px-4 outline-none sm:h-12" onChange={(event) => setName(event.target.value)} placeholder="Введите название папки" value={name} /><Button className="h-10 w-full rounded-2xl sm:h-11" disabled={!name.trim()} onClick={handleCreate} type="button">Создать папку</Button></div>;
 }
 
 function ReminderContent({ onClose }: { onClose: () => void }) {
@@ -1388,7 +1388,7 @@ function ReminderContent({ onClose }: { onClose: () => void }) {
     return null;
   }
 
-  return <div className="mt-4 space-y-3"><input className="h-12 w-full rounded-2xl border border-border bg-surface-strong px-4 outline-none" onChange={(event) => setValue(event.target.value)} type="datetime-local" value={value} /><div className="grid grid-cols-2 gap-2"><Button className="rounded-2xl" disabled={!value} onClick={async () => { const reminderAt = new Date(value).toISOString(); setReminder(currentNoteId, reminderAt); scheduleReminder(currentNoteId, reminderAt); await requestNotificationPermission(); onClose(); }} type="button">Сохранить</Button><Button className="rounded-2xl" onClick={() => { setReminder(currentNoteId, null); scheduleReminder(currentNoteId, null); onClose(); }} type="button" variant="secondary">Очистить</Button></div></div>;
+  return <div className="mt-4 space-y-3"><input className="h-10 w-full rounded-2xl border border-border bg-surface-strong px-4 outline-none sm:h-12" onChange={(event) => setValue(event.target.value)} type="datetime-local" value={value} /><div className="grid grid-cols-2 gap-2"><Button className="h-10 rounded-2xl sm:h-11" disabled={!value} onClick={async () => { const reminderAt = new Date(value).toISOString(); setReminder(currentNoteId, reminderAt); scheduleReminder(currentNoteId, reminderAt); await requestNotificationPermission(); onClose(); }} type="button">Сохранить</Button><Button className="h-10 rounded-2xl sm:h-11" onClick={() => { setReminder(currentNoteId, null); scheduleReminder(currentNoteId, null); onClose(); }} type="button" variant="secondary">Очистить</Button></div></div>;
 }
 
 function AdminToolsView({ notes }: { notes: Note[] }) {
