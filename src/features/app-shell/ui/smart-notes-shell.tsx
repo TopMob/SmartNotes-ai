@@ -374,6 +374,10 @@ export function SmartNotesShell() {
       const desktop = window.innerWidth >= 1024;
       setIsDesktop(desktop);
 
+      if (desktop && !desktopSidebarOpen) {
+        setDesktopSidebarOpen(true);
+      }
+
       if (!desktop) {
         setDesktopSidebarOpen(false);
       }
@@ -387,7 +391,7 @@ export function SmartNotesShell() {
     window.addEventListener("resize", syncViewport);
 
     return () => window.removeEventListener("resize", syncViewport);
-  }, [desktopSidebarPinned, setDesktopSidebarOpen]);
+  }, [desktopSidebarOpen, desktopSidebarPinned, setDesktopSidebarOpen]);
 
   function toggleSidebar() {
     if (isDesktop) {
@@ -461,20 +465,17 @@ export function SmartNotesShell() {
   }
 
   const desktopSidebarVisible = isDesktop && (desktopSidebarPinned || desktopSidebarOpen);
-  const contentShift = desktopSidebarVisible ? "lg:pl-[19.5rem]" : "lg:pl-0";
 
   return (
     <main className="app-layout overflow-x-hidden text-foreground">
       <div className="relative flex min-h-0 flex-1 overflow-x-hidden">
-      {desktopSidebarVisible ? (
-          <div className="pointer-events-none absolute inset-y-0 left-0 hidden w-[18rem] lg:block">
-            <div className="pointer-events-auto h-full">
-              <Sidebar copy={copy} currentView={view} folderViewMode={folderViewMode} folders={folders} isDesktop onClose={() => setDesktopSidebarOpen(false)} onCreateFolder={(anchor) => openSheet("create-folder", anchor)} onOpenFolder={openFolder} onOpenSheet={openSheet} onSwitchView={openView} />
-            </div>
+        {desktopSidebarVisible ? (
+          <div className="hidden lg:block">
+            <Sidebar copy={copy} currentView={view} folderViewMode={folderViewMode} folders={folders} isDesktop onClose={() => setDesktopSidebarOpen(false)} onCreateFolder={(anchor) => openSheet("create-folder", anchor)} onOpenFolder={openFolder} onOpenSheet={openSheet} onSwitchView={openView} />
           </div>
         ) : null}
 
-        <div className={`main-content transition-[padding] duration-300 ${contentShift}`}>
+        <div className="main-content min-w-0 flex-1">
           <Header copy={copy} activeFolder={activeFolder} filtersOpen={filtersOpen} filtersRef={filtersRef} onOpenDrawer={toggleSidebar} onOpenFilters={() => setFiltersOpen((value) => !value)} onOpenFolderMenu={(anchor) => openSheet("folder", anchor)} profileOpen={profileOpen} profileRef={profileRef} searchQuery={searchQuery} setProfileOpen={setProfileOpen} setSearchQuery={setSearchQuery} view={view} />
 
           {filtersOpen ? (
