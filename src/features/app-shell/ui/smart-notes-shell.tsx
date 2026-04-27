@@ -40,7 +40,7 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
-  } from "lucide-react";
+} from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
@@ -466,7 +466,7 @@ export function SmartNotesShell() {
   const desktopSidebarVisible = isDesktop && (desktopSidebarPinned || desktopSidebarOpen);
 
   return (
-    <main className="app-layout overflow-x-hidden text-foreground">
+    <main className="app-layout overflow-hidden text-foreground">
       <div className="relative flex min-h-0 flex-1 overflow-x-hidden">
         {desktopSidebarVisible ? (
           <div className="hidden lg:block">
@@ -499,14 +499,14 @@ export function SmartNotesShell() {
       {mobileSidebarOpen ? (
         <div className="fixed inset-0 z-40 lg:hidden">
           <button aria-label="Закрыть меню" className="absolute inset-0 bg-foreground/42 backdrop-blur-sm" onClick={closeMobileSidebar} type="button" />
-        <div className="absolute inset-y-0 left-0 w-[80vw] max-w-[320px] max-w-none">
+        <div className="absolute inset-y-0 left-0 w-[85vw] max-w-[320px]">
           <Sidebar copy={copy} currentView={view} folderViewMode={folderViewMode} folders={folders} activeFolderId={activeFolderId} onClose={closeMobileSidebar} onCreateFolder={(anchor) => openSheet("create-folder", anchor)} onOpenFolder={openFolder} onOpenSheet={openSheet} onSwitchView={openView} />
         </div>
       </div>
       ) : null}
 
-      <button className="btn-fab fixed bottom-5 right-5 z-30 flex h-16 w-16 items-center justify-center bg-accent text-accent-foreground shadow-2xl shadow-violet-950/24" onClick={createNoteDraft} type="button">
-        <Plus className="h-7 w-7" />
+      <button className="btn-fab fixed bottom-5 right-5 z-30 flex h-14 w-14 items-center justify-center bg-accent text-accent-foreground shadow-2xl shadow-violet-950/24" onClick={createNoteDraft} type="button">
+        <Plus className="h-6 w-6" />
       </button>
 
       {editorOpen && currentNote ? <EditorOverlay note={currentNote} onClose={closeEditor} onOpenSheet={openSheet} toolbarVisible={toolbarVisible} setToolbarVisible={setToolbarVisible} /> : null}
@@ -538,10 +538,10 @@ function Header({ copy, view, activeFolder, searchQuery, filtersOpen, filtersRef
                       : copy.shell.notes;
 
   return (
-    <header className="top-bar sticky top-0 z-20 px-3 py-3 shadow-lg shadow-violet-950/5 sm:px-4 sm:py-3">
-      <div className="grid w-full gap-3 md:grid-cols-[minmax(0,1fr)_minmax(16rem,36rem)_auto] md:items-center lg:grid-cols-[minmax(0,1fr)_minmax(20rem,40rem)_auto]">
-        <div className="flex min-w-0 items-center gap-2 md:min-h-[48px] md:row-start-1 md:col-start-1">
-          <button className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-surface-strong text-foreground/72 lg:hidden" onClick={onOpenDrawer} type="button">
+    <header className="top-bar sticky top-0 z-20 px-3 py-3 pb-[3.5rem] shadow-lg shadow-violet-950/5 sm:px-4 md:pb-3 md:py-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 shrink-0 items-center gap-2">
+          <button className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-surface-strong text-foreground/72 lg:hidden" onClick={onOpenDrawer} type="button">
             <MoreHorizontal className="h-5 w-5" />
           </button>
 
@@ -549,21 +549,21 @@ function Header({ copy, view, activeFolder, searchQuery, filtersOpen, filtersRef
           {view === "folder" ? <button className="rounded-full p-2 text-foreground/45 hover:bg-surface-strong" onClick={(event) => onOpenFolderMenu(getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><MoreHorizontal className="h-5 w-5" /></button> : null}
         </div>
 
-        <label className="order-3 flex h-12 min-w-0 w-full items-center gap-3 rounded-full border border-border bg-surface-strong px-4 shadow-inner shadow-violet-950/4 md:order-none md:row-start-1 md:col-start-2">
+        <label className="absolute left-[15px] right-[15px] top-[65px] z-50 flex h-[42px] min-w-0 max-w-none items-center gap-3 rounded-full border border-border bg-surface-strong px-4 shadow-lg md:static md:mx-auto md:flex-1 md:max-w-[560px] md:shadow-inner md:shadow-violet-950/4">
           <Search className="h-5 w-5 shrink-0 text-foreground/38" />
-          <input className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-foreground/38" onChange={(event) => setSearchQuery(event.target.value)} placeholder={copy.shell.search} value={searchQuery} />
+          <input className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-foreground/38" onChange={(event) => setSearchQuery(event.target.value)} placeholder={copy.shell.search} value={searchQuery} />
         </label>
 
-        <div className="flex shrink-0 items-center gap-2 justify-self-end md:row-start-1 md:col-start-3">
+        <div className="flex shrink-0 items-center gap-2">
           <div className="relative shrink-0" ref={filtersRef}>
-            <button className={`flex h-12 shrink-0 items-center gap-2 rounded-2xl border border-border px-4 text-sm font-bold ${filtersOpen ? "bg-foreground text-background" : "bg-surface-strong text-foreground/72"}`} onClick={onOpenFilters} type="button">
+            <button className={`flex h-10 shrink-0 items-center gap-2 rounded-2xl border border-border px-4 text-sm font-bold ${filtersOpen ? "bg-foreground text-background" : "bg-surface-strong text-foreground/72"}`} onClick={onOpenFilters} type="button">
               <SlidersHorizontal className="h-4 w-4" />
               <span className="hidden sm:inline">{copy.shell.filters}</span>
             </button>
           </div>
 
           <div className="relative shrink-0" ref={profileRef}>
-            <button className="flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-surface-strong" onClick={() => setProfileOpen(!profileOpen)} type="button">
+            <button className="flex h-10 w-10 items-center justify-center rounded-2xl border border-border bg-surface-strong" onClick={() => setProfileOpen(!profileOpen)} type="button">
               <UserRound className="h-5 w-5" />
             </button>
 
@@ -603,53 +603,58 @@ function Sidebar({ copy, currentView, folders, folderViewMode, activeFolderId, i
           <p className="text-sm font-black uppercase tracking-[0.22em] text-accent">SmartNotes</p>
         </div>
         {!isDesktop ? (
-          <button className="rounded-2xl border border-border bg-surface-strong p-2" onClick={onClose} type="button">
+          <button className="flex h-10 w-10 items-center justify-center rounded-2xl border border-border bg-surface-strong" onClick={onClose} type="button">
             <X className="h-5 w-5" />
           </button>
         ) : null}
       </div>
 
-      <div className="min-h-0 flex flex-1 flex-col pr-2">
-      <nav className="mt-0 space-y-1">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = currentView === item.view;
+      <div className="min-h-0 flex flex-1 flex-col">
+        <div className="flex-1 min-h-0 overflow-y-auto pr-2">
+          <nav className="mt-0 space-y-1">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = currentView === item.view;
 
-          return (
-            <button className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left text-[15px] font-bold transition ${isActive ? "border-accent bg-accent/15 text-accent ring-1 ring-accent/50" : "border-transparent text-foreground/70 hover:border-border hover:bg-surface-strong"}`} key={item.key} onClick={() => onSwitchView(item.view)} type="button">
-              <Icon className="h-[18px] w-[18px]" />
-              <span>{copy.shell[item.key]}</span>
+              return (
+                <button className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left text-sm font-bold transition ${isActive ? "border-accent bg-accent/15 text-accent ring-1 ring-accent/50" : "border-transparent text-foreground/70 hover:border-border hover:bg-surface-strong"}`} key={item.key} onClick={() => onSwitchView(item.view)} type="button">
+                  <Icon className="h-[18px] w-[18px]" />
+                  <span>{copy.shell[item.key]}</span>
+                </button>
+              );
+            })}
+          </nav>
+
+          <SidebarSection action={copy.shell.createFolder} className="mt-0.5" onAction={(event) => onCreateFolder(getSheetAnchor(event.currentTarget.getBoundingClientRect()))} title={copy.shell.folders}>
+            {folders.map((folder) => {
+              const isActive = activeFolderId === folder.id && currentView === "folder";
+
+              return (
+                <button className={`flex w-full items-start gap-3 rounded-2xl border p-3 text-left transition ${isActive ? "border-accent bg-accent/15 text-accent ring-1 ring-accent/50" : "border-transparent hover:border-border hover:bg-surface-strong"}`} key={folder.id} onClick={() => onOpenFolder(folder)} type="button">
+                  <Folder className={`mt-0.5 h-[18px] w-[18px] shrink-0 ${isActive ? "text-accent" : "text-foreground/50"}`} />
+                  <span>
+                    <span className="block text-sm font-bold">{folder.name}</span>
+                    {folderViewMode === "full" && folder.description ? <span className="mt-1 block line-clamp-2 text-xs text-foreground/48">{folder.description}</span> : null}
+                  </span>
+                </button>
+              );
+            })}
+            <button className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left text-sm font-bold transition ${currentView === "admin_tools" ? "border-accent bg-accent/15 text-accent ring-1 ring-accent/50" : "border-transparent text-foreground/70 hover:border-border hover:bg-surface-strong"}`} onClick={() => onSwitchView("admin_tools")} type="button">
+              <Shield className="h-[18px] w-[18px]" />
+              <span>{copy.shell.adminTools}</span>
             </button>
-          );
-        })}
-      </nav>
+          </SidebarSection>
+        </div>
 
-      <SidebarSection action={copy.shell.createFolder} className="mt-0.5" onAction={(event) => onCreateFolder(getSheetAnchor(event.currentTarget.getBoundingClientRect()))} title={copy.shell.folders}>
-        {folders.map((folder) => {
-          const isActive = activeFolderId === folder.id && currentView === "folder";
-
-          return (
-          <button className={`flex w-full items-start gap-3 rounded-2xl border p-3 text-left transition ${isActive ? "border-accent bg-accent/15 text-accent ring-1 ring-accent/50" : "border-transparent hover:border-border hover:bg-surface-strong"}`} key={folder.id} onClick={() => onOpenFolder(folder)} type="button">
-            <Folder className={`mt-0.5 h-[18px] w-[18px] shrink-0 ${isActive ? "text-accent" : "text-foreground/50"}`} />
-            <span>
-              <span className="block text-[15px] font-bold">{folder.name}</span>
-              {folderViewMode === "full" && folder.description ? <span className="mt-1 line-clamp-2 block text-xs text-foreground/48">{folder.description}</span> : null}
-            </span>
-          </button>
-        );})}
-        <button className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left text-[15px] font-bold transition ${currentView === "admin_tools" ? "border-accent bg-accent/15 text-accent ring-1 ring-accent/50" : "border-transparent text-foreground/70 hover:border-border hover:bg-surface-strong"}`} onClick={() => onSwitchView("admin_tools")} type="button">
-          <Shield className="h-[18px] w-[18px]" />
-          <span>{copy.shell.adminTools}</span>
-        </button>
-      </SidebarSection>
-
-      <div className="mt-auto grid shrink-0 gap-2 pt-2">
-        <button className="flex w-full items-center justify-center rounded-xl px-4 py-2.5 text-sm font-bold hover:bg-surface-strong" onClick={(event) => onOpenSheet("about", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button">
+      <div className="mt-3 shrink-0 border-t border-border/80 pt-3 pr-2">
+        <div className="grid gap-2 rounded-[1.25rem] border border-border bg-surface-strong/55 p-2">
+        <button className="flex w-full items-center justify-center rounded-xl border border-border bg-background/40 px-4 py-2.5 text-sm font-bold hover:bg-background/70" onClick={(event) => onOpenSheet("about", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button">
           {copy.shell.about}
         </button>
-        <Button asChild className="w-full min-h-10 rounded-xl px-4 py-2.5 text-sm font-bold shadow-none hover:bg-surface-strong" variant="ghost">
+        <Button asChild className="min-h-10 w-full rounded-xl border border-border bg-background/40 px-4 py-2.5 text-sm font-bold shadow-none hover:bg-background/70" variant="ghost">
           <Link href="/settings">{copy.common.settings}</Link>
         </Button>
+        </div>
       </div>
       </div>
     </aside>
@@ -730,7 +735,7 @@ function FoldersGrid({ folders, mode, emptyText, folderViewMode, onOpenFolder }:
   }
 
   return (
-    <div className={`folder-grid grid grid-cols-1 gap-5 p-4 sm:p-5 sm:grid-cols-2 lg:grid-cols-3 ${folderViewMode === "compact" ? "xl:grid-cols-4" : "xl:grid-cols-4"}`}>
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-[14px] p-4 sm:p-5">
       {folders.map((folder) => {
         const notesCount = notes.filter((note) => note.folderId === folder.id && !note.trashedAt).length;
 
@@ -804,7 +809,7 @@ function NotesView({ copy, title: _title, notes, notesPerPage, emptyText, onOpen
             <Heart className="h-4 w-4" />
             {copy.shell.sections.pinned}
           </div>
-          <div className="notes-grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-[14px]">
             {pinnedVisible.map((note) => (
               <NoteCard key={note.id} folders={visibleFolders} note={note} onOpenNote={onOpenNote} onOpenSheet={onOpenSheet} view={view} />
             ))}
@@ -815,7 +820,7 @@ function NotesView({ copy, title: _title, notes, notesPerPage, emptyText, onOpen
       {unpinnedVisible.length ? (
         <section>
           <div className="mb-3 text-sm font-black uppercase tracking-[0.2em] text-foreground/42">{copy.shell.sections.notes}</div>
-          <div className="notes-grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-[14px]">
             {unpinnedVisible.map((note) => (
               <NoteCard key={note.id} folders={visibleFolders} note={note} onOpenNote={onOpenNote} onOpenSheet={onOpenSheet} view={view} />
             ))}
@@ -893,20 +898,20 @@ function PinGlyph({ active }: { active: boolean }) {
 
 function TopFiltersPopup({ notesFilter, folders, tagDraft, tagSuggestions, onSetNotesSort, onToggleFolderFilter, onToggleTagFilter, onSetUpdatedWindowDays, onResetFilters, onTagDraftChange }: { notesFilter: { sort: NotesSort; folders: Array<string | null>; tags: string[]; updatedWindowDays: number | null }; folders: FolderEntity[]; tagDraft: string; tagSuggestions: string[]; onSetNotesSort: (sort: NotesSort) => void; onToggleFolderFilter: (folderId: string | null) => void; onToggleTagFilter: (tag: string) => void; onSetUpdatedWindowDays: (days: number | null) => void; onResetFilters: () => void; onTagDraftChange: (value: string) => void }) {
   return (
-    <section className="filter-menu pointer-events-auto fixed right-3 top-[6rem] z-30 w-[min(calc(100vw-2rem),20rem)] max-h-[50vh] overflow-y-auto rounded-[1.4rem] border border-border bg-surface/96 p-3 shadow-2xl shadow-violet-950/16 backdrop-blur-2xl sm:right-4 sm:w-[min(92vw,22rem)] sm:max-h-[60vh] sm:p-4">
+    <section className="filter-menu pointer-events-auto fixed left-1/2 top-[5.75rem] z-30 w-[min(calc(100vw-1rem),24rem)] max-h-[calc(100dvh-6.75rem)] -translate-x-1/2 overflow-y-auto rounded-[1.4rem] border border-border bg-surface/96 p-3 shadow-2xl shadow-violet-950/16 backdrop-blur-2xl sm:top-[6rem] sm:w-[min(calc(100vw-2rem),24rem)] sm:max-h-[min(70vh,42rem)] sm:p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h2 className="text-sm font-black uppercase tracking-[0.2em] text-foreground/54">Фильтры</h2>
         <button className="rounded-full border border-border bg-surface-strong px-3 py-1.5 text-xs font-bold" onClick={onResetFilters} type="button">Сбросить</button>
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap justify-center gap-2">
         {sortOptions.map((option) => (
           <button className={`rounded-full border px-3 py-2 text-sm font-bold ${notesFilter.sort === option.value ? "border-accent bg-accent/10 text-accent" : "border-border bg-surface-strong"}`} key={option.value} onClick={() => onSetNotesSort(option.value)} type="button">
             {option.label}
           </button>
         ))}
       </div>
-      <div className="mt-3 flex flex-wrap gap-2">{[7, 30, null].map((days) => (<button className={`rounded-2xl border px-3 py-2 text-left text-sm font-bold ${notesFilter.updatedWindowDays === days ? "border-accent bg-accent/10 text-accent" : "border-border bg-surface-strong"}`} key={String(days)} onClick={() => onSetUpdatedWindowDays(days)} type="button">{days === null ? "За все время" : `${days} дней`}</button>))}</div>
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="mt-3 flex flex-wrap justify-center gap-2">{[7, 30, null].map((days) => (<button className={`rounded-2xl border px-3 py-2 text-center text-sm font-bold ${notesFilter.updatedWindowDays === days ? "border-accent bg-accent/10 text-accent" : "border-border bg-surface-strong"}`} key={String(days)} onClick={() => onSetUpdatedWindowDays(days)} type="button">{days === null ? "За все время" : `${days} дней`}</button>))}</div>
+      <div className="mt-3 flex flex-wrap justify-center gap-2">
         <button className={`rounded-full border px-3 py-2 text-sm font-bold ${notesFilter.folders.includes(null) ? "border-accent bg-accent/10 text-accent" : "border-border bg-surface-strong"}`} onClick={() => onToggleFolderFilter(null)} type="button">
           Без папки
         </button>
@@ -919,8 +924,8 @@ function TopFiltersPopup({ notesFilter, folders, tagDraft, tagSuggestions, onSet
       <div className="mt-3 rounded-2xl border border-border bg-surface-strong p-3">
         <label className="block text-sm font-bold text-foreground/66">Тег</label>
         <input className="mt-2 h-11 w-full rounded-xl border border-border bg-background px-3 text-base outline-none" onChange={(event) => onTagDraftChange(event.target.value)} placeholder="Начни вводить тег" value={tagDraft} />
-        {tagSuggestions.length ? <div className="mt-3 flex flex-wrap gap-2">{tagSuggestions.map((tag) => <button className={`rounded-full border px-3 py-1.5 text-sm font-bold ${notesFilter.tags.includes(tag) ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={tag} onClick={() => onToggleTagFilter(tag)} type="button">#{tag}</button>)}</div> : <p className="mt-3 text-sm text-foreground/52">Совпадений пока нет.</p>}
-        {tagDraft.trim() ? <button className="mt-3 rounded-xl border border-border bg-background px-3 py-2 text-sm font-bold" onClick={() => onToggleTagFilter(tagDraft.trim())} type="button">Применить тег `#{tagDraft.trim()}`</button> : null}
+        {tagSuggestions.length ? <div className="mt-3 flex flex-wrap justify-center gap-2">{tagSuggestions.map((tag) => <button className={`rounded-full border px-3 py-1.5 text-sm font-bold ${notesFilter.tags.includes(tag) ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={tag} onClick={() => onToggleTagFilter(tag)} type="button">#{tag}</button>)}</div> : <p className="mt-3 text-sm text-foreground/52">Совпадений пока нет.</p>}
+        {tagDraft.trim() ? <button className="mt-3 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm font-bold" onClick={() => onToggleTagFilter(tagDraft.trim())} type="button">Применить тег `#{tagDraft.trim()}`</button> : null}
       </div>
     </section>
   );
@@ -1024,26 +1029,26 @@ function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setToolbarV
   return (
     <div className="fixed inset-0 z-50 bg-background/96 backdrop-blur-2xl">
       <div className="mx-auto flex h-full max-w-6xl flex-col px-3 py-3 sm:px-5">
-        <header className="flex items-center gap-2 rounded-[1.5rem] border border-border bg-surface/90 p-2 shadow-xl shadow-violet-950/8">
-          <button className="rounded-2xl p-3 hover:bg-surface-strong" onClick={handleClose} type="button"><ChevronLeft className="h-5 w-5" /></button>
+        <header className="flex items-center gap-1 rounded-[1.5rem] border border-border bg-surface/90 p-2 shadow-xl shadow-violet-950/8 sm:gap-2">
+          <button className="flex h-9 w-9 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={handleClose} type="button"><ChevronLeft className="h-5 w-5" /></button>
           <div className="flex items-center gap-1 rounded-2xl bg-surface-strong px-2 py-1 text-sm font-black">
             <button className="rounded-lg p-1 hover:bg-background disabled:opacity-35" disabled={currentNotePageIndex === 0} onClick={() => setCurrentNotePageIndex(Math.max(0, currentNotePageIndex - 1))} type="button"><ChevronLeft className="h-4 w-4" /></button>
             {currentNotePageIndex + 1}/{note.pages.length}
             <button className="rounded-lg p-1 hover:bg-background disabled:opacity-35" disabled={currentNotePageIndex >= note.pages.length - 1} onClick={() => setCurrentNotePageIndex(Math.min(note.pages.length - 1, currentNotePageIndex + 1))} type="button"><ChevronRight className="h-4 w-4" /></button>
           </div>
-          <button className="rounded-2xl p-3 hover:bg-surface-strong" onClick={(event) => onOpenSheet("pages", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><Folder className="h-5 w-5" /></button>
+          <button className="flex h-9 w-9 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={(event) => onOpenSheet("pages", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><Folder className="h-5 w-5" /></button>
           <div className="ml-auto flex items-center gap-1">
-            <button className="rounded-2xl p-3 hover:bg-surface-strong" type="button"><Undo2 className="h-5 w-5" /></button>
-            <button className="rounded-2xl p-3 hover:bg-surface-strong" type="button"><Share2 className="h-5 w-5" /></button>
-            <button className="rounded-2xl p-3 hover:bg-surface-strong" onClick={(event) => onOpenSheet("note", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><MoreHorizontal className="h-5 w-5" /></button>
-            <button className="rounded-2xl p-3 hover:bg-surface-strong" onClick={() => setToolbarVisible(!toolbarVisible)} type="button"><ChevronDown className="h-5 w-5" /></button>
+            <button className="flex h-9 w-9 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" type="button"><Undo2 className="h-5 w-5" /></button>
+            <button className="flex h-9 w-9 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" type="button"><Share2 className="h-5 w-5" /></button>
+            <button className="flex h-9 w-9 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={(event) => onOpenSheet("note", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><MoreHorizontal className="h-5 w-5" /></button>
+            <button className="flex h-9 w-9 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={() => setToolbarVisible(!toolbarVisible)} type="button"><ChevronDown className="h-5 w-5" /></button>
           </div>
         </header>
 
         <section className="mt-3 min-h-0 flex-1 overflow-y-auto rounded-[2rem] border border-border bg-surface/88 p-4 shadow-2xl shadow-violet-950/8 sm:p-8">
-          <input className="w-full bg-transparent text-3xl font-black tracking-tight outline-none placeholder:text-foreground/28 sm:text-5xl" onChange={(event) => handleTitleChange(event.target.value)} placeholder="Заголовок" value={note.title} />
+          <input className="w-full bg-transparent text-2xl font-black tracking-tight outline-none placeholder:text-foreground/28 sm:text-4xl" onChange={(event) => handleTitleChange(event.target.value)} placeholder="Заголовок" value={note.title} />
           {toolbarVisible ? (
-            <div className="sticky top-0 z-10 mt-5 flex gap-2 overflow-x-auto rounded-2xl border border-border bg-surface-strong/92 p-2 backdrop-blur-xl">
+            <div className="sticky top-0 z-10 mt-5 flex gap-1 overflow-x-auto rounded-2xl border border-border bg-surface-strong/92 p-2 backdrop-blur-xl sm:gap-2">
               <ToolButton active={editor.isActive("bold")} icon={Bold} onClick={() => editor.chain().focus().toggleBold().run()} />
               <ToolButton active={editor.isActive("italic")} icon={Italic} onClick={() => editor.chain().focus().toggleItalic().run()} />
               <ToolButton active={editor.isActive("underline")} icon={Underline} onClick={() => editor.chain().focus().toggleUnderline().run()} />
