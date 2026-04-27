@@ -466,8 +466,8 @@ export function SmartNotesShell() {
   const contentShift = desktopSidebarVisible ? "lg:pl-[19.5rem]" : "lg:pl-0";
 
   return (
-    <main className="min-h-screen text-foreground">
-      <div className="relative min-h-screen">
+    <main className="min-h-screen overflow-x-hidden text-foreground">
+      <div className="relative min-h-screen overflow-x-hidden">
       {desktopSidebarVisible ? (
           <div className="pointer-events-none absolute inset-y-0 left-0 hidden w-[18rem] lg:block">
             <div className="pointer-events-auto h-full">
@@ -505,7 +505,7 @@ export function SmartNotesShell() {
       {mobileSidebarOpen ? (
         <div className="fixed inset-0 z-40 lg:hidden">
           <button aria-label="Закрыть меню" className="absolute inset-0 bg-foreground/42 backdrop-blur-sm" onClick={closeMobileSidebar} type="button" />
-          <div className="absolute inset-y-0 left-0 w-[88vw] max-w-sm pr-10">
+          <div className="absolute inset-y-0 left-0 w-[min(100vw,24rem)] max-w-none">
             <Sidebar copy={copy} currentView={view} folderViewMode={folderViewMode} folders={folders} onClose={closeMobileSidebar} onCreateFolder={(anchor) => openSheet("create-folder", anchor)} onOpenFolder={openFolder} onOpenSheet={openSheet} onSwitchView={openView} />
           </div>
         </div>
@@ -606,8 +606,8 @@ function Header({ copy, view, activeFolder, searchQuery, filtersOpen, filtersRef
 
 function Sidebar({ copy, currentView, folders, folderViewMode, isDesktop = false, onClose, onCreateFolder, onOpenFolder, onOpenSheet, onSwitchView }: { copy: ReturnType<typeof getUiCopy>; currentView: AppView; folders: FolderEntity[]; folderViewMode: "compact" | "full"; isDesktop?: boolean; onClose: () => void; onCreateFolder: (anchor: SheetAnchor) => void; onOpenFolder: (folder: FolderEntity) => void; onOpenSheet: (sheet: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void; onSwitchView: (view: AppView) => void }) {
   return (
-    <aside className="flex h-full flex-col border-r border-border bg-surface/94 p-4 shadow-2xl shadow-violet-950/10 backdrop-blur-2xl">
-      <div className="flex items-center justify-between gap-3">
+    <aside className="flex h-full flex-col overflow-hidden border-r border-border bg-surface/94 p-4 shadow-2xl shadow-violet-950/10 backdrop-blur-2xl">
+      <div className="flex shrink-0 items-center justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.28em] text-accent">SmartNotes</p>
           <h1 className="mt-1 text-2xl font-black tracking-tight">{copy.shell.menuTitle}</h1>
@@ -617,6 +617,7 @@ function Sidebar({ copy, currentView, folders, folderViewMode, isDesktop = false
         </button>
       </div>
 
+      <div className="min-h-0 flex flex-1 flex-col overflow-y-auto overscroll-contain pr-1">
       <nav className="mt-6 space-y-1">
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -657,6 +658,7 @@ function Sidebar({ copy, currentView, folders, folderViewMode, isDesktop = false
         <Button asChild variant="secondary">
           <Link href="/settings">{copy.common.settings}</Link>
         </Button>
+      </div>
       </div>
     </aside>
   );
@@ -904,7 +906,7 @@ function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: { note: Note
           </button>
 
           {menuOpen ? (
-            <div className="absolute right-0 top-[calc(100%+0.45rem)] z-20 w-64 rounded-[1.2rem] border border-border bg-surface p-2 shadow-2xl shadow-violet-950/16 backdrop-blur-2xl">
+            <div className="absolute right-0 top-[calc(100%+0.45rem)] z-20 max-h-[min(72vh,34rem)] w-[min(92vw,18rem)] overflow-y-auto rounded-[1.2rem] border border-border bg-surface p-2 shadow-2xl shadow-violet-950/16 backdrop-blur-2xl lg:w-64 lg:max-h-none">
               {view === "trash" ? (
                 <div className="space-y-1">
                   <MenuAction icon={RotateCcw} label="Восстановить" onClick={() => { restoreNote(note.id); setMenuOpen(false); }} />
@@ -978,7 +980,7 @@ function PinGlyph({ active }: { active: boolean }) {
 
 function TopFiltersPopup({ notesFilter, folders, tagDraft, tagSuggestions, onSetNotesSort, onToggleFolderFilter, onToggleTagFilter, onSetUpdatedWindowDays, onResetFilters, onTagDraftChange }: { notesFilter: { sort: NotesSort; folders: Array<string | null>; tags: string[]; updatedWindowDays: number | null }; folders: FolderEntity[]; tagDraft: string; tagSuggestions: string[]; onSetNotesSort: (sort: NotesSort) => void; onToggleFolderFilter: (folderId: string | null) => void; onToggleTagFilter: (tag: string) => void; onSetUpdatedWindowDays: (days: number | null) => void; onResetFilters: () => void; onTagDraftChange: (value: string) => void }) {
   return (
-    <section className="rounded-[1.6rem] border border-border bg-surface/96 p-4 shadow-2xl shadow-violet-950/16 backdrop-blur-2xl">
+    <section className="max-h-[calc(100vh-6rem)] overflow-y-auto rounded-[1.6rem] border border-border bg-surface/96 p-4 shadow-2xl shadow-violet-950/16 backdrop-blur-2xl">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h2 className="text-sm font-black uppercase tracking-[0.2em] text-foreground/54">Фильтры</h2>
         <button className="rounded-full border border-border bg-surface-strong px-3 py-1.5 text-xs font-bold" onClick={onResetFilters} type="button">Сбросить</button>
@@ -1172,7 +1174,7 @@ function BottomSheet({ sheet, activeFolder, editorDirty, onClose }: { sheet: She
     <div className="fixed inset-0 z-50">
       <button className="absolute inset-0 bg-foreground/42 backdrop-blur-sm" onClick={onClose} type="button" />
       <section
-        className={`absolute border border-border bg-surface p-4 shadow-2xl shadow-violet-950/20 backdrop-blur-2xl ${anchor ? "w-[min(92vw,24rem)] max-h-[82vh] overflow-y-auto rounded-[1.8rem]" : topSheet ? "inset-x-0 top-0 max-h-[86vh] overflow-y-auto rounded-b-[2rem] lg:left-1/2 lg:top-4 lg:w-[min(94vw,48rem)] lg:-translate-x-1/2 lg:rounded-[2rem]" : "inset-x-0 bottom-0 max-h-[86vh] overflow-y-auto rounded-t-[2rem] lg:inset-auto lg:bottom-6 lg:right-6 lg:w-[420px] lg:rounded-[2rem]"}`}
+        className={`absolute border border-border bg-surface p-4 shadow-2xl shadow-violet-950/20 backdrop-blur-2xl ${name === "note" ? "inset-0 overflow-y-auto rounded-none lg:inset-auto lg:bottom-6 lg:right-6 lg:w-[420px] lg:rounded-[2rem]" : anchor ? "w-[min(92vw,24rem)] max-h-[82vh] overflow-y-auto rounded-[1.8rem]" : topSheet ? "inset-x-0 top-0 max-h-[86vh] overflow-y-auto rounded-b-[2rem] lg:left-1/2 lg:top-4 lg:w-[min(94vw,48rem)] lg:-translate-x-1/2 lg:rounded-[2rem]" : "inset-x-0 bottom-0 max-h-[86vh] overflow-y-auto rounded-t-[2rem] lg:inset-auto lg:bottom-6 lg:right-6 lg:w-[420px] lg:rounded-[2rem]"}`}
         style={anchor ? { left: `${anchor.x}px`, top: `${anchor.y}px`, transform: `translate(-50%, ${anchor.placement === "above" ? "-100%" : "0"})` } : undefined}
       >
         <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-foreground/18 lg:hidden" />
@@ -1201,7 +1203,7 @@ function NoteActionSheet() {
   }
 
   return (
-    <div className="mt-4 space-y-4">
+    <div className="mt-4 space-y-4 pb-6">
       <div className="grid gap-2 sm:grid-cols-2">
         <ActionCard label="Отметить для повторного анализа" onClick={() => patchNote(note.id, { aiStatus: "pending", aiProcessed: false, analyzed: false, aiError: null }, { scheduleAnalysis: false })} />
         <ActionCard label={note.lock ? "Разблокировать заметку" : "Заблокировать заметку"} onClick={() => void toggleNoteLock(note.id)} />
@@ -1237,7 +1239,7 @@ function NoteActionSheet() {
 
 function ActionCard({ label, onClick, destructive = false }: { label: string; onClick: () => void; destructive?: boolean }) {
   return (
-    <button className={`rounded-2xl border p-4 text-left text-sm font-bold transition ${destructive ? "border-rose-200 bg-rose-500/6 text-rose-600 hover:bg-rose-500/10" : "border-border bg-surface-strong hover:bg-background"}`} onClick={onClick} type="button">
+    <button className={`min-h-14 rounded-2xl border px-4 py-3 text-left text-sm font-bold transition ${destructive ? "border-rose-200 bg-rose-500/6 text-rose-600 hover:bg-rose-500/10" : "border-border bg-surface-strong hover:bg-background"}`} onClick={onClick} type="button">
       {label}
     </button>
   );
