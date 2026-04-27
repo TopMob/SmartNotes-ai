@@ -25,6 +25,7 @@ import {
   Search,
   Share2,
   Shield,
+  Star,
   Italic,
   Paintbrush,
   SlidersHorizontal,
@@ -80,7 +81,6 @@ const navItems: Array<{ key: ShellNavKey; view: AppView; icon: typeof Inbox }> =
   { key: "trash", view: "trash", icon: Trash2 },
   { key: "folders", view: "folders", icon: Folder },
   { key: "hiddenFolders", view: "hidden_folders", icon: EyeOff },
-  { key: "adminTools", view: "admin_tools", icon: Shield },
 ];
 
 const sortOptions: Array<{ label: string; value: NotesSort }> = [
@@ -499,7 +499,7 @@ export function SmartNotesShell() {
       {mobileSidebarOpen ? (
         <div className="fixed inset-0 z-40 lg:hidden">
           <button aria-label="Закрыть меню" className="absolute inset-0 bg-foreground/42 backdrop-blur-sm" onClick={closeMobileSidebar} type="button" />
-        <div className="absolute inset-y-0 left-0 w-[min(calc(100vw-1rem),24rem)] translate-x-2 max-w-none">
+        <div className="absolute inset-y-0 left-0 w-[80vw] max-w-[320px] max-w-none">
           <Sidebar copy={copy} currentView={view} folderViewMode={folderViewMode} folders={folders} activeFolderId={activeFolderId} onClose={closeMobileSidebar} onCreateFolder={(anchor) => openSheet("create-folder", anchor)} onOpenFolder={openFolder} onOpenSheet={openSheet} onSwitchView={openView} />
         </div>
       </div>
@@ -538,25 +538,23 @@ function Header({ copy, view, activeFolder, searchQuery, filtersOpen, filtersRef
                       : copy.shell.notes;
 
   return (
-    <header className="top-bar sticky top-0 z-20 px-3 py-3 shadow-lg shadow-violet-950/5 sm:px-4">
-      <div className="flex items-center gap-2 sm:gap-3">
-        <button className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-surface-strong text-foreground/72 lg:hidden" onClick={onOpenDrawer} type="button">
-          <MoreHorizontal className="h-5 w-5" />
-        </button>
+    <header className="top-bar sticky top-0 z-20 px-3 py-3 shadow-lg shadow-violet-950/5 sm:px-4 sm:py-3">
+      <div className="grid w-full gap-3 md:grid-cols-[minmax(0,1fr)_minmax(16rem,36rem)_auto] md:items-center lg:grid-cols-[minmax(0,1fr)_minmax(20rem,40rem)_auto]">
+        <div className="flex min-w-0 items-center gap-2 md:min-h-[48px] md:row-start-1 md:col-start-1">
+          <button className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-surface-strong text-foreground/72 lg:hidden" onClick={onOpenDrawer} type="button">
+            <MoreHorizontal className="h-5 w-5" />
+          </button>
 
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <h1 className="truncate text-lg font-black tracking-tight">{title}</h1>
-          {view === "folder" ? <button className="rounded-full p-2 text-foreground/45 hover:bg-surface-strong" onClick={(event) => onOpenFolderMenu(getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><MoreHorizontal className="h-4 w-4" /></button> : null}
+          <h1 className="truncate text-xl font-black tracking-tight">{title}</h1>
+          {view === "folder" ? <button className="rounded-full p-2 text-foreground/45 hover:bg-surface-strong" onClick={(event) => onOpenFolderMenu(getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><MoreHorizontal className="h-5 w-5" /></button> : null}
         </div>
 
-        <div className="hidden min-w-0 flex-1 items-center gap-3 lg:flex">
-          <label className="flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-2xl border border-border bg-surface-strong px-4 shadow-inner shadow-violet-950/4">
-            <Search className="h-5 w-5 shrink-0 text-foreground/38" />
-            <input className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-foreground/38" onChange={(event) => setSearchQuery(event.target.value)} placeholder={copy.shell.search} value={searchQuery} />
-          </label>
-        </div>
+        <label className="order-3 flex h-12 min-w-0 w-full items-center gap-3 rounded-full border border-border bg-surface-strong px-4 shadow-inner shadow-violet-950/4 md:order-none md:row-start-1 md:col-start-2">
+          <Search className="h-5 w-5 shrink-0 text-foreground/38" />
+          <input className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-foreground/38" onChange={(event) => setSearchQuery(event.target.value)} placeholder={copy.shell.search} value={searchQuery} />
+        </label>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2 justify-self-end md:row-start-1 md:col-start-3">
           <div className="relative shrink-0" ref={filtersRef}>
             <button className={`flex h-12 shrink-0 items-center gap-2 rounded-2xl border border-border px-4 text-sm font-bold ${filtersOpen ? "bg-foreground text-background" : "bg-surface-strong text-foreground/72"}`} onClick={onOpenFilters} type="button">
               <SlidersHorizontal className="h-4 w-4" />
@@ -593,24 +591,16 @@ function Header({ copy, view, activeFolder, searchQuery, filtersOpen, filtersRef
           </div>
         </div>
       </div>
-
-      <div className="mt-5 flex items-center justify-center gap-2 lg:hidden">
-        <label className="mx-auto flex min-h-12 w-full max-w-[32rem] min-w-0 items-center gap-3 rounded-2xl border border-border bg-surface-strong px-4 shadow-inner shadow-violet-950/4">
-          <Search className="h-5 w-5 shrink-0 text-foreground/38" />
-          <input className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-foreground/38" onChange={(event) => setSearchQuery(event.target.value)} placeholder={copy.shell.search} value={searchQuery} />
-        </label>
-      </div>
     </header>
   );
 }
 
 function Sidebar({ copy, currentView, folders, folderViewMode, activeFolderId, isDesktop = false, onClose, onCreateFolder, onOpenFolder, onOpenSheet, onSwitchView }: { copy: ReturnType<typeof getUiCopy>; currentView: AppView; folders: FolderEntity[]; folderViewMode: "compact" | "full"; activeFolderId: string | null; isDesktop?: boolean; onClose: () => void; onCreateFolder: (anchor: SheetAnchor) => void; onOpenFolder: (folder: FolderEntity) => void; onOpenSheet: (sheet: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void; onSwitchView: (view: AppView) => void }) {
   return (
-    <aside className="sidebar-glass panel-card flex h-full flex-col overflow-hidden p-3 shadow-2xl shadow-violet-950/10">
-      <div className="flex shrink-0 items-center justify-between gap-2">
+    <aside className="sidebar-glass panel-card flex h-full flex-col overflow-hidden p-4 shadow-2xl shadow-violet-950/10">
+      <div className="mb-1 flex shrink-0 items-center justify-between gap-2">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.28em] text-accent">SmartNotes</p>
-          <h1 className="mt-1 text-2xl font-black tracking-tight">{copy.shell.menuTitle}</h1>
+          <p className="text-sm font-black uppercase tracking-[0.22em] text-accent">SmartNotes</p>
         </div>
         {!isDesktop ? (
           <button className="rounded-2xl border border-border bg-surface-strong p-2" onClick={onClose} type="button">
@@ -619,37 +609,45 @@ function Sidebar({ copy, currentView, folders, folderViewMode, activeFolderId, i
         ) : null}
       </div>
 
-      <div className="sidebar-nav min-h-0 flex flex-1 flex-col overflow-y-auto overscroll-contain pr-0">
-      <nav className="mt-4 space-y-1">
+      <div className="min-h-0 flex flex-1 flex-col pr-2">
+      <nav className="mt-0 space-y-1">
         {navItems.map((item) => {
           const Icon = item.icon;
+          const isActive = currentView === item.view;
 
           return (
-            <button className={`flex w-full items-center gap-3 rounded-2xl border px-2.5 py-2.5 text-left text-sm font-semibold transition ${currentView === item.view ? "border-accent bg-foreground text-background" : "border-transparent text-foreground/70 hover:border-border hover:bg-surface-strong"}`} key={item.key} onClick={() => onSwitchView(item.view)} type="button">
-              <Icon className="h-4 w-4" />
+            <button className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left text-[15px] font-bold transition ${isActive ? "border-accent bg-accent/15 text-accent ring-1 ring-accent/50" : "border-transparent text-foreground/70 hover:border-border hover:bg-surface-strong"}`} key={item.key} onClick={() => onSwitchView(item.view)} type="button">
+              <Icon className="h-[18px] w-[18px]" />
               <span>{copy.shell[item.key]}</span>
             </button>
           );
         })}
       </nav>
 
-      <SidebarSection action={copy.shell.createFolder} onAction={(event) => onCreateFolder(getSheetAnchor(event.currentTarget.getBoundingClientRect()))} title={copy.shell.folders}>
-        {folders.map((folder) => (
-          <button className={`flex w-full items-start gap-3 rounded-2xl border p-2.5 text-left transition ${activeFolderId === folder.id && currentView === "folder" ? "border-accent bg-accent/10" : "border-transparent hover:border-border hover:bg-surface-strong"}`} key={folder.id} onClick={() => onOpenFolder(folder)} type="button">
-            <Folder className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+      <SidebarSection action={copy.shell.createFolder} className="mt-0.5" onAction={(event) => onCreateFolder(getSheetAnchor(event.currentTarget.getBoundingClientRect()))} title={copy.shell.folders}>
+        {folders.map((folder) => {
+          const isActive = activeFolderId === folder.id && currentView === "folder";
+
+          return (
+          <button className={`flex w-full items-start gap-3 rounded-2xl border p-3 text-left transition ${isActive ? "border-accent bg-accent/15 text-accent ring-1 ring-accent/50" : "border-transparent hover:border-border hover:bg-surface-strong"}`} key={folder.id} onClick={() => onOpenFolder(folder)} type="button">
+            <Folder className={`mt-0.5 h-[18px] w-[18px] shrink-0 ${isActive ? "text-accent" : "text-foreground/50"}`} />
             <span>
-              <span className="block text-sm font-semibold">{folder.name}</span>
+              <span className="block text-[15px] font-bold">{folder.name}</span>
               {folderViewMode === "full" && folder.description ? <span className="mt-1 line-clamp-2 block text-xs text-foreground/48">{folder.description}</span> : null}
             </span>
           </button>
-        ))}
+        );})}
+        <button className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left text-[15px] font-bold transition ${currentView === "admin_tools" ? "border-accent bg-accent/15 text-accent ring-1 ring-accent/50" : "border-transparent text-foreground/70 hover:border-border hover:bg-surface-strong"}`} onClick={() => onSwitchView("admin_tools")} type="button">
+          <Shield className="h-[18px] w-[18px]" />
+          <span>{copy.shell.adminTools}</span>
+        </button>
       </SidebarSection>
 
-      <div className="mt-auto grid gap-2 pt-3">
-        <button className="rounded-2xl border border-border bg-surface-strong px-4 py-3 text-left text-sm font-bold hover:bg-background" onClick={(event) => onOpenSheet("about", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button">
+      <div className="mt-auto grid shrink-0 gap-2 pt-2">
+        <button className="flex w-full items-center justify-center rounded-xl px-4 py-2.5 text-sm font-bold hover:bg-surface-strong" onClick={(event) => onOpenSheet("about", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button">
           {copy.shell.about}
         </button>
-        <Button asChild variant="secondary">
+        <Button asChild className="w-full min-h-10 rounded-xl px-4 py-2.5 text-sm font-bold shadow-none hover:bg-surface-strong" variant="ghost">
           <Link href="/settings">{copy.common.settings}</Link>
         </Button>
       </div>
@@ -658,14 +656,14 @@ function Sidebar({ copy, currentView, folders, folderViewMode, activeFolderId, i
   );
 }
 
-function SidebarSection({ title, action, children, onAction }: { title: string; action?: string; children: React.ReactNode; onAction?: (event: React.MouseEvent<HTMLButtonElement>) => void }) {
+function SidebarSection({ title, action, children, onAction, className }: { title: string; action?: string; children: React.ReactNode; onAction?: (event: React.MouseEvent<HTMLButtonElement>) => void; className?: string }) {
   return (
-    <section className="mt-4">
+    <section className={className ?? "mt-0"}>
       <div className="mb-2 flex items-center justify-between px-0.5">
         <h2 className="text-xs font-black uppercase tracking-[0.2em] text-foreground/42">{title}</h2>
         {action ? <button className="text-xs font-black text-accent" onClick={onAction} type="button">{action}</button> : null}
       </div>
-      <div className="space-y-1.5">{children}</div>
+      <div className="space-y-1">{children}</div>
     </section>
   );
 }
@@ -732,16 +730,16 @@ function FoldersGrid({ folders, mode, emptyText, folderViewMode, onOpenFolder }:
   }
 
   return (
-    <div className={`folder-grid grid gap-5 p-4 sm:p-5 ${folderViewMode === "compact" ? "sm:grid-cols-4 xl:grid-cols-5" : "sm:grid-cols-3 xl:grid-cols-4"}`}>
+    <div className={`folder-grid grid grid-cols-1 gap-5 p-4 sm:p-5 sm:grid-cols-2 lg:grid-cols-3 ${folderViewMode === "compact" ? "xl:grid-cols-4" : "xl:grid-cols-4"}`}>
       {folders.map((folder) => {
         const notesCount = notes.filter((note) => note.folderId === folder.id && !note.trashedAt).length;
 
         return (
-            <div className="folder-card rounded-[1.6rem] border border-border bg-surface-strong p-7 text-left shadow-lg shadow-violet-950/4" key={folder.id}>
+            <div className="folder-card min-h-[15rem] rounded-[1.6rem] border border-border bg-surface-strong p-8 text-left shadow-lg shadow-violet-950/4 sm:min-h-[16.5rem]" key={folder.id}>
             <button className="block w-full text-left" onClick={() => onOpenFolder(folder)} type="button">
               <div className="flex items-center gap-2 text-accent"><Folder className="h-5 w-5" /></div>
               <h2 className="mt-4 text-[1.45rem] font-black tracking-tight">{folder.name}</h2>
-              {folder.description ? <p className={`mt-2 text-sm text-foreground/56 ${folderViewMode === "compact" ? "line-clamp-2 leading-6" : "line-clamp-4 leading-7"}`}>{folder.description}</p> : null}
+              {folder.description ? <p className={`mt-2 text-sm text-foreground/56 ${folderViewMode === "compact" ? "line-clamp-3 leading-6" : "line-clamp-4 leading-7"}`}>{folder.description}</p> : null}
             </button>
             <div className="mt-4 flex items-center justify-between gap-3 text-sm text-foreground/56">
               <span>{notesCount} заметок</span>
@@ -757,10 +755,6 @@ function FoldersGrid({ folders, mode, emptyText, folderViewMode, onOpenFolder }:
 function TrashView({ copy, notes, notesPerPage, trashedFolders, onOpenNote, onOpenSheet }: { copy: ReturnType<typeof getUiCopy>; notes: Note[]; notesPerPage: 5 | 10 | 20 | 50; trashedFolders: FolderEntity[]; onOpenNote: (noteId: string) => void; onOpenSheet: (sheet: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void }) {
   return (
     <div className="content-scrollable space-y-6 p-4 sm:p-5">
-      <div>
-        <h2 className="text-xl font-black tracking-tight sm:text-2xl">{copy.shell.trash}</h2>
-      </div>
-
       {trashedFolders.length ? (
         <section>
           <div className="mb-3 text-sm font-black uppercase tracking-[0.2em] text-foreground/42">{copy.shell.sections.deletedFolders}</div>
@@ -784,7 +778,7 @@ function TrashView({ copy, notes, notesPerPage, trashedFolders, onOpenNote, onOp
   );
 }
 
-function NotesView({ copy, title, notes, notesPerPage, emptyText, onOpenNote, onOpenSheet, view }: { copy: ReturnType<typeof getUiCopy>; title: string; notes: Note[]; notesPerPage: 5 | 10 | 20 | 50; emptyText: string; onOpenNote: (noteId: string) => void; onOpenSheet: (sheet: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void; view: AppView }) {
+function NotesView({ copy, title: _title, notes, notesPerPage, emptyText, onOpenNote, onOpenSheet, view }: { copy: ReturnType<typeof getUiCopy>; title: string; notes: Note[]; notesPerPage: 5 | 10 | 20 | 50; emptyText: string; onOpenNote: (noteId: string) => void; onOpenSheet: (sheet: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void; view: AppView }) {
   const folders = useFoldersStore((state) => state.folders);
   const visibleFolders = useMemo(() => folders.filter((folder) => !folder.trashedAt && !folder.isHidden), [folders]);
   const { pinned, unpinned } = useMemo(() => selectPinnedGroups(notes), [notes]);
@@ -804,17 +798,13 @@ function NotesView({ copy, title, notes, notesPerPage, emptyText, onOpenNote, on
 
   return (
     <div className="content-scrollable space-y-5 p-3 sm:p-4">
-      <div>
-        <h2 className="text-xl font-black tracking-tight sm:text-2xl">{title}</h2>
-      </div>
-
       {pinnedVisible.length ? (
         <section>
           <div className="mb-3 flex items-center gap-2 text-sm font-black uppercase tracking-[0.2em] text-accent">
             <Heart className="h-4 w-4" />
             {copy.shell.sections.pinned}
           </div>
-          <div className="notes-grid">
+          <div className="notes-grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
             {pinnedVisible.map((note) => (
               <NoteCard key={note.id} folders={visibleFolders} note={note} onOpenNote={onOpenNote} onOpenSheet={onOpenSheet} view={view} />
             ))}
@@ -825,7 +815,7 @@ function NotesView({ copy, title, notes, notesPerPage, emptyText, onOpenNote, on
       {unpinnedVisible.length ? (
         <section>
           <div className="mb-3 text-sm font-black uppercase tracking-[0.2em] text-foreground/42">{copy.shell.sections.notes}</div>
-          <div className="notes-grid">
+          <div className="notes-grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
             {unpinnedVisible.map((note) => (
               <NoteCard key={note.id} folders={visibleFolders} note={note} onOpenNote={onOpenNote} onOpenSheet={onOpenSheet} view={view} />
             ))}
@@ -852,8 +842,8 @@ function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: { note: Note
   }
 
   return (
-    <article className={`note-card relative overflow-visible rounded-[1.35rem] border bg-surface-strong p-5 text-left shadow-md shadow-violet-950/4 transition hover:-translate-y-0.5 hover:shadow-lg border-border ${note.trashedAt ? "border-dashed border-rose-300" : "border-border"}`}>
-      <div className="absolute right-2 top-2 z-10 flex items-start gap-1">
+    <article className={`note-card relative overflow-visible rounded-[1.5rem] border bg-surface-strong p-6 text-left shadow-md shadow-violet-950/4 transition hover:-translate-y-0.5 hover:shadow-lg border-border ${note.trashedAt ? "border-dashed border-rose-300" : "border-border"}`}>
+      <div className="absolute right-3 top-3 z-10 flex items-start gap-1">
         {view === "trash" ? null : (
           <>
             <button className={`flex h-9 w-9 items-center justify-center rounded-xl bg-surface/92 text-foreground/56 backdrop-blur hover:bg-background ${note.pinned ? "text-accent" : ""}`} onClick={() => togglePinned(note.id)} type="button">
@@ -873,14 +863,14 @@ function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: { note: Note
       </div>
 
       <button className="block w-full text-left" onClick={() => onOpenNote(note.id)} type="button">
-        <div className="flex min-h-7 flex-wrap items-center gap-2 pr-20 text-[11px] font-black uppercase tracking-[0.18em] text-foreground/42">
+        <div className="mt-1 flex min-h-7 flex-wrap items-center gap-2 pr-20 text-[12px] font-black uppercase tracking-[0.18em] text-foreground/42">
           {note.reminderAt ? <span className="rounded-full bg-amber-500/10 px-2 py-1 text-amber-600">{reminderLabel}</span> : null}
           {note.lock ? <span className="rounded-full bg-foreground/8 px-2 py-1">Locked</span> : null}
           {note.isArchived ? <span className="rounded-full bg-foreground/8 px-2 py-1">Archive</span> : null}
           <span className={`rounded-full px-2 py-1 ${aiBadgeTone}`}>AI: {note.aiStatus}</span>
         </div>
-        <h3 className="mt-2 pr-20 text-lg leading-6 font-black tracking-tight">{note.title}</h3>
-        <p className={`mt-2 line-clamp-3 text-[0.95rem] leading-7 text-foreground/58 ${note.lock?.hidden ? "select-none" : ""}`}>{previewText}</p>
+        <h3 className="mt-3 pr-20 text-xl leading-7 font-black tracking-tight">{note.title}</h3>
+        <p className={`mt-3 line-clamp-3 text-[1rem] leading-7 text-foreground/60 ${note.lock?.hidden ? "select-none" : ""}`}>{previewText}</p>
         <div className="mt-3 flex flex-wrap gap-2">
           {note.userTags.map((tag) => (
             <span className="rounded-full border border-border px-3.5 py-1 text-xs font-semibold text-foreground/56" key={tag}>
@@ -903,7 +893,7 @@ function PinGlyph({ active }: { active: boolean }) {
 
 function TopFiltersPopup({ notesFilter, folders, tagDraft, tagSuggestions, onSetNotesSort, onToggleFolderFilter, onToggleTagFilter, onSetUpdatedWindowDays, onResetFilters, onTagDraftChange }: { notesFilter: { sort: NotesSort; folders: Array<string | null>; tags: string[]; updatedWindowDays: number | null }; folders: FolderEntity[]; tagDraft: string; tagSuggestions: string[]; onSetNotesSort: (sort: NotesSort) => void; onToggleFolderFilter: (folderId: string | null) => void; onToggleTagFilter: (tag: string) => void; onSetUpdatedWindowDays: (days: number | null) => void; onResetFilters: () => void; onTagDraftChange: (value: string) => void }) {
   return (
-    <section className="filter-menu pointer-events-auto fixed right-3 top-[4.8rem] z-30 w-[min(calc(100vw-2rem),22rem)] max-h-[min(calc(100vh-6rem),32rem)] overflow-y-auto rounded-[1.4rem] border border-border bg-surface/96 p-3 shadow-2xl shadow-violet-950/16 backdrop-blur-2xl sm:right-4 sm:w-[min(92vw,25rem)] sm:max-h-[calc(100vh-6rem)] sm:p-4">
+    <section className="filter-menu pointer-events-auto fixed right-3 top-[6rem] z-30 w-[min(calc(100vw-2rem),20rem)] max-h-[50vh] overflow-y-auto rounded-[1.4rem] border border-border bg-surface/96 p-3 shadow-2xl shadow-violet-950/16 backdrop-blur-2xl sm:right-4 sm:w-[min(92vw,22rem)] sm:max-h-[60vh] sm:p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h2 className="text-sm font-black uppercase tracking-[0.2em] text-foreground/54">Фильтры</h2>
         <button className="rounded-full border border-border bg-surface-strong px-3 py-1.5 text-xs font-bold" onClick={onResetFilters} type="button">Сбросить</button>
@@ -1098,8 +1088,8 @@ function BottomSheet({ sheet, activeFolder, editorDirty, isDesktop, onClose }: {
   function renderSheetContent() {
     return (
       <section
-        className={`absolute border border-border bg-surface p-4 shadow-2xl shadow-violet-950/20 backdrop-blur-2xl ${mobileSheet ? "inset-3 max-h-[calc(100vh-1.5rem)] overflow-y-auto rounded-[2rem]" : name === "note" ? "left-1/2 top-1/2 w-[min(92vw,28rem)] max-h-[86vh] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[2rem]" : anchor ? "w-[min(92vw,24rem)] max-h-[82vh] overflow-y-auto rounded-[1.8rem]" : topSheet ? "inset-x-0 top-0 max-h-[86vh] overflow-y-auto rounded-b-[2rem] lg:left-1/2 lg:top-4 lg:w-[min(94vw,48rem)] lg:-translate-x-1/2 lg:rounded-[2rem]" : "inset-x-0 bottom-0 max-h-[86vh] overflow-y-auto rounded-t-[2rem] lg:inset-auto lg:bottom-6 lg:right-6 lg:w-[420px] lg:rounded-[2rem]"}`}
-        style={name === "note" || mobileSheet || !anchor ? undefined : { left: `${anchor.x}px`, top: `${anchor.y}px`, transform: `translate(-50%, ${anchor.placement === "above" ? "-100%" : "0"})` }}
+        className={`absolute border border-border bg-surface p-4 shadow-2xl shadow-violet-950/20 backdrop-blur-2xl ${mobileSheet ? "inset-3 max-h-[calc(100vh-1.5rem)] overflow-y-auto rounded-[2rem]" : name === "note" || name === "about" ? "left-1/2 top-1/2 w-[min(92vw,32rem)] max-h-[86vh] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[2rem]" : anchor ? "w-[min(92vw,24rem)] max-h-[82vh] overflow-y-auto rounded-[1.8rem]" : topSheet ? "inset-x-0 top-0 max-h-[86vh] overflow-y-auto rounded-b-[2rem] lg:left-1/2 lg:top-4 lg:w-[min(94vw,48rem)] lg:-translate-x-1/2 lg:rounded-[2rem]" : "inset-x-0 bottom-0 max-h-[86vh] overflow-y-auto rounded-t-[2rem] lg:inset-auto lg:bottom-6 lg:right-6 lg:w-[420px] lg:rounded-[2rem]"}`}
+        style={name === "note" || name === "about" || mobileSheet || !anchor ? undefined : { left: `${anchor.x}px`, top: `${anchor.y}px`, transform: `translate(-50%, ${anchor.placement === "above" ? "-100%" : "0"})` }}
       >
         <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-foreground/18 lg:hidden" />
         <div className="flex items-center justify-between gap-3">
@@ -1305,34 +1295,46 @@ function LockContent({ onClose }: { onClose: () => void }) {
 function AboutContent() {
   const lang = useThemeStore((state) => state.lang);
   const copy = getUiCopy(lang);
+  const [tab, setTab] = useState<"about" | "rate">("about");
+  const [rating, setRating] = useState(5);
+  const [feedback, setFeedback] = useState("");
 
   return (
-    <div className="mt-5 grid gap-3">
-      <section className="rounded-[1.5rem] border border-border bg-surface-strong p-5">
-        <p className="text-xs font-black uppercase tracking-[0.2em] text-accent">{copy.shell.aboutUsTitle}</p>
-        <h3 className="mt-3 text-2xl font-black">SmartNotes</h3>
-        <p className="mt-2 text-sm leading-6 text-foreground/58">{copy.shell.aboutUsText}</p>
-        <ul className="mt-4 space-y-2 text-sm text-foreground/70">
-          <li>{copy.shell.aboutUsPoint1}</li>
-          <li>{copy.shell.aboutUsPoint2}</li>
-        </ul>
-      </section>
+    <div className="mt-5 grid gap-4">
+      <div className="grid grid-cols-2 gap-2 rounded-[1.5rem] border border-border bg-surface-strong p-2">
+        <button className={`rounded-xl px-4 py-3 text-sm font-black transition ${tab === "about" ? "bg-background text-accent" : "text-foreground/72 hover:bg-background/70"}`} onClick={() => setTab("about")} type="button">О нас</button>
+        <button className={`rounded-xl px-4 py-3 text-sm font-black transition ${tab === "rate" ? "bg-background text-accent" : "text-foreground/72 hover:bg-background/70"}`} onClick={() => setTab("rate")} type="button">Оценить</button>
+      </div>
 
-      <section className="rounded-[1.5rem] border border-border bg-surface-strong p-5">
-        <p className="text-xs font-black uppercase tracking-[0.2em] text-accent">{copy.shell.rateUsTitle}</p>
-        <h3 className="mt-3 text-2xl font-black">Rate us</h3>
-        <p className="mt-2 text-sm leading-6 text-foreground/58">{copy.shell.rateUsText}</p>
-        <div className="mt-4 flex gap-2">
-          {[1, 2, 3, 4, 5].map((value) => (
-            <button className="h-11 w-11 rounded-2xl border border-border bg-background font-black hover:bg-surface" key={value} type="button">{value}</button>
-          ))}
-        </div>
-        <textarea className="mt-4 min-h-32 w-full rounded-2xl border border-border bg-background p-4 text-sm outline-none" placeholder={copy.shell.feedbackPlaceholder} />
-        <div className="mt-4 flex gap-2">
-          <Button className="flex-1 rounded-2xl" type="button">{copy.shell.sendFeedback}</Button>
-          <Button asChild className="rounded-2xl" variant="secondary"><a href="mailto:support@smartnotes.app">{copy.shell.support}</a></Button>
-        </div>
-      </section>
+      {tab === "about" ? (
+        <section className="rounded-[1.5rem] border border-border bg-surface-strong p-5">
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-accent">О нас</p>
+          <h3 className="mt-3 text-2xl font-black">SmartNotes</h3>
+          <ul className="mt-4 space-y-2 text-sm text-foreground/70">
+            <li>Александров Арсений</li>
+            <li>Малышев Егор</li>
+            <li>Миняев Иван</li>
+            <li>Копаев Иван</li>
+          </ul>
+          <h3 className="mt-3 text-2xl font-black">Обратная связь</h3>
+          <a className="mt-4 inline-flex font-black text-accent hover:underline" href="https://t.me/SmartNotesInfo_bot" rel="noreferrer" target="_blank">@SmartNotesInfo_bot</a>
+
+        </section>
+      ) : (
+        <section className="rounded-[1.5rem] border border-border bg-surface-strong p-5">
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-accent">Оценить</p>
+          
+          <div className="mt-4 flex gap-2">
+            {[1, 2, 3, 4, 5].map((value) => (
+              <button className={`flex h-11 w-11 items-center justify-center rounded-2xl border transition ${rating >= value ? "border-amber-400 bg-amber-400/12 text-amber-400" : "border-border bg-background text-foreground/42 hover:bg-surface"}`} key={value} onClick={() => setRating(value)} type="button">
+                <Star className={`h-5 w-5 ${rating >= value ? "fill-current" : ""}`} />
+              </button>
+            ))}
+          </div>
+          <textarea className="mt-4 min-h-32 w-full rounded-2xl border border-border bg-background p-4 text-sm outline-none" onChange={(event) => setFeedback(event.target.value)} placeholder="Feedback, пояснение" value={feedback} />
+          <Button className="mt-4 w-full rounded-2xl" type="button">Отправить</Button>
+        </section>
+      )}
     </div>
   );
 }
