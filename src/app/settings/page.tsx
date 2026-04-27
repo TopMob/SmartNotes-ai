@@ -118,7 +118,7 @@ export default function SettingsPage() {
           </div>
         </aside>
 
-        <section className="app-surface border border-border p-5 shadow-2xl shadow-violet-950/8 backdrop-blur-2xl sm:p-7">
+        <section className="app-surface border border-border p-4 shadow-2xl shadow-violet-950/8 backdrop-blur-2xl sm:p-7">
           {activeSection === "appearance" ? (
             <div className="space-y-4">
               <SectionIntro title={copy.settings.appearance.title} text={copy.settings.appearance.subtitle} />
@@ -145,11 +145,11 @@ export default function SettingsPage() {
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <label className="block text-sm font-bold text-foreground/72">
                     {copy.settings.appearance.mainBackgroundUrl}
-                    <input className="mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm" onChange={(event) => setMainBackgroundUrl(event.target.value || null)} placeholder="https://..." type="url" value={mainBackgroundUrl ?? ""} />
+                    <input className="mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm sm:text-sm" onChange={(event) => setMainBackgroundUrl(event.target.value || null)} placeholder="https://..." type="url" value={mainBackgroundUrl ?? ""} />
                   </label>
                   <label className="block text-sm font-bold text-foreground/72">
                     {copy.settings.appearance.sidebarBackgroundUrl}
-                    <input className="mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm" onChange={(event) => setSidebarBackgroundUrl(event.target.value || null)} placeholder="https://..." type="url" value={sidebarBackgroundUrl ?? ""} />
+                    <input className="mt-2 w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm sm:text-sm" onChange={(event) => setSidebarBackgroundUrl(event.target.value || null)} placeholder="https://..." type="url" value={sidebarBackgroundUrl ?? ""} />
                   </label>
                 </div>
               </Panel>

@@ -470,7 +470,7 @@ export function SmartNotesShell() {
       <div className="relative flex min-h-0 flex-1 overflow-x-hidden">
         {desktopSidebarVisible ? (
           <div className="hidden lg:block">
-            <Sidebar copy={copy} currentView={view} folderViewMode={folderViewMode} folders={folders} isDesktop onClose={() => setDesktopSidebarOpen(false)} onCreateFolder={(anchor) => openSheet("create-folder", anchor)} onOpenFolder={openFolder} onOpenSheet={openSheet} onSwitchView={openView} />
+            <Sidebar copy={copy} currentView={view} folderViewMode={folderViewMode} folders={folders} activeFolderId={activeFolderId} isDesktop onClose={() => setDesktopSidebarOpen(false)} onCreateFolder={(anchor) => openSheet("create-folder", anchor)} onOpenFolder={openFolder} onOpenSheet={openSheet} onSwitchView={openView} />
           </div>
         ) : null}
 
@@ -499,10 +499,10 @@ export function SmartNotesShell() {
       {mobileSidebarOpen ? (
         <div className="fixed inset-0 z-40 lg:hidden">
           <button aria-label="Закрыть меню" className="absolute inset-0 bg-foreground/42 backdrop-blur-sm" onClick={closeMobileSidebar} type="button" />
-          <div className="absolute inset-y-0 left-0 w-[min(100vw,24rem)] max-w-none">
-            <Sidebar copy={copy} currentView={view} folderViewMode={folderViewMode} folders={folders} onClose={closeMobileSidebar} onCreateFolder={(anchor) => openSheet("create-folder", anchor)} onOpenFolder={openFolder} onOpenSheet={openSheet} onSwitchView={openView} />
-          </div>
+        <div className="absolute inset-y-0 left-0 w-[min(calc(100vw-1rem),24rem)] translate-x-2 max-w-none">
+          <Sidebar copy={copy} currentView={view} folderViewMode={folderViewMode} folders={folders} activeFolderId={activeFolderId} onClose={closeMobileSidebar} onCreateFolder={(anchor) => openSheet("create-folder", anchor)} onOpenFolder={openFolder} onOpenSheet={openSheet} onSwitchView={openView} />
         </div>
+      </div>
       ) : null}
 
       <button className="btn-fab fixed bottom-5 right-5 z-30 flex h-16 w-16 items-center justify-center bg-accent text-accent-foreground shadow-2xl shadow-violet-950/24" onClick={createNoteDraft} type="button">
@@ -594,8 +594,8 @@ function Header({ copy, view, activeFolder, searchQuery, filtersOpen, filtersRef
         </div>
       </div>
 
-      <div className="mt-4 flex items-center gap-2 lg:hidden">
-        <label className="flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-2xl border border-border bg-surface-strong px-4 shadow-inner shadow-violet-950/4">
+      <div className="mt-5 flex items-center justify-center gap-2 lg:hidden">
+        <label className="mx-auto flex min-h-12 w-full max-w-[32rem] min-w-0 items-center gap-3 rounded-2xl border border-border bg-surface-strong px-4 shadow-inner shadow-violet-950/4">
           <Search className="h-5 w-5 shrink-0 text-foreground/38" />
           <input className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-foreground/38" onChange={(event) => setSearchQuery(event.target.value)} placeholder={copy.shell.search} value={searchQuery} />
         </label>
@@ -604,7 +604,7 @@ function Header({ copy, view, activeFolder, searchQuery, filtersOpen, filtersRef
   );
 }
 
-function Sidebar({ copy, currentView, folders, folderViewMode, isDesktop = false, onClose, onCreateFolder, onOpenFolder, onOpenSheet, onSwitchView }: { copy: ReturnType<typeof getUiCopy>; currentView: AppView; folders: FolderEntity[]; folderViewMode: "compact" | "full"; isDesktop?: boolean; onClose: () => void; onCreateFolder: (anchor: SheetAnchor) => void; onOpenFolder: (folder: FolderEntity) => void; onOpenSheet: (sheet: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void; onSwitchView: (view: AppView) => void }) {
+function Sidebar({ copy, currentView, folders, folderViewMode, activeFolderId, isDesktop = false, onClose, onCreateFolder, onOpenFolder, onOpenSheet, onSwitchView }: { copy: ReturnType<typeof getUiCopy>; currentView: AppView; folders: FolderEntity[]; folderViewMode: "compact" | "full"; activeFolderId: string | null; isDesktop?: boolean; onClose: () => void; onCreateFolder: (anchor: SheetAnchor) => void; onOpenFolder: (folder: FolderEntity) => void; onOpenSheet: (sheet: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void; onSwitchView: (view: AppView) => void }) {
   return (
     <aside className="sidebar-glass panel-card flex h-full flex-col overflow-hidden p-3 shadow-2xl shadow-violet-950/10">
       <div className="flex shrink-0 items-center justify-between gap-2">
@@ -625,7 +625,7 @@ function Sidebar({ copy, currentView, folders, folderViewMode, isDesktop = false
           const Icon = item.icon;
 
           return (
-            <button className={`flex w-full items-center gap-3 rounded-2xl px-2.5 py-2.5 text-left text-sm font-semibold transition ${currentView === item.view ? "bg-foreground text-background" : "text-foreground/70 hover:bg-surface-strong"}`} key={item.key} onClick={() => onSwitchView(item.view)} type="button">
+            <button className={`flex w-full items-center gap-3 rounded-2xl border px-2.5 py-2.5 text-left text-sm font-semibold transition ${currentView === item.view ? "border-accent bg-foreground text-background" : "border-transparent text-foreground/70 hover:border-border hover:bg-surface-strong"}`} key={item.key} onClick={() => onSwitchView(item.view)} type="button">
               <Icon className="h-4 w-4" />
               <span>{copy.shell[item.key]}</span>
             </button>
@@ -635,7 +635,7 @@ function Sidebar({ copy, currentView, folders, folderViewMode, isDesktop = false
 
       <SidebarSection action={copy.shell.createFolder} onAction={(event) => onCreateFolder(getSheetAnchor(event.currentTarget.getBoundingClientRect()))} title={copy.shell.folders}>
         {folders.map((folder) => (
-          <button className="flex w-full items-start gap-3 rounded-2xl p-2.5 text-left hover:bg-surface-strong" key={folder.id} onClick={() => onOpenFolder(folder)} type="button">
+          <button className={`flex w-full items-start gap-3 rounded-2xl border p-2.5 text-left transition ${activeFolderId === folder.id && currentView === "folder" ? "border-accent bg-accent/10" : "border-transparent hover:border-border hover:bg-surface-strong"}`} key={folder.id} onClick={() => onOpenFolder(folder)} type="button">
             <Folder className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
             <span>
               <span className="block text-sm font-semibold">{folder.name}</span>
@@ -722,7 +722,7 @@ function FoldersGrid({ folders, mode, emptyText, folderViewMode, onOpenFolder }:
 
   if (!folders.length) {
     return (
-      <div className="flex h-full min-h-[calc(100vh-7.5rem)] items-center justify-center p-6 text-center">
+    <div className="flex h-full min-h-[calc(100vh-7.5rem)] items-center justify-center p-6 text-center">
         <div>
           <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[1.8rem] bg-foreground/6 text-foreground/34"><Folder className="h-9 w-9" /></div>
           <h2 className="mt-6 text-2xl font-black tracking-tight sm:text-3xl">{emptyText}</h2>
@@ -732,15 +732,15 @@ function FoldersGrid({ folders, mode, emptyText, folderViewMode, onOpenFolder }:
   }
 
   return (
-    <div className={`folder-grid grid gap-3 p-4 ${folderViewMode === "compact" ? "sm:grid-cols-4 xl:grid-cols-5" : "sm:grid-cols-3 xl:grid-cols-4"}`}>
+    <div className={`folder-grid grid gap-5 p-4 sm:p-5 ${folderViewMode === "compact" ? "sm:grid-cols-4 xl:grid-cols-5" : "sm:grid-cols-3 xl:grid-cols-4"}`}>
       {folders.map((folder) => {
         const notesCount = notes.filter((note) => note.folderId === folder.id && !note.trashedAt).length;
 
         return (
-            <div className="folder-card rounded-[1.6rem] border border-border bg-surface-strong p-5 text-left shadow-lg shadow-violet-950/4" key={folder.id}>
+            <div className="folder-card rounded-[1.6rem] border border-border bg-surface-strong p-7 text-left shadow-lg shadow-violet-950/4" key={folder.id}>
             <button className="block w-full text-left" onClick={() => onOpenFolder(folder)} type="button">
-              <div className="flex items-center gap-2 text-accent"><Folder className="h-5 w-5" /><span className="text-xs font-black uppercase tracking-[0.2em]">{mode === "hidden" ? "Скрытая папка" : "Папка"}</span></div>
-              <h2 className="mt-4 text-xl font-black tracking-tight">{folder.name}</h2>
+              <div className="flex items-center gap-2 text-accent"><Folder className="h-5 w-5" /></div>
+              <h2 className="mt-4 text-[1.45rem] font-black tracking-tight">{folder.name}</h2>
               {folder.description ? <p className={`mt-2 text-sm text-foreground/56 ${folderViewMode === "compact" ? "line-clamp-2 leading-6" : "line-clamp-4 leading-7"}`}>{folder.description}</p> : null}
             </button>
             <div className="mt-4 flex items-center justify-between gap-3 text-sm text-foreground/56">
@@ -759,15 +759,14 @@ function TrashView({ copy, notes, notesPerPage, trashedFolders, onOpenNote, onOp
     <div className="content-scrollable space-y-6 p-4 sm:p-5">
       <div>
         <h2 className="text-xl font-black tracking-tight sm:text-2xl">{copy.shell.trash}</h2>
-        <p className="mt-1 text-sm text-foreground/52">{notes.length + trashedFolders.length} объектов готовы к восстановлению или удалению.</p>
       </div>
 
       {trashedFolders.length ? (
         <section>
           <div className="mb-3 text-sm font-black uppercase tracking-[0.2em] text-foreground/42">{copy.shell.sections.deletedFolders}</div>
-          <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-4">
             {trashedFolders.map((folder) => (
-              <div className="rounded-[1.2rem] border border-dashed border-rose-300 bg-surface-strong p-4" key={folder.id}>
+              <div className="rounded-[1.2rem] border border-dashed border-rose-300 bg-surface-strong p-5" key={folder.id}>
                 <h3 className="text-base font-black tracking-tight">{folder.name}</h3>
                 <p className="mt-2 text-sm text-foreground/56">{folder.description}</p>
                 <div className="mt-4 flex gap-2">
@@ -853,7 +852,7 @@ function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: { note: Note
   }
 
   return (
-    <article className={`note-card relative overflow-visible rounded-[1.35rem] border bg-surface-strong p-3 text-left shadow-md shadow-violet-950/4 transition hover:-translate-y-0.5 hover:shadow-lg border-border ${note.trashedAt ? "border-dashed border-rose-300" : "border-border"}`}>
+    <article className={`note-card relative overflow-visible rounded-[1.35rem] border bg-surface-strong p-5 text-left shadow-md shadow-violet-950/4 transition hover:-translate-y-0.5 hover:shadow-lg border-border ${note.trashedAt ? "border-dashed border-rose-300" : "border-border"}`}>
       <div className="absolute right-2 top-2 z-10 flex items-start gap-1">
         {view === "trash" ? null : (
           <>
@@ -880,11 +879,11 @@ function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: { note: Note
           {note.isArchived ? <span className="rounded-full bg-foreground/8 px-2 py-1">Archive</span> : null}
           <span className={`rounded-full px-2 py-1 ${aiBadgeTone}`}>AI: {note.aiStatus}</span>
         </div>
-        <h3 className="mt-2 pr-20 text-sm leading-5 font-black tracking-tight">{note.title}</h3>
-        <p className={`mt-2 line-clamp-3 text-sm leading-6 text-foreground/58 ${note.lock?.hidden ? "select-none" : ""}`}>{previewText}</p>
+        <h3 className="mt-2 pr-20 text-lg leading-6 font-black tracking-tight">{note.title}</h3>
+        <p className={`mt-2 line-clamp-3 text-[0.95rem] leading-7 text-foreground/58 ${note.lock?.hidden ? "select-none" : ""}`}>{previewText}</p>
         <div className="mt-3 flex flex-wrap gap-2">
           {note.userTags.map((tag) => (
-            <span className="rounded-full border border-border px-2 py-1 text-[11px] font-semibold text-foreground/56" key={tag}>
+            <span className="rounded-full border border-border px-3.5 py-1 text-xs font-semibold text-foreground/56" key={tag}>
               #{tag}
             </span>
           ))}
@@ -904,7 +903,7 @@ function PinGlyph({ active }: { active: boolean }) {
 
 function TopFiltersPopup({ notesFilter, folders, tagDraft, tagSuggestions, onSetNotesSort, onToggleFolderFilter, onToggleTagFilter, onSetUpdatedWindowDays, onResetFilters, onTagDraftChange }: { notesFilter: { sort: NotesSort; folders: Array<string | null>; tags: string[]; updatedWindowDays: number | null }; folders: FolderEntity[]; tagDraft: string; tagSuggestions: string[]; onSetNotesSort: (sort: NotesSort) => void; onToggleFolderFilter: (folderId: string | null) => void; onToggleTagFilter: (tag: string) => void; onSetUpdatedWindowDays: (days: number | null) => void; onResetFilters: () => void; onTagDraftChange: (value: string) => void }) {
   return (
-    <section className="filter-menu pointer-events-auto fixed right-3 top-[4.8rem] z-30 w-[min(92vw,25rem)] max-h-[calc(100vh-6rem)] overflow-y-auto rounded-[1.6rem] border border-border bg-surface/96 p-4 shadow-2xl shadow-violet-950/16 backdrop-blur-2xl sm:right-4">
+    <section className="filter-menu pointer-events-auto fixed right-3 top-[4.8rem] z-30 w-[min(calc(100vw-2rem),22rem)] max-h-[min(calc(100vh-6rem),32rem)] overflow-y-auto rounded-[1.4rem] border border-border bg-surface/96 p-3 shadow-2xl shadow-violet-950/16 backdrop-blur-2xl sm:right-4 sm:w-[min(92vw,25rem)] sm:max-h-[calc(100vh-6rem)] sm:p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h2 className="text-sm font-black uppercase tracking-[0.2em] text-foreground/54">Фильтры</h2>
         <button className="rounded-full border border-border bg-surface-strong px-3 py-1.5 text-xs font-bold" onClick={onResetFilters} type="button">Сбросить</button>
@@ -916,7 +915,7 @@ function TopFiltersPopup({ notesFilter, folders, tagDraft, tagSuggestions, onSet
           </button>
         ))}
       </div>
-      <div className="mt-3 flex flex-wrap gap-2">{[7, 30, null].map((days) => (<button className={`rounded-2xl border px-4 py-2.5 text-left text-sm font-bold ${notesFilter.updatedWindowDays === days ? "border-accent bg-accent/10 text-accent" : "border-border bg-surface-strong"}`} key={String(days)} onClick={() => onSetUpdatedWindowDays(days)} type="button">{days === null ? "За все время" : `${days} дней`}</button>))}</div>
+      <div className="mt-3 flex flex-wrap gap-2">{[7, 30, null].map((days) => (<button className={`rounded-2xl border px-3 py-2 text-left text-sm font-bold ${notesFilter.updatedWindowDays === days ? "border-accent bg-accent/10 text-accent" : "border-border bg-surface-strong"}`} key={String(days)} onClick={() => onSetUpdatedWindowDays(days)} type="button">{days === null ? "За все время" : `${days} дней`}</button>))}</div>
       <div className="mt-3 flex flex-wrap gap-2">
         <button className={`rounded-full border px-3 py-2 text-sm font-bold ${notesFilter.folders.includes(null) ? "border-accent bg-accent/10 text-accent" : "border-border bg-surface-strong"}`} onClick={() => onToggleFolderFilter(null)} type="button">
           Без папки
@@ -929,7 +928,7 @@ function TopFiltersPopup({ notesFilter, folders, tagDraft, tagSuggestions, onSet
       </div>
       <div className="mt-3 rounded-2xl border border-border bg-surface-strong p-3">
         <label className="block text-sm font-bold text-foreground/66">Тег</label>
-        <input className="mt-2 h-11 w-full rounded-xl border border-border bg-background px-3 outline-none" onChange={(event) => onTagDraftChange(event.target.value)} placeholder="Начни вводить тег" value={tagDraft} />
+        <input className="mt-2 h-11 w-full rounded-xl border border-border bg-background px-3 text-base outline-none" onChange={(event) => onTagDraftChange(event.target.value)} placeholder="Начни вводить тег" value={tagDraft} />
         {tagSuggestions.length ? <div className="mt-3 flex flex-wrap gap-2">{tagSuggestions.map((tag) => <button className={`rounded-full border px-3 py-1.5 text-sm font-bold ${notesFilter.tags.includes(tag) ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={tag} onClick={() => onToggleTagFilter(tag)} type="button">#{tag}</button>)}</div> : <p className="mt-3 text-sm text-foreground/52">Совпадений пока нет.</p>}
         {tagDraft.trim() ? <button className="mt-3 rounded-xl border border-border bg-background px-3 py-2 text-sm font-bold" onClick={() => onToggleTagFilter(tagDraft.trim())} type="button">Применить тег `#{tagDraft.trim()}`</button> : null}
       </div>
