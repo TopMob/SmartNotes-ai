@@ -2,15 +2,27 @@ import type { NoteLock } from "@/entities/note";
 import { secureCompare, sha256 } from "@/shared/lib/crypto";
 
 export async function createNoteLock(password: string): Promise<NoteLock> {
+  const normalized = password.trim();
+
+  if (!normalized) {
+    throw new Error("PASSWORD_REQUIRED");
+  }
+
   return {
     v: 1,
-    hash: await sha256(password),
+    hash: await sha256(normalized),
     hidden: true,
   };
 }
 
 export async function verifyNoteLock(lock: NoteLock, password: string) {
-  return secureCompare(lock.hash, await sha256(password));
+  const normalized = password.trim();
+
+  if (!normalized) {
+    return false;
+  }
+
+  return secureCompare(lock.hash, await sha256(normalized));
 }
 
 export function maskLockedPreview(noteId: string) {

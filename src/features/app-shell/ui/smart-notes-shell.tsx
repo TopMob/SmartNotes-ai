@@ -40,7 +40,8 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
-} from "lucide-react";
+  Ban,
+  } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
@@ -52,8 +53,8 @@ import type { Folder as FolderEntity } from "@/entities/folder";
 import type { Note } from "@/entities/note";
 import { addFolder, hideFolder, permanentlyDeleteFolder, renameFolder, restoreFolder, trashFolder, unhideFolder } from "@/features/folders/model/folder-actions";
 import { useFoldersStore } from "@/features/folders/model/folders-store";
-import { maskLockedPreview, verifyNoteLock } from "@/features/lock-center/lib/lock-service";
-import { addNote, addPage, deletePage, moveNoteToFolder, patchNote, permanentlyDeleteNote, restoreNote, setArchived, setReminder, toggleFavorite, togglePinned, trashNote, updatePage } from "@/features/notes/model/note-actions";
+import { createNoteLock, maskLockedPreview, verifyNoteLock } from "@/features/lock-center/lib/lock-service";
+import { addNote, addPage, attachMedia, deletePage, moveNoteToFolder, patchNote, permanentlyDeleteNote, restoreNote, setArchived, setReminder, toggleFavorite, togglePinned, trashNote, updatePage } from "@/features/notes/model/note-actions";
 import { type NotesSort, selectPinnedGroups, selectVisibleNotes } from "@/features/notes/model/note-selectors";
 import { useNotesStore } from "@/features/notes/model/notes-store";
 import { requestNotificationPermission, showNotification } from "@/services/notifications/notification-service";
@@ -67,6 +68,8 @@ import { useThemeStore } from "@/shared/store/theme-store";
 import { Button } from "@/shared/ui/button";
 
 type SheetName = "folder" | "note" | "pages" | "lock" | "about" | "create-folder" | "reminder" | null;
+type SheetAnchor = { x: number; y: number; placement: "above" | "below" };
+type SheetState = { name: Exclude<SheetName, null>; anchor: SheetAnchor | null } | null;
 
 type ShellNavKey = "notes" | "favorites" | "archive" | "reminders" | "locked" | "trash" | "folders" | "hiddenFolders" | "adminTools";
 
@@ -98,6 +101,143 @@ function stripHtml(value: string) {
   return value.replace(/<[^>]*>/gu, " ").replace(/&nbsp;/gu, " ").replace(/\s+/gu, " ").trim();
 }
 
+function getLockPassword(promptText: string) {
+  const value = window.prompt(promptText);
+
+  if (value === null) {
+    return null;
+  }
+
+  const password = value.trim();
+
+  if (!password) {
+    window.alert("Пароль не может быть пустым.");
+    return null;
+  }
+
+  return password;
+}
+
+async function toggleNoteLock(noteId: string) {
+  const note = useNotesStore.getState().notes.find((item) => item.id === noteId);
+
+  if (!note) {
+    return false;
+  }
+
+  if (note.lock) {
+    const password = getLockPassword("Введите пароль для снятия блокировки");
+
+    if (!password) {
+      return false;
+    }
+
+    const valid = await verifyNoteLock(note.lock, password);
+
+    if (!valid) {
+      window.alert("Неверный пароль.");
+      return false;
+    }
+
+    patchNote(noteId, { lock: null }, { scheduleAnalysis: false });
+    return true;
+  }
+
+  const password = getLockPassword("Задайте пароль для заметки");
+
+  if (!password) {
+    return false;
+  }
+
+  const confirmPassword = getLockPassword("Повторите пароль для подтверждения");
+
+  if (!confirmPassword) {
+    return false;
+  }
+
+  if (password !== confirmPassword) {
+    window.alert("Пароли не совпадают.");
+    return false;
+  }
+
+  const lock = await createNoteLock(password);
+  patchNote(noteId, { lock }, { scheduleAnalysis: false });
+  return true;
+}
+
+function getSheetAnchor(rect: DOMRect): SheetAnchor {
+  const spaceBelow = window.innerHeight - rect.bottom;
+  const placement = spaceBelow < 360 && rect.top > 360 ? "above" : "below";
+
+  return {
+    x: rect.left + rect.width / 2,
+    y: placement === "below" ? rect.bottom + 12 : rect.top - 12,
+    placement,
+  };
+}
+
+function getNotePlainText(note: Note) {
+  return stripHtml([
+    note.title,
+    ...note.pages.map((page) => `${page.title}\n${stripHtml(page.content)}`),
+  ].filter(Boolean).join("\n\n"));
+}
+
+async function copyNoteText(note: Note) {
+  const text = getNotePlainText(note);
+
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand("copy");
+  textarea.remove();
+}
+
+function downloadTextFile(filename: string, content: string, mimeType = "text/plain;charset=utf-8") {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportNoteAsTxt(note: Note) {
+  downloadTextFile(`${note.title || "note"}.txt`, getNotePlainText(note));
+}
+
+function exportNoteForImport(note: Note) {
+  downloadTextFile(
+    `${note.title || "note"}.json`,
+    JSON.stringify(note, null, 2),
+    "application/json;charset=utf-8",
+  );
+}
+
+function exportNoteAsPdf(note: Note) {
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(note.title || "Note")}</title><style>body{font-family:Arial,sans-serif;padding:32px;max-width:900px;margin:0 auto;color:#111}.meta{color:#666;font-size:12px;text-transform:uppercase;letter-spacing:.12em}.page{margin-top:24px;padding-top:18px;border-top:1px solid #ddd}.content{white-space:pre-wrap;line-height:1.6}</style></head><body><div class="meta">SmartNotes</div><h1>${escapeHtml(note.title || "Без названия")}</h1><div class="content">${escapeHtml(getNotePlainText(note)).replace(/\n/g, "<br>")}</div></body></html>`;
+  const preview = window.open("", "_blank", "noopener,noreferrer");
+
+  if (!preview) {
+    return;
+  }
+
+  preview.document.open();
+  preview.document.write(html);
+  preview.document.close();
+  preview.focus();
+  preview.print();
+}
+
 function plainTextToEditorContent(value: string) {
   if (!value.trim()) {
     return "<p></p>";
@@ -127,8 +267,10 @@ export function SmartNotesShell() {
   const rawFolders = useFoldersStore((state) => state.folders);
   const notes = useNotesStore((state) => state.notes);
   const currentNoteId = useNotesStore((state) => state.currentNoteId);
+  const currentNotePageIndex = useNotesStore((state) => state.currentNotePageIndex);
   const editorDirty = useNotesStore((state) => state.editorDirty);
   const setCurrentNoteId = useNotesStore((state) => state.setCurrentNoteId);
+  const setCurrentNotePageIndex = useNotesStore((state) => state.setCurrentNotePageIndex);
   const markEditorDirty = useNotesStore((state) => state.markEditorDirty);
   const view = useUiStore((state) => state.view);
   const activeFolderId = useUiStore((state) => state.activeFolderId);
@@ -157,7 +299,7 @@ export function SmartNotesShell() {
   const toggleDesktopSidebarPinned = useUiStore((state) => state.toggleDesktopSidebarPinned);
 
   const [profileOpen, setProfileOpen] = useState(false);
-  const [sheet, setSheet] = useState<SheetName>(null);
+  const [sheet, setSheet] = useState<SheetState>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
   const [toolbarVisible, setToolbarVisible] = useState(true);
@@ -282,11 +424,12 @@ export function SmartNotesShell() {
     }
 
     setCurrentNoteId(noteId);
+    setCurrentNotePageIndex(0);
 
     setFiltersOpen(false);
 
     if (note.lock?.hidden) {
-      setSheet("lock");
+      openSheet("lock");
       return;
     }
 
@@ -297,6 +440,10 @@ export function SmartNotesShell() {
     const note = addNote({ title: "", content: "", folderId: activeFolderId, userTags: [] }, "local-user");
     setCurrentNoteId(note.id);
     setEditorOpen(true);
+  }
+
+  function openSheet(name: Exclude<SheetName, null>, anchor?: SheetAnchor | null) {
+    setSheet({ name, anchor: anchor ?? null });
   }
 
   const filteredTagSuggestions = useMemo(() => {
@@ -312,6 +459,7 @@ export function SmartNotesShell() {
   function closeEditor() {
     setEditorOpen(false);
     setCurrentNoteId(null);
+    setCurrentNotePageIndex(0);
   }
 
   const desktopSidebarVisible = isDesktop && (desktopSidebarPinned || desktopSidebarOpen);
@@ -320,16 +468,16 @@ export function SmartNotesShell() {
   return (
     <main className="min-h-screen text-foreground">
       <div className="relative min-h-screen">
-        {desktopSidebarVisible ? (
+      {desktopSidebarVisible ? (
           <div className="pointer-events-none absolute inset-y-0 left-0 hidden w-[18rem] lg:block">
             <div className="pointer-events-auto h-full">
-              <Sidebar copy={copy} currentView={view} folderViewMode={folderViewMode} folders={folders} isDesktop onClose={() => setDesktopSidebarOpen(false)} onCreateFolder={() => setSheet("create-folder")} onOpenFolder={openFolder} onOpenSheet={setSheet} onSwitchView={openView} />
+              <Sidebar copy={copy} currentView={view} folderViewMode={folderViewMode} folders={folders} isDesktop onClose={() => setDesktopSidebarOpen(false)} onCreateFolder={(anchor) => openSheet("create-folder", anchor)} onOpenFolder={openFolder} onOpenSheet={openSheet} onSwitchView={openView} />
             </div>
           </div>
         ) : null}
 
         <div className={`transition-[padding] duration-300 ${contentShift}`}>
-          <Header copy={copy} activeFolder={activeFolder} filtersOpen={filtersOpen} filtersRef={filtersRef} onOpenDrawer={toggleSidebar} onOpenFilters={() => setFiltersOpen((value) => !value)} onOpenFolderMenu={() => setSheet("folder")} profileOpen={profileOpen} profileRef={profileRef} searchQuery={searchQuery} setProfileOpen={setProfileOpen} setSearchQuery={setSearchQuery} view={view} />
+          <Header copy={copy} activeFolder={activeFolder} filtersOpen={filtersOpen} filtersRef={filtersRef} onOpenDrawer={toggleSidebar} onOpenFilters={() => setFiltersOpen((value) => !value)} onOpenFolderMenu={(anchor) => openSheet("folder", anchor)} profileOpen={profileOpen} profileRef={profileRef} searchQuery={searchQuery} setProfileOpen={setProfileOpen} setSearchQuery={setSearchQuery} view={view} />
 
           {filtersOpen ? (
             <div className="pointer-events-none absolute right-3 top-[4.8rem] z-30 w-[min(92vw,25rem)] sm:right-4">
@@ -350,7 +498,7 @@ export function SmartNotesShell() {
             </div>
           ) : null}
 
-              <MainSurface copy={copy} activeFolder={activeFolder} folderViewMode={folderViewMode} folders={folders} hiddenFolders={hiddenFolders} notes={visibleNotes} notesPerPage={notesPerPage} onOpenFolder={openFolder} onOpenNote={openNote} onOpenSheet={setSheet} trashedFolders={trashedFolders} view={view} />
+              <MainSurface copy={copy} activeFolder={activeFolder} folderViewMode={folderViewMode} folders={folders} hiddenFolders={hiddenFolders} notes={visibleNotes} notesPerPage={notesPerPage} onOpenFolder={openFolder} onOpenNote={openNote} onOpenSheet={openSheet} trashedFolders={trashedFolders} view={view} />
         </div>
       </div>
 
@@ -358,7 +506,7 @@ export function SmartNotesShell() {
         <div className="fixed inset-0 z-40 lg:hidden">
           <button aria-label="Закрыть меню" className="absolute inset-0 bg-foreground/42 backdrop-blur-sm" onClick={closeMobileSidebar} type="button" />
           <div className="absolute inset-y-0 left-0 w-[88vw] max-w-sm pr-10">
-            <Sidebar copy={copy} currentView={view} folderViewMode={folderViewMode} folders={folders} onClose={closeMobileSidebar} onCreateFolder={() => setSheet("create-folder")} onOpenFolder={openFolder} onOpenSheet={setSheet} onSwitchView={openView} />
+            <Sidebar copy={copy} currentView={view} folderViewMode={folderViewMode} folders={folders} onClose={closeMobileSidebar} onCreateFolder={(anchor) => openSheet("create-folder", anchor)} onOpenFolder={openFolder} onOpenSheet={openSheet} onSwitchView={openView} />
           </div>
         </div>
       ) : null}
@@ -367,13 +515,13 @@ export function SmartNotesShell() {
         <Plus className="h-7 w-7" />
       </button>
 
-      {editorOpen && currentNote ? <EditorOverlay note={currentNote} onClose={closeEditor} onOpenSheet={setSheet} toolbarVisible={toolbarVisible} setToolbarVisible={setToolbarVisible} /> : null}
-      <BottomSheet activeFolder={activeFolder} editorDirty={editorDirty} name={sheet} onClose={() => setSheet(null)} />
+      {editorOpen && currentNote ? <EditorOverlay note={currentNote} onClose={closeEditor} onOpenSheet={openSheet} toolbarVisible={toolbarVisible} setToolbarVisible={setToolbarVisible} /> : null}
+      <BottomSheet activeFolder={activeFolder} editorDirty={editorDirty} sheet={sheet} onClose={() => setSheet(null)} />
     </main>
   );
 }
 
-function Header({ copy, view, activeFolder, searchQuery, filtersOpen, filtersRef, onOpenDrawer, onOpenFilters, onOpenFolderMenu, profileOpen, profileRef, setProfileOpen, setSearchQuery }: { copy: ReturnType<typeof getUiCopy>; view: AppView; activeFolder: FolderEntity | null; searchQuery: string; filtersOpen: boolean; filtersRef: React.RefObject<HTMLDivElement | null>; onOpenDrawer: () => void; onOpenFilters: () => void; onOpenFolderMenu: () => void; profileOpen: boolean; profileRef: React.RefObject<HTMLDivElement | null>; setProfileOpen: (open: boolean) => void; setSearchQuery: (query: string) => void }) {
+function Header({ copy, view, activeFolder, searchQuery, filtersOpen, filtersRef, onOpenDrawer, onOpenFilters, onOpenFolderMenu, profileOpen, profileRef, setProfileOpen, setSearchQuery }: { copy: ReturnType<typeof getUiCopy>; view: AppView; activeFolder: FolderEntity | null; searchQuery: string; filtersOpen: boolean; filtersRef: React.RefObject<HTMLDivElement | null>; onOpenDrawer: () => void; onOpenFilters: () => void; onOpenFolderMenu: (anchor: SheetAnchor) => void; profileOpen: boolean; profileRef: React.RefObject<HTMLDivElement | null>; setProfileOpen: (open: boolean) => void; setSearchQuery: (query: string) => void }) {
   const title =
     view === "folder" && activeFolder
       ? activeFolder.name
@@ -404,7 +552,7 @@ function Header({ copy, view, activeFolder, searchQuery, filtersOpen, filtersRef
 
         <div className="hidden min-w-0 shrink-0 items-center gap-2 lg:flex">
           <h1 className="truncate text-lg font-black tracking-tight">{title}</h1>
-          {view === "folder" ? <button className="rounded-full p-2 text-foreground/45 hover:bg-surface-strong" onClick={onOpenFolderMenu} type="button"><MoreHorizontal className="h-4 w-4" /></button> : null}
+          {view === "folder" ? <button className="rounded-full p-2 text-foreground/45 hover:bg-surface-strong" onClick={(event) => onOpenFolderMenu(getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><MoreHorizontal className="h-4 w-4" /></button> : null}
         </div>
 
         <label className="flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-2xl border border-border bg-surface-strong px-4 shadow-inner shadow-violet-950/4">
@@ -450,13 +598,13 @@ function Header({ copy, view, activeFolder, searchQuery, filtersOpen, filtersRef
 
       <div className="mt-3 flex items-center gap-2 lg:hidden">
         <h1 className="truncate text-base font-black tracking-tight">{title}</h1>
-        {view === "folder" ? <button className="rounded-full p-2 text-foreground/45 hover:bg-surface-strong" onClick={onOpenFolderMenu} type="button"><MoreHorizontal className="h-4 w-4" /></button> : null}
+        {view === "folder" ? <button className="rounded-full p-2 text-foreground/45 hover:bg-surface-strong" onClick={(event) => onOpenFolderMenu(getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><MoreHorizontal className="h-4 w-4" /></button> : null}
       </div>
     </header>
   );
 }
 
-function Sidebar({ copy, currentView, folders, folderViewMode, isDesktop = false, onClose, onCreateFolder, onOpenFolder, onOpenSheet, onSwitchView }: { copy: ReturnType<typeof getUiCopy>; currentView: AppView; folders: FolderEntity[]; folderViewMode: "compact" | "full"; isDesktop?: boolean; onClose: () => void; onCreateFolder: () => void; onOpenFolder: (folder: FolderEntity) => void; onOpenSheet: (sheet: SheetName) => void; onSwitchView: (view: AppView) => void }) {
+function Sidebar({ copy, currentView, folders, folderViewMode, isDesktop = false, onClose, onCreateFolder, onOpenFolder, onOpenSheet, onSwitchView }: { copy: ReturnType<typeof getUiCopy>; currentView: AppView; folders: FolderEntity[]; folderViewMode: "compact" | "full"; isDesktop?: boolean; onClose: () => void; onCreateFolder: (anchor: SheetAnchor) => void; onOpenFolder: (folder: FolderEntity) => void; onOpenSheet: (sheet: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void; onSwitchView: (view: AppView) => void }) {
   return (
     <aside className="flex h-full flex-col border-r border-border bg-surface/94 p-4 shadow-2xl shadow-violet-950/10 backdrop-blur-2xl">
       <div className="flex items-center justify-between gap-3">
@@ -482,7 +630,7 @@ function Sidebar({ copy, currentView, folders, folderViewMode, isDesktop = false
         })}
       </nav>
 
-      <SidebarSection action={copy.shell.createFolder} onAction={onCreateFolder} title={copy.shell.folders}>
+      <SidebarSection action={copy.shell.createFolder} onAction={(event) => onCreateFolder(getSheetAnchor(event.currentTarget.getBoundingClientRect()))} title={copy.shell.folders}>
         {folders.map((folder) => (
           <button className="flex w-full items-start gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" key={folder.id} onClick={() => onOpenFolder(folder)} type="button">
             <Folder className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
@@ -503,7 +651,7 @@ function Sidebar({ copy, currentView, folders, folderViewMode, isDesktop = false
       </SidebarSection>
 
       <div className="mt-auto grid gap-2 pt-4">
-        <button className="rounded-2xl border border-border bg-surface-strong px-4 py-3 text-left text-sm font-bold hover:bg-background" onClick={() => onOpenSheet("about")} type="button">
+        <button className="rounded-2xl border border-border bg-surface-strong px-4 py-3 text-left text-sm font-bold hover:bg-background" onClick={(event) => onOpenSheet("about", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button">
           {copy.shell.about}
         </button>
         <Button asChild variant="secondary">
@@ -514,7 +662,7 @@ function Sidebar({ copy, currentView, folders, folderViewMode, isDesktop = false
   );
 }
 
-function SidebarSection({ title, action, children, onAction }: { title: string; action?: string; children: React.ReactNode; onAction?: () => void }) {
+function SidebarSection({ title, action, children, onAction }: { title: string; action?: string; children: React.ReactNode; onAction?: (event: React.MouseEvent<HTMLButtonElement>) => void }) {
   return (
     <section className="mt-6">
       <div className="mb-2 flex items-center justify-between px-1">
@@ -526,7 +674,7 @@ function SidebarSection({ title, action, children, onAction }: { title: string; 
   );
 }
 
-function MainSurface({ copy, view, folders, hiddenFolders, trashedFolders, notes, activeFolder, folderViewMode, notesPerPage, onOpenFolder, onOpenNote, onOpenSheet }: { copy: ReturnType<typeof getUiCopy>; view: AppView; folders: FolderEntity[]; hiddenFolders: FolderEntity[]; trashedFolders: FolderEntity[]; notes: Note[]; activeFolder: FolderEntity | null; folderViewMode: "compact" | "full"; notesPerPage: 5 | 10 | 20 | 50; onOpenFolder: (folder: FolderEntity) => void; onOpenNote: (noteId: string) => void; onOpenSheet: (sheet: SheetName) => void }) {
+function MainSurface({ copy, view, folders, hiddenFolders, trashedFolders, notes, activeFolder, folderViewMode, notesPerPage, onOpenFolder, onOpenNote, onOpenSheet }: { copy: ReturnType<typeof getUiCopy>; view: AppView; folders: FolderEntity[]; hiddenFolders: FolderEntity[]; trashedFolders: FolderEntity[]; notes: Note[]; activeFolder: FolderEntity | null; folderViewMode: "compact" | "full"; notesPerPage: 5 | 10 | 20 | 50; onOpenFolder: (folder: FolderEntity) => void; onOpenNote: (noteId: string) => void; onOpenSheet: (sheet: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void }) {
   if (view === "admin_tools") {
     return <section className="min-h-[calc(100vh-4.8rem)] border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><AdminToolsView notes={notes} /></section>;
   }
@@ -610,7 +758,7 @@ function FoldersGrid({ folders, mode, emptyText, folderViewMode, onOpenFolder }:
   );
 }
 
-function TrashView({ copy, notes, notesPerPage, trashedFolders, onOpenNote, onOpenSheet }: { copy: ReturnType<typeof getUiCopy>; notes: Note[]; notesPerPage: 5 | 10 | 20 | 50; trashedFolders: FolderEntity[]; onOpenNote: (noteId: string) => void; onOpenSheet: (sheet: SheetName) => void }) {
+function TrashView({ copy, notes, notesPerPage, trashedFolders, onOpenNote, onOpenSheet }: { copy: ReturnType<typeof getUiCopy>; notes: Note[]; notesPerPage: 5 | 10 | 20 | 50; trashedFolders: FolderEntity[]; onOpenNote: (noteId: string) => void; onOpenSheet: (sheet: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void }) {
   return (
     <div className="space-y-6 p-4 sm:p-5">
       <div>
@@ -641,7 +789,7 @@ function TrashView({ copy, notes, notesPerPage, trashedFolders, onOpenNote, onOp
   );
 }
 
-function NotesView({ copy, title, notes, notesPerPage, emptyText, onOpenNote, onOpenSheet, view }: { copy: ReturnType<typeof getUiCopy>; title: string; notes: Note[]; notesPerPage: 5 | 10 | 20 | 50; emptyText: string; onOpenNote: (noteId: string) => void; onOpenSheet: (sheet: SheetName) => void; view: AppView }) {
+function NotesView({ copy, title, notes, notesPerPage, emptyText, onOpenNote, onOpenSheet, view }: { copy: ReturnType<typeof getUiCopy>; title: string; notes: Note[]; notesPerPage: 5 | 10 | 20 | 50; emptyText: string; onOpenNote: (noteId: string) => void; onOpenSheet: (sheet: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void; view: AppView }) {
   const folders = useFoldersStore((state) => state.folders);
   const visibleFolders = useMemo(() => folders.filter((folder) => !folder.trashedAt && !folder.isHidden), [folders]);
   const { pinned, unpinned } = useMemo(() => selectPinnedGroups(notes), [notes]);
@@ -652,9 +800,10 @@ function NotesView({ copy, title, notes, notesPerPage, emptyText, onOpenNote, on
   if (!notes.length) {
     return (
       <div className="flex h-full min-h-[calc(100vh-7.5rem)] items-center justify-center p-6 text-center">
-        <div>
-          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[1.8rem] bg-foreground/6 text-foreground/34"><Sparkles className="h-9 w-9" /></div>
-          <h2 className="mt-6 text-2xl font-black tracking-tight sm:text-3xl">{emptyText}</h2>
+        <div className="max-w-md rounded-[2rem] border border-border bg-surface-strong px-6 py-8 shadow-xl shadow-violet-950/6">
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[1.8rem] bg-accent/10 text-accent"><Sparkles className="h-9 w-9" /></div>
+          <h2 className="mt-6 text-2xl font-black tracking-tight sm:text-3xl">Здесь пока пусто</h2>
+          <p className="mt-3 text-sm leading-6 text-foreground/58">Создайте первую заметку, чтобы она появилась в этом разделе.</p>
         </div>
       </div>
     );
@@ -697,7 +846,7 @@ function NotesView({ copy, title, notes, notesPerPage, emptyText, onOpenNote, on
   );
 }
 
-function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: { note: Note; folders: FolderEntity[]; onOpenNote: (noteId: string) => void; onOpenSheet: (sheet: SheetName) => void; view: AppView }) {
+function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: { note: Note; folders: FolderEntity[]; onOpenNote: (noteId: string) => void; onOpenSheet: (sheet: Exclude<SheetName, null>, anchor: SheetAnchor) => void; view: AppView }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [folderPickerOpen, setFolderPickerOpen] = useState(false);
   const setCurrentNoteId = useNotesStore((state) => state.setCurrentNoteId);
@@ -709,6 +858,8 @@ function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: { note: Note
     ? new Date(note.reminderAt).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
     : null;
   const aiBadgeTone = note.aiStatus === "error" ? "text-rose-500 bg-rose-500/10" : note.aiStatus === "pending" ? "text-amber-600 bg-amber-500/10" : note.aiStatus === "analyzing" ? "text-sky-600 bg-sky-500/10" : "text-emerald-600 bg-emerald-500/10";
+  const accessLabel = getNoteAccessLabel(note);
+  const analysisLabel = note.aiStatus === "done" ? "Статус анализа: готово" : note.aiStatus === "pending" ? "Статус анализа: в очереди" : note.aiStatus === "analyzing" ? "Статус анализа: анализируется" : "Статус анализа: ошибка";
 
   useEffect(() => {
     if (!menuOpen) {
@@ -726,9 +877,9 @@ function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: { note: Note
     return () => document.removeEventListener("mousedown", handlePointerDown);
   }, [menuOpen]);
 
-  function openReminderSheet() {
+  function openReminderSheet(anchor: SheetAnchor) {
     setCurrentNoteId(note.id);
-    onOpenSheet("reminder");
+    onOpenSheet("reminder", anchor);
     setMenuOpen(false);
     setFolderPickerOpen(false);
   }
@@ -761,10 +912,22 @@ function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: { note: Note
                 </div>
               ) : (
                 <div className="space-y-1">
-                  <MenuAction icon={Archive} label={note.isArchived ? "Вернуть из архива" : "В архив"} onClick={() => { setArchived(note.id, !note.isArchived); setMenuOpen(false); setFolderPickerOpen(false); }} />
-                  <MenuAction icon={Bell} label={note.reminderAt ? "Изменить напоминание" : "Поставить напоминание"} onClick={() => { if (note.reminderAt) { openReminderSheet(); return; } openReminderSheet(); }} />
-                  <MenuAction icon={FolderInput} label={`Переместить: ${folderName}`} onClick={() => setFolderPickerOpen((value) => !value)} />
+                  <MenuAction icon={Copy} label="Копировать текст" onClick={async () => { await copyNoteText(note); setMenuOpen(false); setFolderPickerOpen(false); }} />
+                  <MenuAction icon={Archive} label={note.isArchived ? "Вернуть из архива" : "Архивировать"} onClick={() => { setArchived(note.id, !note.isArchived); setMenuOpen(false); setFolderPickerOpen(false); }} />
+                   <MenuAction icon={Ban} label={note.lock ? "Снять блокировку" : "Заблокировать заметку"} onClick={() => { void (async () => { if (await toggleNoteLock(note.id)) { setMenuOpen(false); setFolderPickerOpen(false); } })(); }} />
+                    <MenuAction icon={Bell} label={note.reminderAt ? "Изменить напоминание" : "Напоминание"} onClick={(event: React.MouseEvent<HTMLButtonElement>) => openReminderSheet(getSheetAnchor(event.currentTarget.getBoundingClientRect()))} />
+                  <MenuAction icon={FolderInput} label={`Переместить в папку: ${folderName}`} onClick={() => setFolderPickerOpen((value) => !value)} />
                   {folderPickerOpen ? <div className="rounded-xl bg-surface-strong/72 p-1"> <div className="px-3 py-2 text-[11px] font-bold uppercase tracking-[0.18em] text-foreground/36">Папки</div><div className="max-h-40 space-y-1 overflow-y-auto"><MenuAction active={note.folderId === null} icon={Folder} label="Без папки" onClick={() => { moveNoteToFolder(note.id, null); setMenuOpen(false); setFolderPickerOpen(false); }} />{folders.map((folder) => (<MenuAction active={note.folderId === folder.id} icon={Folder} key={folder.id} label={folder.name} onClick={() => { moveNoteToFolder(note.id, folder.id); setMenuOpen(false); setFolderPickerOpen(false); }} />))}</div></div> : null}
+                  <MenuAction icon={RotateCcw} label="Отметить для повторного анализа" onClick={() => { patchNote(note.id, { aiStatus: "pending", aiProcessed: false, analyzed: false, aiError: null }, { scheduleAnalysis: false }); setMenuOpen(false); setFolderPickerOpen(false); }} />
+                  <MenuAction icon={Copy} label="Скачать файл для импорта" onClick={() => { exportNoteForImport(note); setMenuOpen(false); setFolderPickerOpen(false); }} />
+                  <MenuAction icon={FileImage} label="Скачать TXT" onClick={() => { exportNoteAsTxt(note); setMenuOpen(false); setFolderPickerOpen(false); }} />
+                  <MenuAction icon={FileImage} label="Экспорт PDF" onClick={() => { exportNoteAsPdf(note); setMenuOpen(false); setFolderPickerOpen(false); }} />
+                  <div className="my-1 h-px bg-border" />
+                  <div className="px-3 py-2 text-[11px] font-bold uppercase tracking-[0.18em] text-foreground/36">Статусы</div>
+                  <div className="space-y-1 px-1 pb-1">
+                    <div className="rounded-xl bg-background px-3 py-2 text-xs font-semibold text-foreground/68">{accessLabel}</div>
+                    <div className="rounded-xl bg-background px-3 py-2 text-xs font-semibold text-foreground/68">{analysisLabel}</div>
+                  </div>
                   <div className="my-1 h-px bg-border" />
                   <MenuAction destructive icon={Trash2} label="Удалить" onClick={() => { trashNote(note.id); setMenuOpen(false); setFolderPickerOpen(false); }} />
                 </div>
@@ -796,7 +959,7 @@ function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: { note: Note
   );
 }
 
-function MenuAction({ label, icon: Icon, onClick, destructive = false, active = false }: { label: string; icon: typeof Folder; onClick: () => void; destructive?: boolean; active?: boolean }) {
+function MenuAction({ label, icon: Icon, onClick, destructive = false, active = false }: { label: string; icon: typeof Folder; onClick: (event: React.MouseEvent<HTMLButtonElement>) => void; destructive?: boolean; active?: boolean }) {
   return (
     <button className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition ${destructive ? "text-rose-500 hover:bg-rose-500/8" : active ? "bg-accent/10 text-accent" : "text-foreground/78 hover:bg-surface-strong"}`} onClick={onClick} type="button">
       <Icon className="h-4 w-4 shrink-0" />
@@ -848,10 +1011,11 @@ function TopFiltersPopup({ notesFilter, folders, tagDraft, tagSuggestions, onSet
   );
 }
 
-function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setToolbarVisible }: { note: Note; onClose: () => void; onOpenSheet: (sheet: SheetName) => void; toolbarVisible: boolean; setToolbarVisible: (visible: boolean) => void }) {
-  const [pageIndex, setPageIndex] = useState(0);
+function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setToolbarVisible }: { note: Note; onClose: () => void; onOpenSheet: (sheet: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void; toolbarVisible: boolean; setToolbarVisible: (visible: boolean) => void }) {
+  const currentNotePageIndex = useNotesStore((state) => state.currentNotePageIndex);
+  const setCurrentNotePageIndex = useNotesStore((state) => state.setCurrentNotePageIndex);
   const snapshotRef = useRef(serializeEditorSnapshot(note));
-  const currentPage = note.pages[pageIndex] ?? note.pages[0];
+  const currentPage = note.pages[currentNotePageIndex] ?? note.pages[0];
   const editorDirty = useNotesStore((state) => state.editorDirty);
   const markEditorDirty = useNotesStore((state) => state.markEditorDirty);
 
@@ -877,16 +1041,16 @@ function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setToolbarV
   });
 
   useEffect(() => {
-    if (pageIndex > note.pages.length - 1) {
-      setPageIndex(Math.max(0, note.pages.length - 1));
+    if (currentNotePageIndex > note.pages.length - 1) {
+      setCurrentNotePageIndex(Math.max(0, note.pages.length - 1));
     }
-  }, [note.pages.length, pageIndex]);
+  }, [currentNotePageIndex, note.pages.length, setCurrentNotePageIndex]);
 
   useEffect(() => {
     snapshotRef.current = serializeEditorSnapshot(note);
     markEditorDirty(false);
-    setPageIndex(0);
-  }, [markEditorDirty, note.id]);
+    setCurrentNotePageIndex(0);
+  }, [markEditorDirty, note.id, setCurrentNotePageIndex]);
 
   useEffect(() => {
     editor?.commands.setContent(plainTextToEditorContent(currentPage.content), { emitUpdate: false });
@@ -923,17 +1087,6 @@ function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setToolbarV
     );
   }
 
-  function handlePageTitleChange(value: string) {
-    const nextTitle = value.trim().slice(0, 80);
-    updatePage(note.id, currentPage.id, { title: nextTitle });
-    syncDirtyState(
-      serializeEditorSnapshot({
-        ...note,
-        pages: note.pages.map((page) => (page.id === currentPage.id ? { ...page, title: nextTitle } : page)),
-      }),
-    );
-  }
-
   function handleTagsBlur(value: string) {
     const tags = value.split(",").map((tag) => tag.trim()).filter(Boolean);
     patchNote(note.id, { userTags: tags }, { scheduleAnalysis: false });
@@ -959,15 +1112,15 @@ function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setToolbarV
         <header className="flex items-center gap-2 rounded-[1.5rem] border border-border bg-surface/90 p-2 shadow-xl shadow-violet-950/8">
           <button className="rounded-2xl p-3 hover:bg-surface-strong" onClick={handleClose} type="button"><ChevronLeft className="h-5 w-5" /></button>
           <div className="flex items-center gap-1 rounded-2xl bg-surface-strong px-2 py-1 text-sm font-black">
-            <button className="rounded-lg p-1 hover:bg-background disabled:opacity-35" disabled={pageIndex === 0} onClick={() => setPageIndex((value) => Math.max(0, value - 1))} type="button"><ChevronLeft className="h-4 w-4" /></button>
-            {pageIndex + 1}/{note.pages.length}
-            <button className="rounded-lg p-1 hover:bg-background disabled:opacity-35" disabled={pageIndex >= note.pages.length - 1} onClick={() => setPageIndex((value) => Math.min(note.pages.length - 1, value + 1))} type="button"><ChevronRight className="h-4 w-4" /></button>
+            <button className="rounded-lg p-1 hover:bg-background disabled:opacity-35" disabled={currentNotePageIndex === 0} onClick={() => setCurrentNotePageIndex(Math.max(0, currentNotePageIndex - 1))} type="button"><ChevronLeft className="h-4 w-4" /></button>
+            {currentNotePageIndex + 1}/{note.pages.length}
+            <button className="rounded-lg p-1 hover:bg-background disabled:opacity-35" disabled={currentNotePageIndex >= note.pages.length - 1} onClick={() => setCurrentNotePageIndex(Math.min(note.pages.length - 1, currentNotePageIndex + 1))} type="button"><ChevronRight className="h-4 w-4" /></button>
           </div>
-          <button className="rounded-2xl p-3 hover:bg-surface-strong" onClick={() => onOpenSheet("pages")} type="button"><Folder className="h-5 w-5" /></button>
+          <button className="rounded-2xl p-3 hover:bg-surface-strong" onClick={(event) => onOpenSheet("pages", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><Folder className="h-5 w-5" /></button>
           <div className="ml-auto flex items-center gap-1">
             <button className="rounded-2xl p-3 hover:bg-surface-strong" type="button"><Undo2 className="h-5 w-5" /></button>
             <button className="rounded-2xl p-3 hover:bg-surface-strong" type="button"><Share2 className="h-5 w-5" /></button>
-            <button className="rounded-2xl p-3 hover:bg-surface-strong" onClick={() => onOpenSheet("note")} type="button"><MoreHorizontal className="h-5 w-5" /></button>
+            <button className="rounded-2xl p-3 hover:bg-surface-strong" onClick={(event) => onOpenSheet("note", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><MoreHorizontal className="h-5 w-5" /></button>
             <button className="rounded-2xl p-3 hover:bg-surface-strong" onClick={() => setToolbarVisible(!toolbarVisible)} type="button"><ChevronDown className="h-5 w-5" /></button>
           </div>
         </header>
@@ -985,11 +1138,10 @@ function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setToolbarV
               <ToolButton active={editor.isActive({ textAlign: "right" })} icon={AlignRight} onClick={() => editor.chain().focus().setTextAlign("right").run()} />
               <ToolButton active={editor.isActive("bulletList")} icon={List} onClick={() => editor.chain().focus().toggleBulletList().run()} />
               <ToolButton active={editor.isActive("link")} label="Link" onClick={() => { const url = window.prompt("Ссылка"); if (url) { editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run(); } }} />
-              <ToolButton icon={Paintbrush} label="Sketch" onClick={() => {}} />
-              <ToolButton icon={FileImage} label="Add image" onClick={() => {}} />
+              <ToolButton icon={Paintbrush} label="Sketch" onClick={() => { addPage(note.id, `Sketch ${note.pages.length + 1}`); setCurrentNotePageIndex(note.pages.length); }} />
+              <ToolButton icon={FileImage} label="Add image" onClick={() => { const url = window.prompt("Ссылка на изображение"); if (!url) return; attachMedia(note.id, { id: `media_${Date.now().toString(36)}`, provider: "google-drive", fileId: url, url, mimeType: "image/*", name: "Image", size: 0, thumbnailUrl: url }); }} />
             </div>
           ) : null}
-          <input className="mt-5 w-full rounded-2xl border border-border bg-surface-strong px-4 py-3 text-sm font-semibold outline-none" maxLength={80} onChange={(event) => handlePageTitleChange(event.target.value)} placeholder="Название страницы" value={currentPage.title} />
           <div className="mt-5 flex min-h-[60vh] flex-1 rounded-[1.5rem] border border-border bg-background/36 p-4 text-lg leading-9 outline-none" onMouseDown={() => editor.chain().focus().run()}>
             <div className="min-h-full flex-1" onMouseDown={() => editor.chain().focus().run()}>
               <EditorContent editor={editor} />
@@ -1007,22 +1159,26 @@ function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setToolbarV
   );
 }
 
-function BottomSheet({ name, activeFolder, editorDirty, onClose }: { name: SheetName; activeFolder: FolderEntity | null; editorDirty: boolean; onClose: () => void }) {
-  if (!name) {
+function BottomSheet({ sheet, activeFolder, editorDirty, onClose }: { sheet: SheetState; activeFolder: FolderEntity | null; editorDirty: boolean; onClose: () => void }) {
+  if (!sheet) {
     return null;
   }
 
+  const { name, anchor } = sheet;
   const title = name === "folder" ? "Папка" : name === "note" ? "Действия заметки" : name === "pages" ? "Страницы" : name === "lock" ? "Lock Center" : name === "create-folder" ? "Создать папку" : name === "reminder" ? "Напоминание" : "О приложении";
-  const centered = name === "about";
+  const topSheet = name === "pages";
 
   return (
     <div className="fixed inset-0 z-50">
       <button className="absolute inset-0 bg-foreground/42 backdrop-blur-sm" onClick={onClose} type="button" />
-      <section className={`absolute border border-border bg-surface p-4 shadow-2xl shadow-violet-950/20 backdrop-blur-2xl ${centered ? "left-1/2 top-1/2 w-[min(92vw,34rem)] -translate-x-1/2 -translate-y-1/2 rounded-[2rem]" : "inset-x-0 bottom-0 max-h-[86vh] overflow-y-auto rounded-t-[2rem] lg:inset-auto lg:bottom-6 lg:right-6 lg:w-[420px] lg:rounded-[2rem]"}`}>
+      <section
+        className={`absolute border border-border bg-surface p-4 shadow-2xl shadow-violet-950/20 backdrop-blur-2xl ${anchor ? "w-[min(92vw,24rem)] max-h-[82vh] overflow-y-auto rounded-[1.8rem]" : topSheet ? "inset-x-0 top-0 max-h-[86vh] overflow-y-auto rounded-b-[2rem] lg:left-1/2 lg:top-4 lg:w-[min(94vw,48rem)] lg:-translate-x-1/2 lg:rounded-[2rem]" : "inset-x-0 bottom-0 max-h-[86vh] overflow-y-auto rounded-t-[2rem] lg:inset-auto lg:bottom-6 lg:right-6 lg:w-[420px] lg:rounded-[2rem]"}`}
+        style={anchor ? { left: `${anchor.x}px`, top: `${anchor.y}px`, transform: `translate(-50%, ${anchor.placement === "above" ? "-100%" : "0"})` } : undefined}
+      >
         <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-foreground/18 lg:hidden" />
         <div className="flex items-center justify-between"><h2 className="text-xl font-black">{title}</h2><button className="rounded-full p-2 hover:bg-surface-strong" onClick={onClose} type="button"><X className="h-5 w-5" /></button></div>
         {name === "folder" ? <FolderActionList activeFolder={activeFolder} /> : null}
-        {name === "note" ? <ActionList items={["Архивировать", "Заблокировать", "Переместить", "Напомнить", "Удалить"]} /> : null}
+        {name === "note" ? <NoteActionSheet /> : null}
         {name === "pages" ? <PagesContent /> : null}
         {name === "lock" ? <LockContent onClose={onClose} /> : null}
         {name === "about" ? <AboutContent /> : null}
@@ -1033,8 +1189,58 @@ function BottomSheet({ name, activeFolder, editorDirty, onClose }: { name: Sheet
   );
 }
 
-function ActionList({ items }: { items: string[] }) {
-  return <div className="mt-4 space-y-2">{items.map((item) => <button className={`flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong ${item.includes("Удал") ? "text-rose-500" : ""}`} key={item} type="button"><span className="font-bold">{item}</span></button>)}</div>;
+function NoteActionSheet() {
+  const currentNoteId = useNotesStore((state) => state.currentNoteId);
+  const note = useNotesStore((state) => state.notes.find((item) => item.id === state.currentNoteId) ?? null);
+  const folders = useFoldersStore((state) => state.folders);
+  const [folderPickerOpen, setFolderPickerOpen] = useState(false);
+  const visibleFolders = useMemo(() => folders.filter((folder) => !folder.trashedAt && !folder.isHidden), [folders]);
+
+  if (!currentNoteId || !note) {
+    return null;
+  }
+
+  return (
+    <div className="mt-4 space-y-4">
+      <div className="grid gap-2 sm:grid-cols-2">
+        <ActionCard label="Отметить для повторного анализа" onClick={() => patchNote(note.id, { aiStatus: "pending", aiProcessed: false, analyzed: false, aiError: null }, { scheduleAnalysis: false })} />
+        <ActionCard label={note.lock ? "Разблокировать заметку" : "Заблокировать заметку"} onClick={() => void toggleNoteLock(note.id)} />
+        <ActionCard label={note.isArchived ? "Вернуть из архива" : "Архивировать"} onClick={() => setArchived(note.id, !note.isArchived)} />
+        <ActionCard destructive label="Удалить" onClick={() => trashNote(note.id)} />
+        <ActionCard label="Копировать текст" onClick={() => void copyNoteText(note)} />
+        <ActionCard label="Переместить в папку" onClick={() => setFolderPickerOpen((value) => !value)} />
+        <ActionCard label="Напоминание" onClick={() => patchNote(note.id, { reminderAt: note.reminderAt ?? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() }, { scheduleAnalysis: false })} />
+        <ActionCard label="Скачать файл для импорта" onClick={() => exportNoteForImport(note)} />
+        <ActionCard label="Скачать TXT" onClick={() => exportNoteAsTxt(note)} />
+        <ActionCard label="Экспорт PDF" onClick={() => exportNoteAsPdf(note)} />
+      </div>
+
+      {folderPickerOpen ? (
+        <div className="rounded-[1.5rem] border border-border bg-surface-strong p-4">
+          <div className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-foreground/42">Папки</div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <ActionCard label="Без папки" onClick={() => { moveNoteToFolder(note.id, null); setFolderPickerOpen(false); }} />
+            {visibleFolders.map((folder) => (
+              <ActionCard key={folder.id} label={folder.name} onClick={() => { moveNoteToFolder(note.id, folder.id); setFolderPickerOpen(false); }} />
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="grid gap-2 rounded-[1.5rem] border border-border bg-surface-strong p-4 sm:grid-cols-2">
+        <div className="rounded-2xl bg-background px-4 py-3 text-sm font-semibold text-foreground/72">Ваш доступ: {note.access.length ? note.access[0].role : "локальный"}</div>
+        <div className="rounded-2xl bg-background px-4 py-3 text-sm font-semibold text-foreground/72">Статус анализа: {note.aiStatus === "done" ? "готово" : note.aiStatus === "pending" ? "в очереди" : note.aiStatus === "analyzing" ? "анализируется" : "ошибка"}</div>
+      </div>
+    </div>
+  );
+}
+
+function ActionCard({ label, onClick, destructive = false }: { label: string; onClick: () => void; destructive?: boolean }) {
+  return (
+    <button className={`rounded-2xl border p-4 text-left text-sm font-bold transition ${destructive ? "border-rose-200 bg-rose-500/6 text-rose-600 hover:bg-rose-500/10" : "border-border bg-surface-strong hover:bg-background"}`} onClick={onClick} type="button">
+      {label}
+    </button>
+  );
 }
 
 function FolderActionList({ activeFolder }: { activeFolder: FolderEntity | null }) {
@@ -1075,12 +1281,69 @@ function FolderActionList({ activeFolder }: { activeFolder: FolderEntity | null 
 function PagesContent() {
   const currentNoteId = useNotesStore((state) => state.currentNoteId);
   const note = useNotesStore((state) => state.notes.find((item) => item.id === state.currentNoteId) ?? null);
+  const currentNotePageIndex = useNotesStore((state) => state.currentNotePageIndex);
+  const setCurrentNotePageIndex = useNotesStore((state) => state.setCurrentNotePageIndex);
 
   if (!currentNoteId || !note) {
     return null;
   }
 
-  return <div className="mt-4 space-y-2">{note.pages.map((page, index) => <div className="flex items-center gap-3 rounded-2xl bg-surface-strong p-3" key={page.id}><span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/12 text-sm font-black text-accent">{index + 1}</span><span className="flex-1 font-bold">{page.title}</span>{note.pages.length > 1 ? <button className="rounded-xl px-3 py-2 text-xs font-bold text-rose-500 hover:bg-background" onClick={() => deletePage(currentNoteId, page.id)} type="button">Удалить</button> : null}</div>)}<Button className="mt-2 w-full rounded-2xl" onClick={() => addPage(currentNoteId)} type="button" variant="secondary">Добавить страницу</Button></div>;
+  const noteId = currentNoteId;
+
+  function renamePage(pageId: string, currentTitle: string) {
+    const nextTitle = window.prompt("Название страницы", currentTitle)?.trim();
+
+    if (!nextTitle) {
+      return;
+    }
+
+    updatePage(noteId, pageId, { title: nextTitle });
+  }
+
+  function removePage(pageId: string) {
+    if (!window.confirm("Удалить страницу?")) {
+      return;
+    }
+
+    deletePage(noteId, pageId);
+  }
+
+  return (
+    <div className="mt-4 space-y-3">
+      <div className="grid gap-2">
+        {note.pages.map((page, index) => (
+          <div className={`flex items-center gap-3 rounded-2xl p-3 transition ${currentNotePageIndex === index ? "bg-accent/10 text-accent" : "bg-surface-strong hover:bg-background"}`} key={page.id}>
+            <button className="flex min-w-0 flex-1 items-center gap-3 text-left" onClick={() => setCurrentNotePageIndex(index)} type="button">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/12 text-sm font-black text-accent">{index + 1}</span>
+              <span className="min-w-0 flex-1 truncate font-bold">{page.title}</span>
+            </button>
+            <button className="rounded-xl p-2 text-foreground/60 hover:bg-background" onClick={() => renamePage(page.id, page.title)} type="button"><Pencil className="h-4 w-4" /></button>
+            {note.pages.length > 1 ? <button className="rounded-xl px-3 py-2 text-xs font-bold text-rose-500 hover:bg-background" onClick={() => removePage(page.id)} type="button">Удалить</button> : null}
+          </div>
+        ))}
+      </div>
+      <Button className="w-full rounded-2xl" onClick={() => addPage(noteId)} type="button" variant="secondary">Добавить страницу</Button>
+    </div>
+  );
+}
+
+function getNoteAccessLabel(note: Note) {
+  if (!note.access.length) {
+    return "Ваш доступ: владелец";
+  }
+
+  const hasEditor = note.access.some((item) => item.role === "editor");
+  const hasViewer = note.access.some((item) => item.role === "viewer");
+
+  if (hasEditor) {
+    return "Ваш доступ: редактор";
+  }
+
+  if (hasViewer) {
+    return "Ваш доступ: коментатор";
+  }
+
+  return "Ваш доступ: владелец";
 }
 
 function LockContent({ onClose }: { onClose: () => void }) {
