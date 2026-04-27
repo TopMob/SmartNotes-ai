@@ -10,7 +10,7 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 
 export function Button({ asChild = false, className, variant = "primary", ...props }: ButtonProps) {
   const buttonClassName = cn(
-    "inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition",
+    "inline-flex min-h-11 items-center justify-center rounded-full px-4 py-2.5 text-sm font-semibold transition touch-manipulation",
     variant === "primary" && "bg-accent text-accent-foreground shadow-lg shadow-violet-900/15 hover:brightness-105",
     variant === "secondary" && "border border-border bg-surface-strong text-foreground hover:bg-background",
     variant === "ghost" && "text-foreground/70 hover:bg-surface",

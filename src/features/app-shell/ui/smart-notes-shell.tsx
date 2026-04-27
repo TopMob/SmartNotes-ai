@@ -516,7 +516,7 @@ export function SmartNotesShell() {
       </button>
 
       {editorOpen && currentNote ? <EditorOverlay note={currentNote} onClose={closeEditor} onOpenSheet={openSheet} toolbarVisible={toolbarVisible} setToolbarVisible={setToolbarVisible} /> : null}
-      <BottomSheet activeFolder={activeFolder} editorDirty={editorDirty} sheet={sheet} onClose={() => setSheet(null)} />
+      <BottomSheet activeFolder={activeFolder} editorDirty={editorDirty} isDesktop={isDesktop} sheet={sheet} onClose={() => setSheet(null)} />
     </main>
   );
 }
@@ -546,7 +546,7 @@ function Header({ copy, view, activeFolder, searchQuery, filtersOpen, filtersRef
   return (
     <header className="sticky top-0 z-20 border-b border-border bg-surface/92 px-3 py-3 shadow-lg shadow-violet-950/5 backdrop-blur-2xl sm:px-4">
       <div className="flex items-center gap-2 sm:gap-3">
-        <button className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-surface-strong text-foreground/72" onClick={onOpenDrawer} type="button">
+        <button className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-surface-strong text-foreground/72 lg:hidden" onClick={onOpenDrawer} type="button">
           <MoreHorizontal className="h-5 w-5" />
         </button>
 
@@ -555,12 +555,19 @@ function Header({ copy, view, activeFolder, searchQuery, filtersOpen, filtersRef
           {view === "folder" ? <button className="rounded-full p-2 text-foreground/45 hover:bg-surface-strong" onClick={(event) => onOpenFolderMenu(getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><MoreHorizontal className="h-4 w-4" /></button> : null}
         </div>
 
-        <label className="flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-2xl border border-border bg-surface-strong px-4 shadow-inner shadow-violet-950/4">
+        <label className="hidden min-h-12 min-w-0 flex-1 items-center gap-3 rounded-2xl border border-border bg-surface-strong px-4 shadow-inner shadow-violet-950/4 lg:flex">
           <Search className="h-5 w-5 shrink-0 text-foreground/38" />
           <input className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-foreground/38" onChange={(event) => setSearchQuery(event.target.value)} placeholder={copy.shell.search} value={searchQuery} />
         </label>
 
-        <div className="relative shrink-0" ref={filtersRef}>
+        <div className="relative shrink-0 lg:hidden" ref={filtersRef}>
+          <button className={`flex h-12 shrink-0 items-center justify-center gap-2 rounded-2xl border border-border px-4 text-sm font-bold ${filtersOpen ? "bg-foreground text-background" : "bg-surface-strong text-foreground/72"}`} onClick={onOpenFilters} type="button">
+            <SlidersHorizontal className="h-4 w-4" />
+            <span className="hidden sm:inline">{copy.shell.filters}</span>
+          </button>
+        </div>
+
+        <div className="relative shrink-0 hidden lg:block" ref={filtersRef}>
           <button className={`flex h-12 shrink-0 items-center gap-2 rounded-2xl border border-border px-4 text-sm font-bold ${filtersOpen ? "bg-foreground text-background" : "bg-surface-strong text-foreground/72"}`} onClick={onOpenFilters} type="button">
             <SlidersHorizontal className="h-4 w-4" />
             <span className="hidden sm:inline">{copy.shell.filters}</span>
@@ -573,7 +580,7 @@ function Header({ copy, view, activeFolder, searchQuery, filtersOpen, filtersRef
           </button>
 
           {profileOpen ? (
-            <div className="absolute right-0 top-[calc(100%+0.75rem)] w-72 rounded-[1.5rem] border border-border bg-surface p-3 shadow-2xl shadow-violet-950/16 backdrop-blur-2xl">
+            <div className="absolute right-0 top-[calc(100%+0.75rem)] w-[min(92vw,18rem)] rounded-[1.5rem] border border-border bg-surface p-3 shadow-2xl shadow-violet-950/16 backdrop-blur-2xl lg:w-72">
               <div className="rounded-2xl bg-surface-strong p-3">
                 <div className="flex items-center gap-2">
                   <p className="flex-1 text-sm font-black">Alex Smart</p>
@@ -594,6 +601,17 @@ function Header({ copy, view, activeFolder, searchQuery, filtersOpen, filtersRef
             </div>
           ) : null}
         </div>
+      </div>
+
+      <div className="mt-3 flex items-center gap-2 lg:hidden">
+        <label className="flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-2xl border border-border bg-surface-strong px-4 shadow-inner shadow-violet-950/4">
+          <Search className="h-5 w-5 shrink-0 text-foreground/38" />
+          <input className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-foreground/38" onChange={(event) => setSearchQuery(event.target.value)} placeholder={copy.shell.search} value={searchQuery} />
+        </label>
+
+        <button className="flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-surface-strong text-foreground/72" onClick={onOpenDrawer} type="button">
+          <MoreHorizontal className="h-5 w-5" />
+        </button>
       </div>
 
       <div className="mt-3 flex items-center gap-2 lg:hidden">
@@ -1161,7 +1179,7 @@ function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setToolbarV
   );
 }
 
-function BottomSheet({ sheet, activeFolder, editorDirty, onClose }: { sheet: SheetState; activeFolder: FolderEntity | null; editorDirty: boolean; onClose: () => void }) {
+function BottomSheet({ sheet, activeFolder, editorDirty, isDesktop, onClose }: { sheet: SheetState; activeFolder: FolderEntity | null; editorDirty: boolean; isDesktop: boolean; onClose: () => void }) {
   if (!sheet) {
     return null;
   }
@@ -1169,16 +1187,20 @@ function BottomSheet({ sheet, activeFolder, editorDirty, onClose }: { sheet: She
   const { name, anchor } = sheet;
   const title = name === "folder" ? "Папка" : name === "note" ? "Действия заметки" : name === "pages" ? "Страницы" : name === "lock" ? "Lock Center" : name === "create-folder" ? "Создать папку" : name === "reminder" ? "Напоминание" : "О приложении";
   const topSheet = name === "pages";
+  const mobileSheet = !isDesktop;
 
   return (
     <div className="fixed inset-0 z-50">
       <button className="absolute inset-0 bg-foreground/42 backdrop-blur-sm" onClick={onClose} type="button" />
       <section
-        className={`absolute border border-border bg-surface p-4 shadow-2xl shadow-violet-950/20 backdrop-blur-2xl ${name === "note" ? "inset-0 overflow-y-auto rounded-none lg:inset-auto lg:bottom-6 lg:right-6 lg:w-[420px] lg:rounded-[2rem]" : anchor ? "w-[min(92vw,24rem)] max-h-[82vh] overflow-y-auto rounded-[1.8rem]" : topSheet ? "inset-x-0 top-0 max-h-[86vh] overflow-y-auto rounded-b-[2rem] lg:left-1/2 lg:top-4 lg:w-[min(94vw,48rem)] lg:-translate-x-1/2 lg:rounded-[2rem]" : "inset-x-0 bottom-0 max-h-[86vh] overflow-y-auto rounded-t-[2rem] lg:inset-auto lg:bottom-6 lg:right-6 lg:w-[420px] lg:rounded-[2rem]"}`}
-        style={anchor ? { left: `${anchor.x}px`, top: `${anchor.y}px`, transform: `translate(-50%, ${anchor.placement === "above" ? "-100%" : "0"})` } : undefined}
+        className={`absolute border border-border bg-surface p-4 shadow-2xl shadow-violet-950/20 backdrop-blur-2xl ${mobileSheet ? "inset-3 max-h-[calc(100vh-1.5rem)] overflow-y-auto rounded-[2rem]" : name === "note" ? "inset-0 overflow-y-auto rounded-none lg:inset-auto lg:bottom-6 lg:right-6 lg:w-[420px] lg:rounded-[2rem]" : anchor ? "w-[min(92vw,24rem)] max-h-[82vh] overflow-y-auto rounded-[1.8rem]" : topSheet ? "inset-x-0 top-0 max-h-[86vh] overflow-y-auto rounded-b-[2rem] lg:left-1/2 lg:top-4 lg:w-[min(94vw,48rem)] lg:-translate-x-1/2 lg:rounded-[2rem]" : "inset-x-0 bottom-0 max-h-[86vh] overflow-y-auto rounded-t-[2rem] lg:inset-auto lg:bottom-6 lg:right-6 lg:w-[420px] lg:rounded-[2rem]"}`}
+        style={mobileSheet || !anchor ? undefined : { left: `${anchor.x}px`, top: `${anchor.y}px`, transform: `translate(-50%, ${anchor.placement === "above" ? "-100%" : "0"})` }}
       >
         <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-foreground/18 lg:hidden" />
-        <div className="flex items-center justify-between"><h2 className="text-xl font-black">{title}</h2><button className="rounded-full p-2 hover:bg-surface-strong" onClick={onClose} type="button"><X className="h-5 w-5" /></button></div>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="min-w-0 truncate text-xl font-black">{title}</h2>
+          <button className="rounded-full p-2 hover:bg-surface-strong" onClick={onClose} type="button"><X className="h-5 w-5" /></button>
+        </div>
         {name === "folder" ? <FolderActionList activeFolder={activeFolder} /> : null}
         {name === "note" ? <NoteActionSheet /> : null}
         {name === "pages" ? <PagesContent /> : null}

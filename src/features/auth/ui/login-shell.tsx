@@ -34,7 +34,7 @@ export function LoginShell() {
   }
 
   return (
-    <main className="grid min-h-screen px-4 py-5 sm:px-6 lg:grid-cols-[1fr_0.9fr] lg:gap-6 lg:p-6">
+    <main className="grid min-h-screen px-4 py-4 sm:px-6 lg:grid-cols-[1fr_0.9fr] lg:gap-6 lg:p-6">
       <section className="hidden overflow-hidden rounded-[2.5rem] border border-border bg-foreground p-8 text-background shadow-2xl shadow-violet-950/16 lg:flex lg:flex-col lg:justify-between">
         <div>
           <Link className="inline-flex items-center gap-2 rounded-full bg-background/10 px-4 py-2 text-sm font-bold text-background/78 hover:bg-background/16" href="/">
@@ -58,7 +58,7 @@ export function LoginShell() {
         </div>
       </section>
 
-      <section className="mx-auto flex w-full max-w-md flex-col justify-center py-4">
+      <section className="mx-auto flex w-full max-w-md flex-col justify-center py-2 sm:py-4">
         <Link className="mb-5 inline-flex w-fit items-center gap-2 rounded-full border border-border bg-surface px-4 py-2 text-sm font-bold text-foreground/70 lg:hidden" href="/">
           <ArrowLeft className="h-4 w-4" />
           Назад
@@ -95,7 +95,7 @@ export function LoginShell() {
             <Field icon={Mail} label="Email" placeholder="you@example.com" type="email" />
             <label className="block">
               <span className="mb-2 block text-sm font-bold text-foreground/62">Пароль</span>
-              <span className="flex h-12 items-center gap-3 rounded-2xl border border-border bg-surface-strong px-4">
+                <span className="flex min-h-12 items-center gap-3 rounded-2xl border border-border bg-surface-strong px-4 py-2.5">
                 <KeyRound className="h-5 w-5 text-foreground/34" />
                 <input className="min-w-0 flex-1 bg-transparent outline-none" placeholder="Минимум 8 символов" type={showPassword ? "text" : "password"} />
                 <button className="text-foreground/38" onClick={() => setShowPassword((value) => !value)} type="button">
@@ -124,7 +124,7 @@ function Field({ icon: Icon, label, placeholder, type }: { icon: typeof Mail; la
   return (
     <label className="block">
       <span className="mb-2 block text-sm font-bold text-foreground/62">{label}</span>
-      <span className="flex h-12 items-center gap-3 rounded-2xl border border-border bg-surface-strong px-4">
+      <span className="flex min-h-12 items-center gap-3 rounded-2xl border border-border bg-surface-strong px-4 py-2.5">
         <Icon className="h-5 w-5 text-foreground/34" />
         <input className="min-w-0 flex-1 bg-transparent outline-none" inputMode={type === "email" ? "email" : undefined} placeholder={placeholder} type={type} />
       </span>
