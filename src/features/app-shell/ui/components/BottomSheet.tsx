@@ -204,7 +204,7 @@ function NoteActionSheet() {
 
 function ActionCard({ label, onClick, destructive = false }: { label: string; onClick: () => void; destructive?: boolean }) {
   return (
-    <button className={`min-h-10 rounded-2xl border px-4 py-3 text-left text-sm font-bold transition sm:min-h-11 ${destructive ? "border-rose-200 bg-rose-500/6 text-rose-600 hover:bg-rose-500/10" : "border-border bg-surface-strong hover:bg-background"}`} onClick={onClick} type="button">
+    <button className={`min-h-12 rounded-2xl border px-4 py-3 text-left text-sm font-bold transition sm:min-h-11 ${destructive ? "border-rose-200 bg-rose-500/6 text-rose-600 hover:bg-rose-500/10" : "border-border bg-surface-strong hover:bg-background"}`} onClick={onClick} type="button">
       {label}
     </button>
   );
@@ -358,7 +358,7 @@ function AboutContent() {
           
           <div className="mt-4 flex gap-2">
             {[1, 2, 3, 4, 5].map((value) => (
-              <button className={`flex h-11 w-11 items-center justify-center rounded-2xl border transition ${rating >= value ? "border-amber-400 bg-amber-400/12 text-amber-400" : "border-border bg-background text-foreground/42 hover:bg-surface"}`} key={value} onClick={() => setRating(value)} type="button">
+              <button className={`flex h-10 w-10 items-center justify-center rounded-2xl border transition sm:h-11 sm:w-11 ${rating >= value ? "border-amber-400 bg-amber-400/12 text-amber-400" : "border-border bg-background text-foreground/42 hover:bg-surface"}`} key={value} onClick={() => setRating(value)} type="button">
                 <Star className={`h-5 w-5 ${rating >= value ? "fill-current" : ""}`} />
               </button>
             ))}

@@ -160,26 +160,26 @@ export default function SettingsPage() {
               <Panel title={copy.settings.appearance.localeAndLayout}>
                 <div className="flex flex-wrap gap-2">
                   {(["ru", "en"] as const).map((item) => (
-                    <button className={`min-h-9 rounded-xl border px-3 py-2 text-xs font-black sm:min-h-11 sm:px-4 sm:py-3 sm:text-sm ${lang === item ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={item} onClick={() => setLang(item)} type="button">
+                    <button className={`min-h-9 rounded-xl border px-3 py-1.5 text-xs font-black sm:min-h-11 sm:px-3 sm:py-2 sm:text-sm ${lang === item ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={item} onClick={() => setLang(item)} type="button">
                       {item.toUpperCase()}
                     </button>
                   ))}
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
                   {(["compact", "full"] as const).map((item) => (
-                    <button className={`min-h-9 rounded-xl border px-3 py-2 text-xs font-black sm:min-h-11 sm:px-4 sm:py-3 sm:text-sm ${folderViewMode === item ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={item} onClick={() => setFolderViewMode(item)} type="button">
+                    <button className={`min-h-9 rounded-xl border px-3 py-1.5 text-xs font-black sm:min-h-11 sm:px-3 sm:py-2 sm:text-sm ${folderViewMode === item ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={item} onClick={() => setFolderViewMode(item)} type="button">
                       {item}
                     </button>
                   ))}
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
                   {([5, 10, 20, 50] as const).map((item) => (
-                    <button className={`min-h-9 rounded-xl border px-3 py-2 text-xs font-black sm:min-h-11 sm:px-4 sm:py-3 sm:text-sm ${notesPerPage === item ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={item} onClick={() => setNotesPerPage(item)} type="button">
+                    <button className={`min-h-9 rounded-xl border px-3 py-1.5 text-xs font-black sm:min-h-11 sm:px-3 sm:py-2 sm:text-sm ${notesPerPage === item ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={item} onClick={() => setNotesPerPage(item)} type="button">
                       {item} / page
                     </button>
                   ))}
                 </div>
-                <button className={`mt-4 min-h-9 rounded-2xl border px-3 py-2 text-left text-xs font-bold sm:min-h-11 sm:px-4 sm:py-3 sm:text-sm ${reduceMotion ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} onClick={() => setReduceMotion(!reduceMotion)} type="button">
+                <button className={`mt-4 min-h-9 rounded-2xl border px-3 py-1.5 text-left text-xs font-bold sm:min-h-11 sm:px-3 sm:py-2 sm:text-sm ${reduceMotion ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} onClick={() => setReduceMotion(!reduceMotion)} type="button">
                   {reduceMotion ? `${copy.common.on}` : `${copy.common.off}`}
                 </button>
               </Panel>
@@ -187,10 +187,10 @@ export default function SettingsPage() {
               <Panel title={copy.settings.appearance.customPresets}>
                 <div className="flex flex-wrap gap-2">
                   <input className="min-w-[16rem] flex-1 rounded-2xl border border-border bg-background px-3 py-2 text-xs sm:px-4 sm:py-3 sm:text-sm" onChange={(event) => setPresetName(event.target.value)} placeholder={copy.settings.appearance.customPresets} value={presetName} />
-                  <button className="min-h-9 rounded-2xl bg-accent px-3 py-2 text-xs font-bold text-accent-foreground sm:min-h-11 sm:px-4 sm:py-3 sm:text-sm" onClick={() => { saveCurrentThemePreset(presetName); setPresetName(""); }} type="button">
+                  <button className="min-h-9 rounded-2xl bg-accent px-3 py-1.5 text-xs font-bold text-accent-foreground sm:min-h-11 sm:px-3 sm:py-2 sm:text-sm" onClick={() => { saveCurrentThemePreset(presetName); setPresetName(""); }} type="button">
                     {copy.settings.appearance.savePreset}
                   </button>
-                  <button className="min-h-9 rounded-2xl border border-border bg-background px-3 py-2 text-xs font-bold sm:min-h-11 sm:px-4 sm:py-3 sm:text-sm" onClick={() => resetThemeSettings()} type="button">
+                  <button className="min-h-9 rounded-2xl border border-border bg-background px-3 py-1.5 text-xs font-bold sm:min-h-11 sm:px-3 sm:py-2 sm:text-sm" onClick={() => resetThemeSettings()} type="button">
                     {copy.settings.appearance.resetAppearance}
                   </button>
                 </div>
@@ -208,7 +208,7 @@ export default function SettingsPage() {
                             <RotateCcw className="h-4 w-4" />
                           </button>
                         </div>
-                        <button className="mt-4 inline-flex min-h-9 items-center gap-2 rounded-xl bg-accent px-3 py-2 text-xs font-bold text-accent-foreground sm:min-h-11 sm:px-4 sm:py-3 sm:text-sm" onClick={() => applyCustomPreset(item.id)} type="button">
+                        <button className="mt-4 inline-flex min-h-9 items-center gap-2 rounded-xl bg-accent px-3 py-1.5 text-xs font-bold text-accent-foreground sm:min-h-11 sm:px-3 sm:py-2 sm:text-sm" onClick={() => applyCustomPreset(item.id)} type="button">
                           {copy.common.apply}
                         </button>
                       </div>
@@ -227,7 +227,7 @@ export default function SettingsPage() {
               <Panel title={copy.settings.editor.tools}>
                 <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                   {editorGroups.map(([key, label]) => (
-                    <button className={`flex items-center justify-between rounded-2xl border px-3 py-2 text-left text-xs font-bold sm:px-4 sm:py-3 sm:text-sm ${editor[key] ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={key} onClick={() => toggleEditorTool(key)} type="button">
+                    <button className={`flex items-center justify-between rounded-2xl border px-3 py-2 text-left text-xs font-bold sm:px-3 sm:py-2 sm:text-sm ${editor[key] ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={key} onClick={() => toggleEditorTool(key)} type="button">
                       <span>{label}</span>
                       <span>{editor[key] ? copy.settings.editor.on : copy.settings.editor.off}</span>
                     </button>
@@ -247,7 +247,7 @@ export default function SettingsPage() {
                     ["showTagFilter", "Tag filter"],
                     ["showUpdatedPeriodFilter", "Updated period filter"],
                   ] as const).map(([key, label]) => (
-                    <button className={`flex w-full items-center justify-between rounded-2xl border px-3 py-2 text-xs font-bold sm:px-4 sm:py-3 sm:text-sm ${interfaceSettings[key] ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={key} onClick={() => toggleInterfaceSection(key)} type="button">
+                    <button className={`flex w-full items-center justify-between rounded-2xl border px-3 py-2 text-xs font-bold sm:px-3 sm:py-2 sm:text-sm ${interfaceSettings[key] ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={key} onClick={() => toggleInterfaceSection(key)} type="button">
                       <span>{label}</span>
                       <span>{interfaceSettings[key] ? copy.common.on : copy.common.off}</span>
                     </button>
@@ -262,10 +262,10 @@ export default function SettingsPage() {
               <SectionIntro title={copy.settings.data.title} text={copy.settings.data.subtitle} />
               <Panel title={copy.settings.data.maintenance}>
                 <div className="flex flex-wrap gap-2">
-                    <button className="min-h-9 rounded-2xl border border-border bg-background px-3 py-2 text-xs font-bold sm:min-h-11 sm:px-4 sm:py-3 sm:text-sm" onClick={() => resetThemeCache()} type="button">
+                    <button className="min-h-9 rounded-2xl border border-border bg-background px-3 py-1.5 text-xs font-bold sm:min-h-11 sm:px-3 sm:py-2 sm:text-sm" onClick={() => resetThemeCache()} type="button">
                     {copy.settings.data.resetCache}
                   </button>
-                   <button className="min-h-9 rounded-2xl bg-accent px-3 py-2 text-xs font-bold text-accent-foreground sm:min-h-11 sm:px-4 sm:py-3 sm:text-sm" onClick={() => resetThemeSettings()} type="button">
+                    <button className="min-h-9 rounded-2xl bg-accent px-3 py-1.5 text-xs font-bold text-accent-foreground sm:min-h-11 sm:px-3 sm:py-2 sm:text-sm" onClick={() => resetThemeSettings()} type="button">
                     {copy.settings.data.resetSettings}
                   </button>
                 </div>
