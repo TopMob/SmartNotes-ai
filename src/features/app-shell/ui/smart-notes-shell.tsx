@@ -12,7 +12,6 @@ import {
   FileImage,
   EyeOff,
   Folder,
-  FolderInput,
   Heart,
   Inbox,
   Lock,
@@ -40,7 +39,6 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
-  Ban,
   } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
@@ -466,8 +464,8 @@ export function SmartNotesShell() {
   const contentShift = desktopSidebarVisible ? "lg:pl-[19.5rem]" : "lg:pl-0";
 
   return (
-    <main className="min-h-screen overflow-x-hidden text-foreground">
-      <div className="relative min-h-screen overflow-x-hidden">
+    <main className="app-layout overflow-x-hidden text-foreground">
+      <div className="relative flex min-h-0 flex-1 overflow-x-hidden">
       {desktopSidebarVisible ? (
           <div className="pointer-events-none absolute inset-y-0 left-0 hidden w-[18rem] lg:block">
             <div className="pointer-events-auto h-full">
@@ -476,26 +474,22 @@ export function SmartNotesShell() {
           </div>
         ) : null}
 
-        <div className={`transition-[padding] duration-300 ${contentShift}`}>
+        <div className={`main-content transition-[padding] duration-300 ${contentShift}`}>
           <Header copy={copy} activeFolder={activeFolder} filtersOpen={filtersOpen} filtersRef={filtersRef} onOpenDrawer={toggleSidebar} onOpenFilters={() => setFiltersOpen((value) => !value)} onOpenFolderMenu={(anchor) => openSheet("folder", anchor)} profileOpen={profileOpen} profileRef={profileRef} searchQuery={searchQuery} setProfileOpen={setProfileOpen} setSearchQuery={setSearchQuery} view={view} />
 
           {filtersOpen ? (
-            <div className="pointer-events-none absolute right-3 top-[4.8rem] z-30 w-[min(92vw,25rem)] sm:right-4">
-              <div className="pointer-events-auto">
-                <TopFiltersPopup
-                  folders={folders}
-                  notesFilter={notesFilter}
-                  tagDraft={tagDraft}
-                  tagSuggestions={filteredTagSuggestions}
-                  onResetFilters={resetNotesFilter}
-                  onSetNotesSort={setNotesSort}
-                  onSetUpdatedWindowDays={setUpdatedWindowDays}
-                  onToggleFolderFilter={toggleFolderFilter}
-                  onToggleTagFilter={toggleTagFilter}
-                  onTagDraftChange={setTagDraft}
-                />
-              </div>
-            </div>
+            <TopFiltersPopup
+              folders={folders}
+              notesFilter={notesFilter}
+              tagDraft={tagDraft}
+              tagSuggestions={filteredTagSuggestions}
+              onResetFilters={resetNotesFilter}
+              onSetNotesSort={setNotesSort}
+              onSetUpdatedWindowDays={setUpdatedWindowDays}
+              onToggleFolderFilter={toggleFolderFilter}
+              onToggleTagFilter={toggleTagFilter}
+              onTagDraftChange={setTagDraft}
+            />
           ) : null}
 
               <MainSurface copy={copy} activeFolder={activeFolder} folderViewMode={folderViewMode} folders={folders} hiddenFolders={hiddenFolders} notes={visibleNotes} notesPerPage={notesPerPage} onOpenFolder={openFolder} onOpenNote={openNote} onOpenSheet={openSheet} trashedFolders={trashedFolders} view={view} />
@@ -511,7 +505,7 @@ export function SmartNotesShell() {
         </div>
       ) : null}
 
-      <button className="fixed bottom-5 right-5 z-30 flex h-16 w-16 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-2xl shadow-violet-950/24" onClick={createNoteDraft} type="button">
+      <button className="btn-fab fixed bottom-5 right-5 z-30 flex h-16 w-16 items-center justify-center bg-accent text-accent-foreground shadow-2xl shadow-violet-950/24" onClick={createNoteDraft} type="button">
         <Plus className="h-7 w-7" />
       </button>
 
@@ -544,7 +538,7 @@ function Header({ copy, view, activeFolder, searchQuery, filtersOpen, filtersRef
                       : copy.shell.notes;
 
   return (
-    <header className="sticky top-0 z-20 border-b border-border bg-surface/92 px-3 py-3 shadow-lg shadow-violet-950/5 backdrop-blur-2xl sm:px-4">
+    <header className="top-bar sticky top-0 z-20 px-3 py-3 shadow-lg shadow-violet-950/5 sm:px-4">
       <div className="flex items-center gap-2 sm:gap-3">
         <button className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-surface-strong text-foreground/72 lg:hidden" onClick={onOpenDrawer} type="button">
           <MoreHorizontal className="h-5 w-5" />
@@ -624,7 +618,7 @@ function Header({ copy, view, activeFolder, searchQuery, filtersOpen, filtersRef
 
 function Sidebar({ copy, currentView, folders, folderViewMode, isDesktop = false, onClose, onCreateFolder, onOpenFolder, onOpenSheet, onSwitchView }: { copy: ReturnType<typeof getUiCopy>; currentView: AppView; folders: FolderEntity[]; folderViewMode: "compact" | "full"; isDesktop?: boolean; onClose: () => void; onCreateFolder: (anchor: SheetAnchor) => void; onOpenFolder: (folder: FolderEntity) => void; onOpenSheet: (sheet: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void; onSwitchView: (view: AppView) => void }) {
   return (
-    <aside className="flex h-full flex-col overflow-hidden border-r border-border bg-surface/94 p-4 shadow-2xl shadow-violet-950/10 backdrop-blur-2xl">
+    <aside className="sidebar-glass panel-card flex h-full flex-col overflow-hidden p-4 shadow-2xl shadow-violet-950/10">
       <div className="flex shrink-0 items-center justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.28em] text-accent">SmartNotes</p>
@@ -635,7 +629,7 @@ function Sidebar({ copy, currentView, folders, folderViewMode, isDesktop = false
         </button>
       </div>
 
-      <div className="min-h-0 flex flex-1 flex-col overflow-y-auto overscroll-contain pr-1">
+      <div className="sidebar-nav min-h-0 flex flex-1 flex-col overflow-y-auto overscroll-contain pr-1">
       <nav className="mt-6 space-y-1">
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -696,27 +690,27 @@ function SidebarSection({ title, action, children, onAction }: { title: string; 
 
 function MainSurface({ copy, view, folders, hiddenFolders, trashedFolders, notes, activeFolder, folderViewMode, notesPerPage, onOpenFolder, onOpenNote, onOpenSheet }: { copy: ReturnType<typeof getUiCopy>; view: AppView; folders: FolderEntity[]; hiddenFolders: FolderEntity[]; trashedFolders: FolderEntity[]; notes: Note[]; activeFolder: FolderEntity | null; folderViewMode: "compact" | "full"; notesPerPage: 5 | 10 | 20 | 50; onOpenFolder: (folder: FolderEntity) => void; onOpenNote: (noteId: string) => void; onOpenSheet: (sheet: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void }) {
   if (view === "admin_tools") {
-    return <section className="min-h-[calc(100vh-4.8rem)] border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><AdminToolsView notes={notes} /></section>;
+    return <section className="panel-card min-h-[calc(100vh-4.8rem)] border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><AdminToolsView notes={notes} /></section>;
   }
 
   if (view === "hidden_folders") {
-    return <section className="min-h-[calc(100vh-4.8rem)] border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><FoldersGrid emptyText={copy.shell.hiddenFolders} folderViewMode={folderViewMode} folders={hiddenFolders} mode="hidden" onOpenFolder={onOpenFolder} /></section>;
+    return <section className="panel-card min-h-[calc(100vh-4.8rem)] border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><FoldersGrid emptyText={copy.shell.hiddenFolders} folderViewMode={folderViewMode} folders={hiddenFolders} mode="hidden" onOpenFolder={onOpenFolder} /></section>;
   }
 
   if (view === "folders") {
-    return <section className="min-h-[calc(100vh-4.8rem)] border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><FoldersGrid emptyText={copy.shell.folders} folderViewMode={folderViewMode} folders={folders} mode="active" onOpenFolder={onOpenFolder} /></section>;
+    return <section className="panel-card min-h-[calc(100vh-4.8rem)] border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><FoldersGrid emptyText={copy.shell.folders} folderViewMode={folderViewMode} folders={folders} mode="active" onOpenFolder={onOpenFolder} /></section>;
   }
 
   if (view === "trash") {
-    return <section className="min-h-[calc(100vh-4.8rem)] border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><TrashView copy={copy} notes={notes} notesPerPage={notesPerPage} onOpenNote={onOpenNote} onOpenSheet={onOpenSheet} trashedFolders={trashedFolders} /></section>;
+    return <section className="panel-card min-h-[calc(100vh-4.8rem)] border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><TrashView copy={copy} notes={notes} notesPerPage={notesPerPage} onOpenNote={onOpenNote} onOpenSheet={onOpenSheet} trashedFolders={trashedFolders} /></section>;
   }
 
   if (view === "folder" && activeFolder) {
-    return <section className="min-h-[calc(100vh-4.8rem)] border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><NotesView copy={copy} emptyText={copy.shell.prompts.noMatches} notes={notes} notesPerPage={notesPerPage} onOpenNote={onOpenNote} onOpenSheet={onOpenSheet} title={activeFolder.name} view={view} /></section>;
+    return <section className="panel-card min-h-[calc(100vh-4.8rem)] border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><NotesView copy={copy} emptyText={copy.shell.prompts.noMatches} notes={notes} notesPerPage={notesPerPage} onOpenNote={onOpenNote} onOpenSheet={onOpenSheet} title={activeFolder.name} view={view} /></section>;
   }
 
   return (
-    <section className="min-h-[calc(100vh-4.8rem)] border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl">
+    <section className="panel-card min-h-[calc(100vh-4.8rem)] border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl">
       <NotesView
         copy={copy}
         emptyText="Здесь пока пусто"
@@ -756,12 +750,12 @@ function FoldersGrid({ folders, mode, emptyText, folderViewMode, onOpenFolder }:
   }
 
   return (
-    <div className={`grid gap-3 p-4 ${folderViewMode === "compact" ? "sm:grid-cols-4 xl:grid-cols-5" : "sm:grid-cols-3 xl:grid-cols-4"}`}>
+    <div className={`folder-grid grid gap-3 p-4 ${folderViewMode === "compact" ? "sm:grid-cols-4 xl:grid-cols-5" : "sm:grid-cols-3 xl:grid-cols-4"}`}>
       {folders.map((folder) => {
         const notesCount = notes.filter((note) => note.folderId === folder.id && !note.trashedAt).length;
 
         return (
-          <div className="rounded-[1.6rem] border border-border bg-surface-strong p-5 text-left shadow-lg shadow-violet-950/4" key={folder.id}>
+            <div className="folder-card rounded-[1.6rem] border border-border bg-surface-strong p-5 text-left shadow-lg shadow-violet-950/4" key={folder.id}>
             <button className="block w-full text-left" onClick={() => onOpenFolder(folder)} type="button">
               <div className="flex items-center gap-2 text-accent"><Folder className="h-5 w-5" /><span className="text-xs font-black uppercase tracking-[0.2em]">{mode === "hidden" ? "Скрытая папка" : "Папка"}</span></div>
               <h2 className="mt-4 text-xl font-black tracking-tight">{folder.name}</h2>
@@ -780,7 +774,7 @@ function FoldersGrid({ folders, mode, emptyText, folderViewMode, onOpenFolder }:
 
 function TrashView({ copy, notes, notesPerPage, trashedFolders, onOpenNote, onOpenSheet }: { copy: ReturnType<typeof getUiCopy>; notes: Note[]; notesPerPage: 5 | 10 | 20 | 50; trashedFolders: FolderEntity[]; onOpenNote: (noteId: string) => void; onOpenSheet: (sheet: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void }) {
   return (
-    <div className="space-y-6 p-4 sm:p-5">
+    <div className="content-scrollable space-y-6 p-4 sm:p-5">
       <div>
         <h2 className="text-xl font-black tracking-tight sm:text-2xl">{copy.shell.trash}</h2>
         <p className="mt-1 text-sm text-foreground/52">{notes.length + trashedFolders.length} объектов готовы к восстановлению или удалению.</p>
@@ -830,7 +824,7 @@ function NotesView({ copy, title, notes, notesPerPage, emptyText, onOpenNote, on
   }
 
   return (
-    <div className="space-y-6 p-4 sm:p-5">
+    <div className="content-scrollable space-y-6 p-4 sm:p-5">
       <div>
         <h2 className="text-xl font-black tracking-tight sm:text-2xl">{title}</h2>
         <p className="mt-1 text-sm text-foreground/52">Показано {pinnedVisible.length + unpinnedVisible.length} из {notes.length} заметок. Размер текущей страницы: {notesPerPage}.</p>
@@ -867,10 +861,8 @@ function NotesView({ copy, title, notes, notesPerPage, emptyText, onOpenNote, on
 }
 
 function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: { note: Note; folders: FolderEntity[]; onOpenNote: (noteId: string) => void; onOpenSheet: (sheet: Exclude<SheetName, null>, anchor: SheetAnchor) => void; view: AppView }) {
-  const [menuOpen, setMenuOpen] = useState(false);
   const [folderPickerOpen, setFolderPickerOpen] = useState(false);
   const setCurrentNoteId = useNotesStore((state) => state.setCurrentNoteId);
-  const menuRef = useRef<HTMLDivElement | null>(null);
 
   const folderName = folders.find((folder) => folder.id === note.folderId)?.name ?? "Без папки";
   const previewText = note.lock?.hidden ? maskLockedPreview(note.id) : stripHtml(note.content);
@@ -881,31 +873,14 @@ function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: { note: Note
   const accessLabel = getNoteAccessLabel(note);
   const analysisLabel = note.aiStatus === "done" ? "Статус анализа: готово" : note.aiStatus === "pending" ? "Статус анализа: в очереди" : note.aiStatus === "analyzing" ? "Статус анализа: анализируется" : "Статус анализа: ошибка";
 
-  useEffect(() => {
-    if (!menuOpen) {
-      return;
-    }
-
-    function handlePointerDown(event: MouseEvent) {
-      if (!menuRef.current?.contains(event.target as Node)) {
-        setMenuOpen(false);
-        setFolderPickerOpen(false);
-      }
-    }
-
-    document.addEventListener("mousedown", handlePointerDown);
-    return () => document.removeEventListener("mousedown", handlePointerDown);
-  }, [menuOpen]);
-
   function openReminderSheet(anchor: SheetAnchor) {
     setCurrentNoteId(note.id);
     onOpenSheet("reminder", anchor);
-    setMenuOpen(false);
     setFolderPickerOpen(false);
   }
 
   return (
-    <article className={`relative overflow-visible rounded-[1.35rem] border bg-surface-strong p-4 text-left shadow-md shadow-violet-950/4 transition hover:-translate-y-0.5 hover:shadow-lg ${menuOpen ? "z-20" : "z-0"} ${note.trashedAt ? "border-dashed border-rose-300" : "border-border"}`}>
+    <article className={`note-card relative overflow-visible rounded-[1.35rem] border bg-surface-strong p-4 text-left shadow-md shadow-violet-950/4 transition hover:-translate-y-0.5 hover:shadow-lg border-border ${note.trashedAt ? "border-dashed border-rose-300" : "border-border"}`}>
       <div className="absolute right-3 top-3 z-10 flex items-start gap-1">
         {view === "trash" ? null : (
           <>
@@ -918,42 +893,10 @@ function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: { note: Note
           </>
         )}
 
-        <div className="relative" ref={menuRef}>
-          <button className="flex h-9 w-9 items-center justify-center rounded-xl bg-surface/92 text-foreground/56 backdrop-blur hover:bg-background" onClick={() => setMenuOpen((value) => !value)} type="button">
+        <div className="relative">
+          <button className="flex h-9 w-9 items-center justify-center rounded-xl bg-surface/92 text-foreground/56 backdrop-blur hover:bg-background" onClick={(event) => { setCurrentNoteId(note.id); onOpenSheet("note", getSheetAnchor(event.currentTarget.getBoundingClientRect())); }} type="button">
             <MoreHorizontal className="h-4 w-4" />
           </button>
-
-          {menuOpen ? (
-            <div className="absolute right-0 top-[calc(100%+0.45rem)] z-20 max-h-[min(72vh,34rem)] w-[min(92vw,18rem)] overflow-y-auto rounded-[1.2rem] border border-border bg-surface p-2 shadow-2xl shadow-violet-950/16 backdrop-blur-2xl lg:w-64 lg:max-h-none">
-              {view === "trash" ? (
-                <div className="space-y-1">
-                  <MenuAction icon={RotateCcw} label="Восстановить" onClick={() => { restoreNote(note.id); setMenuOpen(false); }} />
-                  <MenuAction destructive icon={Trash2} label="Удалить навсегда" onClick={() => { permanentlyDeleteNote(note.id); setMenuOpen(false); }} />
-                </div>
-              ) : (
-                <div className="space-y-1">
-                  <MenuAction icon={Copy} label="Копировать текст" onClick={async () => { await copyNoteText(note); setMenuOpen(false); setFolderPickerOpen(false); }} />
-                  <MenuAction icon={Archive} label={note.isArchived ? "Вернуть из архива" : "Архивировать"} onClick={() => { setArchived(note.id, !note.isArchived); setMenuOpen(false); setFolderPickerOpen(false); }} />
-                   <MenuAction icon={Ban} label={note.lock ? "Снять блокировку" : "Заблокировать заметку"} onClick={() => { void (async () => { if (await toggleNoteLock(note.id)) { setMenuOpen(false); setFolderPickerOpen(false); } })(); }} />
-                    <MenuAction icon={Bell} label={note.reminderAt ? "Изменить напоминание" : "Напоминание"} onClick={(event: React.MouseEvent<HTMLButtonElement>) => openReminderSheet(getSheetAnchor(event.currentTarget.getBoundingClientRect()))} />
-                  <MenuAction icon={FolderInput} label={`Переместить в папку: ${folderName}`} onClick={() => setFolderPickerOpen((value) => !value)} />
-                  {folderPickerOpen ? <div className="rounded-xl bg-surface-strong/72 p-1"> <div className="px-3 py-2 text-[11px] font-bold uppercase tracking-[0.18em] text-foreground/36">Папки</div><div className="max-h-40 space-y-1 overflow-y-auto"><MenuAction active={note.folderId === null} icon={Folder} label="Без папки" onClick={() => { moveNoteToFolder(note.id, null); setMenuOpen(false); setFolderPickerOpen(false); }} />{folders.map((folder) => (<MenuAction active={note.folderId === folder.id} icon={Folder} key={folder.id} label={folder.name} onClick={() => { moveNoteToFolder(note.id, folder.id); setMenuOpen(false); setFolderPickerOpen(false); }} />))}</div></div> : null}
-                  <MenuAction icon={RotateCcw} label="Отметить для повторного анализа" onClick={() => { patchNote(note.id, { aiStatus: "pending", aiProcessed: false, analyzed: false, aiError: null }, { scheduleAnalysis: false }); setMenuOpen(false); setFolderPickerOpen(false); }} />
-                  <MenuAction icon={Copy} label="Скачать файл для импорта" onClick={() => { exportNoteForImport(note); setMenuOpen(false); setFolderPickerOpen(false); }} />
-                  <MenuAction icon={FileImage} label="Скачать TXT" onClick={() => { exportNoteAsTxt(note); setMenuOpen(false); setFolderPickerOpen(false); }} />
-                  <MenuAction icon={FileImage} label="Экспорт PDF" onClick={() => { exportNoteAsPdf(note); setMenuOpen(false); setFolderPickerOpen(false); }} />
-                  <div className="my-1 h-px bg-border" />
-                  <div className="px-3 py-2 text-[11px] font-bold uppercase tracking-[0.18em] text-foreground/36">Статусы</div>
-                  <div className="space-y-1 px-1 pb-1">
-                    <div className="rounded-xl bg-background px-3 py-2 text-xs font-semibold text-foreground/68">{accessLabel}</div>
-                    <div className="rounded-xl bg-background px-3 py-2 text-xs font-semibold text-foreground/68">{analysisLabel}</div>
-                  </div>
-                  <div className="my-1 h-px bg-border" />
-                  <MenuAction destructive icon={Trash2} label="Удалить" onClick={() => { trashNote(note.id); setMenuOpen(false); setFolderPickerOpen(false); }} />
-                </div>
-              )}
-            </div>
-          ) : null}
         </div>
       </div>
 
@@ -979,15 +922,6 @@ function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: { note: Note
   );
 }
 
-function MenuAction({ label, icon: Icon, onClick, destructive = false, active = false }: { label: string; icon: typeof Folder; onClick: (event: React.MouseEvent<HTMLButtonElement>) => void; destructive?: boolean; active?: boolean }) {
-  return (
-    <button className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition ${destructive ? "text-rose-500 hover:bg-rose-500/8" : active ? "bg-accent/10 text-accent" : "text-foreground/78 hover:bg-surface-strong"}`} onClick={onClick} type="button">
-      <Icon className="h-4 w-4 shrink-0" />
-      <span className="min-w-0 truncate">{label}</span>
-    </button>
-  );
-}
-
 function PinGlyph({ active }: { active: boolean }) {
   return (
     <svg aria-hidden="true" className={`h-4 w-4 ${active ? "fill-current" : ""}`} viewBox="0 0 24 24">
@@ -998,7 +932,7 @@ function PinGlyph({ active }: { active: boolean }) {
 
 function TopFiltersPopup({ notesFilter, folders, tagDraft, tagSuggestions, onSetNotesSort, onToggleFolderFilter, onToggleTagFilter, onSetUpdatedWindowDays, onResetFilters, onTagDraftChange }: { notesFilter: { sort: NotesSort; folders: Array<string | null>; tags: string[]; updatedWindowDays: number | null }; folders: FolderEntity[]; tagDraft: string; tagSuggestions: string[]; onSetNotesSort: (sort: NotesSort) => void; onToggleFolderFilter: (folderId: string | null) => void; onToggleTagFilter: (tag: string) => void; onSetUpdatedWindowDays: (days: number | null) => void; onResetFilters: () => void; onTagDraftChange: (value: string) => void }) {
   return (
-    <section className="max-h-[calc(100vh-6rem)] overflow-y-auto rounded-[1.6rem] border border-border bg-surface/96 p-4 shadow-2xl shadow-violet-950/16 backdrop-blur-2xl">
+    <section className="filter-menu pointer-events-auto fixed right-3 top-[4.8rem] z-30 w-[min(92vw,25rem)] max-h-[calc(100vh-6rem)] overflow-y-auto rounded-[1.6rem] border border-border bg-surface/96 p-4 shadow-2xl shadow-violet-950/16 backdrop-blur-2xl sm:right-4">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h2 className="text-sm font-black uppercase tracking-[0.2em] text-foreground/54">Фильтры</h2>
         <button className="rounded-full border border-border bg-surface-strong px-3 py-1.5 text-xs font-bold" onClick={onResetFilters} type="button">Сбросить</button>
@@ -1188,13 +1122,13 @@ function BottomSheet({ sheet, activeFolder, editorDirty, isDesktop, onClose }: {
   const title = name === "folder" ? "Папка" : name === "note" ? "Действия заметки" : name === "pages" ? "Страницы" : name === "lock" ? "Lock Center" : name === "create-folder" ? "Создать папку" : name === "reminder" ? "Напоминание" : "О приложении";
   const topSheet = name === "pages";
   const mobileSheet = !isDesktop;
+  const folderPopup = name === "folder" && !!anchor && !mobileSheet;
 
-  return (
-    <div className="fixed inset-0 z-50">
-      <button className="absolute inset-0 bg-foreground/42 backdrop-blur-sm" onClick={onClose} type="button" />
+  function renderSheetContent() {
+    return (
       <section
-        className={`absolute border border-border bg-surface p-4 shadow-2xl shadow-violet-950/20 backdrop-blur-2xl ${mobileSheet ? "inset-3 max-h-[calc(100vh-1.5rem)] overflow-y-auto rounded-[2rem]" : name === "note" ? "inset-0 overflow-y-auto rounded-none lg:inset-auto lg:bottom-6 lg:right-6 lg:w-[420px] lg:rounded-[2rem]" : anchor ? "w-[min(92vw,24rem)] max-h-[82vh] overflow-y-auto rounded-[1.8rem]" : topSheet ? "inset-x-0 top-0 max-h-[86vh] overflow-y-auto rounded-b-[2rem] lg:left-1/2 lg:top-4 lg:w-[min(94vw,48rem)] lg:-translate-x-1/2 lg:rounded-[2rem]" : "inset-x-0 bottom-0 max-h-[86vh] overflow-y-auto rounded-t-[2rem] lg:inset-auto lg:bottom-6 lg:right-6 lg:w-[420px] lg:rounded-[2rem]"}`}
-        style={mobileSheet || !anchor ? undefined : { left: `${anchor.x}px`, top: `${anchor.y}px`, transform: `translate(-50%, ${anchor.placement === "above" ? "-100%" : "0"})` }}
+        className={`absolute border border-border bg-surface p-4 shadow-2xl shadow-violet-950/20 backdrop-blur-2xl ${mobileSheet ? "inset-3 max-h-[calc(100vh-1.5rem)] overflow-y-auto rounded-[2rem]" : name === "note" ? "left-1/2 top-1/2 w-[min(92vw,28rem)] max-h-[86vh] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[2rem]" : anchor ? "w-[min(92vw,24rem)] max-h-[82vh] overflow-y-auto rounded-[1.8rem]" : topSheet ? "inset-x-0 top-0 max-h-[86vh] overflow-y-auto rounded-b-[2rem] lg:left-1/2 lg:top-4 lg:w-[min(94vw,48rem)] lg:-translate-x-1/2 lg:rounded-[2rem]" : "inset-x-0 bottom-0 max-h-[86vh] overflow-y-auto rounded-t-[2rem] lg:inset-auto lg:bottom-6 lg:right-6 lg:w-[420px] lg:rounded-[2rem]"}`}
+        style={name === "note" || mobileSheet || !anchor ? undefined : { left: `${anchor.x}px`, top: `${anchor.y}px`, transform: `translate(-50%, ${anchor.placement === "above" ? "-100%" : "0"})` }}
       >
         <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-foreground/18 lg:hidden" />
         <div className="flex items-center justify-between gap-3">
@@ -1209,7 +1143,23 @@ function BottomSheet({ sheet, activeFolder, editorDirty, isDesktop, onClose }: {
         {name === "create-folder" ? <CreateFolderContent onClose={onClose} /> : null}
         {name === "reminder" ? <ReminderContent onClose={onClose} /> : null}
       </section>
-    </div>
+    );
+  }
+
+  return (
+    folderPopup ? (
+      <div className="fixed inset-0 z-50 pointer-events-none">
+        <button aria-label="Закрыть меню" className="absolute inset-0 pointer-events-auto bg-transparent" onClick={onClose} type="button" />
+        <div className="pointer-events-auto absolute left-0 top-0">
+          {renderSheetContent()}
+        </div>
+      </div>
+    ) : (
+      <div className="fixed inset-0 z-50">
+        <button className="absolute inset-0 bg-foreground/42 backdrop-blur-sm" onClick={onClose} type="button" />
+        {renderSheetContent()}
+      </div>
+    )
   );
 }
 

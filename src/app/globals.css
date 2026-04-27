@@ -1,19 +1,19 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f7f3ea;
-  --foreground: #1f1d1a;
-  --surface: rgba(255, 252, 245, 0.86);
-  --surface-strong: #fffaf0;
-  --border: rgba(31, 29, 26, 0.14);
-  --accent: #7c3aed;
-  --accent-foreground: #ffffff;
-  --shadow-color: rgba(46, 16, 101, 0.12);
+  --background: #050505;
+  --foreground: #ffffff;
+  --surface: rgba(15, 15, 17, 0.72);
+  --surface-strong: #111113;
+  --border: rgba(255, 255, 255, 0.08);
+  --accent: #00f2ff;
+  --accent-foreground: #031315;
+  --shadow-color: rgba(0, 0, 0, 0.25);
   --wallpaper:
-    radial-gradient(circle at top left, rgba(124, 58, 237, 0.16), transparent 34rem),
-    linear-gradient(135deg, #f8f0df 0%, #efe7ff 45%, #e6f7f2 100%);
+    radial-gradient(circle at 50% 18%, rgba(0, 80, 255, 0.08), transparent 32rem),
+    linear-gradient(180deg, #050505 0%, #09090b 100%);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --ui-opacity: 0.88;
+  --ui-opacity: 0.9;
   --cards-opacity: 0.92;
   --main-background-url: none;
   --sidebar-background-url: none;
@@ -128,6 +128,7 @@ body {
   background: var(--wallpaper);
   background-attachment: fixed;
   overscroll-behavior-y: none;
+  overflow: hidden;
 }
 
 body::before {
@@ -188,6 +189,121 @@ textarea {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
   overflow: hidden;
+}
+
+.app-layout {
+  display: flex;
+  width: 100%;
+  height: 100dvh;
+  min-height: 0;
+  position: relative;
+  opacity: 1;
+}
+
+.sidebar-glass {
+  width: 320px;
+  height: 100dvh;
+  background: color-mix(in srgb, var(--surface) 92%, black 8%);
+  border-right: 1px solid var(--border);
+  backdrop-filter: blur(18px);
+  display: flex;
+  flex-direction: column;
+}
+
+.main-content {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.top-bar {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 96%, black 4%);
+  backdrop-filter: blur(18px);
+}
+
+.content-scrollable {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
+}
+
+.notes-grid,
+.folder-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+
+.panel-card,
+.note-card,
+.folder-card,
+.dropdown-menu,
+.modal-card,
+.filter-menu {
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface-strong) 96%, black 4%);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(18px);
+}
+
+.sidebar-nav,
+.sidebar-footer,
+.panel-stack,
+.menu-stack {
+  display: grid;
+  gap: 8px;
+}
+
+.nav-item,
+.footer-link,
+.dropdown-item,
+.btn-primary,
+.btn-secondary,
+.btn-danger,
+.btn-icon,
+.btn-fab {
+  border-radius: 14px;
+}
+
+.nav-item,
+.footer-link,
+.dropdown-item {
+  min-height: 44px;
+}
+
+.search-container {
+  max-width: 560px;
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.note-card,
+.folder-card {
+  border-radius: 1.35rem;
+}
+
+@media (max-width: 1023px) {
+  .sidebar-glass {
+    width: min(100vw, 24rem);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
