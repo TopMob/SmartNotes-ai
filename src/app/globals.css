@@ -201,7 +201,7 @@ textarea {
 }
 
 .sidebar-glass {
-  width: 320px;
+  width: 296px;
   height: 100dvh;
   background: color-mix(in srgb, var(--surface) 92%, black 8%);
   border-right: 1px solid var(--border);
@@ -235,14 +235,14 @@ textarea {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 16px;
+  padding: 12px;
 }
 
 .notes-grid,
 .folder-grid {
   display: grid;
   gap: 14px;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
 }
 
 .panel-card,
@@ -262,7 +262,7 @@ textarea {
 .panel-stack,
 .menu-stack {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .nav-item,
@@ -279,7 +279,7 @@ textarea {
 .nav-item,
 .footer-link,
 .dropdown-item {
-  min-height: 44px;
+  min-height: 40px;
 }
 
 .search-container {

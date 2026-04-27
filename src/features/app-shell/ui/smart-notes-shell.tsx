@@ -83,7 +83,6 @@ const navItems: Array<{ key: ShellNavKey; view: AppView; icon: typeof Inbox }> =
   { key: "adminTools", view: "admin_tools", icon: Shield },
 ];
 
-const invites = ["Design workspace", "Shared family notes"];
 const sortOptions: Array<{ label: string; value: NotesSort }> = [
   { label: "По времени", value: "updated" },
   { label: "AI relevance", value: "ai_relevance" },
@@ -545,73 +544,61 @@ function Header({ copy, view, activeFolder, searchQuery, filtersOpen, filtersRef
           <MoreHorizontal className="h-5 w-5" />
         </button>
 
-        <div className="hidden min-w-0 shrink-0 items-center gap-2 lg:flex">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           <h1 className="truncate text-lg font-black tracking-tight">{title}</h1>
           {view === "folder" ? <button className="rounded-full p-2 text-foreground/45 hover:bg-surface-strong" onClick={(event) => onOpenFolderMenu(getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><MoreHorizontal className="h-4 w-4" /></button> : null}
         </div>
 
-        <label className="hidden min-h-12 min-w-0 flex-1 items-center gap-3 rounded-2xl border border-border bg-surface-strong px-4 shadow-inner shadow-violet-950/4 lg:flex">
-          <Search className="h-5 w-5 shrink-0 text-foreground/38" />
-          <input className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-foreground/38" onChange={(event) => setSearchQuery(event.target.value)} placeholder={copy.shell.search} value={searchQuery} />
-        </label>
-
-        <div className="relative shrink-0 lg:hidden" ref={filtersRef}>
-          <button className={`flex h-12 shrink-0 items-center justify-center gap-2 rounded-2xl border border-border px-4 text-sm font-bold ${filtersOpen ? "bg-foreground text-background" : "bg-surface-strong text-foreground/72"}`} onClick={onOpenFilters} type="button">
-            <SlidersHorizontal className="h-4 w-4" />
-            <span className="hidden sm:inline">{copy.shell.filters}</span>
-          </button>
+        <div className="hidden min-w-0 flex-1 items-center gap-3 lg:flex">
+          <label className="flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-2xl border border-border bg-surface-strong px-4 shadow-inner shadow-violet-950/4">
+            <Search className="h-5 w-5 shrink-0 text-foreground/38" />
+            <input className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-foreground/38" onChange={(event) => setSearchQuery(event.target.value)} placeholder={copy.shell.search} value={searchQuery} />
+          </label>
         </div>
 
-        <div className="relative shrink-0 hidden lg:block" ref={filtersRef}>
-          <button className={`flex h-12 shrink-0 items-center gap-2 rounded-2xl border border-border px-4 text-sm font-bold ${filtersOpen ? "bg-foreground text-background" : "bg-surface-strong text-foreground/72"}`} onClick={onOpenFilters} type="button">
-            <SlidersHorizontal className="h-4 w-4" />
-            <span className="hidden sm:inline">{copy.shell.filters}</span>
-          </button>
-        </div>
+        <div className="ml-auto flex items-center gap-2">
+          <div className="relative shrink-0" ref={filtersRef}>
+            <button className={`flex h-12 shrink-0 items-center gap-2 rounded-2xl border border-border px-4 text-sm font-bold ${filtersOpen ? "bg-foreground text-background" : "bg-surface-strong text-foreground/72"}`} onClick={onOpenFilters} type="button">
+              <SlidersHorizontal className="h-4 w-4" />
+              <span className="hidden sm:inline">{copy.shell.filters}</span>
+            </button>
+          </div>
 
-        <div className="relative shrink-0" ref={profileRef}>
-          <button className="flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-surface-strong" onClick={() => setProfileOpen(!profileOpen)} type="button">
-            <UserRound className="h-5 w-5" />
-          </button>
+          <div className="relative shrink-0" ref={profileRef}>
+            <button className="flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-surface-strong" onClick={() => setProfileOpen(!profileOpen)} type="button">
+              <UserRound className="h-5 w-5" />
+            </button>
 
-          {profileOpen ? (
-            <div className="absolute right-0 top-[calc(100%+0.75rem)] w-[min(92vw,18rem)] rounded-[1.5rem] border border-border bg-surface p-3 shadow-2xl shadow-violet-950/16 backdrop-blur-2xl lg:w-72">
-              <div className="rounded-2xl bg-surface-strong p-3">
-                <div className="flex items-center gap-2">
-                  <p className="flex-1 text-sm font-black">Alex Smart</p>
-                  <button className="rounded-full p-2 text-foreground/48 hover:bg-background" type="button">
-                    <Pencil className="h-4 w-4" />
+            {profileOpen ? (
+              <div className="absolute right-0 top-[calc(100%+0.75rem)] w-[min(92vw,18rem)] rounded-[1.5rem] border border-border bg-surface p-3 shadow-2xl shadow-violet-950/16 backdrop-blur-2xl lg:w-72">
+                <div className="rounded-2xl bg-surface-strong p-3">
+                  <div className="flex items-center gap-2">
+                    <p className="flex-1 text-sm font-black">Alex Smart</p>
+                    <button className="rounded-full p-2 text-foreground/48 hover:bg-background" type="button">
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <button className="mt-2 flex w-full items-center justify-between rounded-xl bg-background/70 px-3 py-2 text-left text-xs font-bold text-foreground/56" type="button">
+                    UID: user_2f9b...91
+                    <Copy className="h-3.5 w-3.5" />
                   </button>
                 </div>
-                <button className="mt-2 flex w-full items-center justify-between rounded-xl bg-background/70 px-3 py-2 text-left text-xs font-bold text-foreground/56" type="button">
-                  UID: user_2f9b...91
-                  <Copy className="h-3.5 w-3.5" />
+
+                <button className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-rose-500/10 px-4 py-3 text-sm font-black text-rose-500" type="button">
+                  <LogOut className="h-4 w-4" />
+                  {copy.shell.logout}
                 </button>
               </div>
-
-              <button className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-rose-500/10 px-4 py-3 text-sm font-black text-rose-500" type="button">
-                <LogOut className="h-4 w-4" />
-                {copy.shell.logout}
-              </button>
-            </div>
-          ) : null}
+            ) : null}
+          </div>
         </div>
       </div>
 
-      <div className="mt-3 flex items-center gap-2 lg:hidden">
+      <div className="mt-4 flex items-center gap-2 lg:hidden">
         <label className="flex min-h-12 min-w-0 flex-1 items-center gap-3 rounded-2xl border border-border bg-surface-strong px-4 shadow-inner shadow-violet-950/4">
           <Search className="h-5 w-5 shrink-0 text-foreground/38" />
           <input className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-foreground/38" onChange={(event) => setSearchQuery(event.target.value)} placeholder={copy.shell.search} value={searchQuery} />
         </label>
-
-        <button className="flex h-12 w-12 items-center justify-center rounded-2xl border border-border bg-surface-strong text-foreground/72" onClick={onOpenDrawer} type="button">
-          <MoreHorizontal className="h-5 w-5" />
-        </button>
-      </div>
-
-      <div className="mt-3 flex items-center gap-2 lg:hidden">
-        <h1 className="truncate text-base font-black tracking-tight">{title}</h1>
-        {view === "folder" ? <button className="rounded-full p-2 text-foreground/45 hover:bg-surface-strong" onClick={(event) => onOpenFolderMenu(getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><MoreHorizontal className="h-4 w-4" /></button> : null}
       </div>
     </header>
   );
@@ -619,24 +606,26 @@ function Header({ copy, view, activeFolder, searchQuery, filtersOpen, filtersRef
 
 function Sidebar({ copy, currentView, folders, folderViewMode, isDesktop = false, onClose, onCreateFolder, onOpenFolder, onOpenSheet, onSwitchView }: { copy: ReturnType<typeof getUiCopy>; currentView: AppView; folders: FolderEntity[]; folderViewMode: "compact" | "full"; isDesktop?: boolean; onClose: () => void; onCreateFolder: (anchor: SheetAnchor) => void; onOpenFolder: (folder: FolderEntity) => void; onOpenSheet: (sheet: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void; onSwitchView: (view: AppView) => void }) {
   return (
-    <aside className="sidebar-glass panel-card flex h-full flex-col overflow-hidden p-4 shadow-2xl shadow-violet-950/10">
-      <div className="flex shrink-0 items-center justify-between gap-3">
+    <aside className="sidebar-glass panel-card flex h-full flex-col overflow-hidden p-3 shadow-2xl shadow-violet-950/10">
+      <div className="flex shrink-0 items-center justify-between gap-2">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.28em] text-accent">SmartNotes</p>
           <h1 className="mt-1 text-2xl font-black tracking-tight">{copy.shell.menuTitle}</h1>
         </div>
-        <button className="rounded-2xl border border-border bg-surface-strong p-2" onClick={onClose} type="button">
-          <X className="h-5 w-5" />
-        </button>
+        {!isDesktop ? (
+          <button className="rounded-2xl border border-border bg-surface-strong p-2" onClick={onClose} type="button">
+            <X className="h-5 w-5" />
+          </button>
+        ) : null}
       </div>
 
-      <div className="sidebar-nav min-h-0 flex flex-1 flex-col overflow-y-auto overscroll-contain pr-1">
-      <nav className="mt-6 space-y-1">
+      <div className="sidebar-nav min-h-0 flex flex-1 flex-col overflow-y-auto overscroll-contain pr-0">
+      <nav className="mt-4 space-y-1">
         {navItems.map((item) => {
           const Icon = item.icon;
 
           return (
-            <button className={`flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-semibold transition ${currentView === item.view ? "bg-foreground text-background" : "text-foreground/70 hover:bg-surface-strong"}`} key={item.key} onClick={() => onSwitchView(item.view)} type="button">
+            <button className={`flex w-full items-center gap-3 rounded-2xl px-2.5 py-2.5 text-left text-sm font-semibold transition ${currentView === item.view ? "bg-foreground text-background" : "text-foreground/70 hover:bg-surface-strong"}`} key={item.key} onClick={() => onSwitchView(item.view)} type="button">
               <Icon className="h-4 w-4" />
               <span>{copy.shell[item.key]}</span>
             </button>
@@ -646,7 +635,7 @@ function Sidebar({ copy, currentView, folders, folderViewMode, isDesktop = false
 
       <SidebarSection action={copy.shell.createFolder} onAction={(event) => onCreateFolder(getSheetAnchor(event.currentTarget.getBoundingClientRect()))} title={copy.shell.folders}>
         {folders.map((folder) => (
-          <button className="flex w-full items-start gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" key={folder.id} onClick={() => onOpenFolder(folder)} type="button">
+          <button className="flex w-full items-start gap-3 rounded-2xl p-2.5 text-left hover:bg-surface-strong" key={folder.id} onClick={() => onOpenFolder(folder)} type="button">
             <Folder className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
             <span>
               <span className="block text-sm font-semibold">{folder.name}</span>
@@ -656,15 +645,7 @@ function Sidebar({ copy, currentView, folders, folderViewMode, isDesktop = false
         ))}
       </SidebarSection>
 
-      <SidebarSection title="Приглашения">
-        {invites.map((invite) => (
-          <div className="rounded-2xl bg-surface-strong p-3" key={invite}>
-            <p className="text-sm font-bold">{invite}</p>
-          </div>
-        ))}
-      </SidebarSection>
-
-      <div className="mt-auto grid gap-2 pt-4">
+      <div className="mt-auto grid gap-2 pt-3">
         <button className="rounded-2xl border border-border bg-surface-strong px-4 py-3 text-left text-sm font-bold hover:bg-background" onClick={(event) => onOpenSheet("about", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button">
           {copy.shell.about}
         </button>
@@ -679,12 +660,12 @@ function Sidebar({ copy, currentView, folders, folderViewMode, isDesktop = false
 
 function SidebarSection({ title, action, children, onAction }: { title: string; action?: string; children: React.ReactNode; onAction?: (event: React.MouseEvent<HTMLButtonElement>) => void }) {
   return (
-    <section className="mt-6">
-      <div className="mb-2 flex items-center justify-between px-1">
+    <section className="mt-4">
+      <div className="mb-2 flex items-center justify-between px-0.5">
         <h2 className="text-xs font-black uppercase tracking-[0.2em] text-foreground/42">{title}</h2>
         {action ? <button className="text-xs font-black text-accent" onClick={onAction} type="button">{action}</button> : null}
       </div>
-      <div className="space-y-2">{children}</div>
+      <div className="space-y-1.5">{children}</div>
     </section>
   );
 }
@@ -810,8 +791,6 @@ function NotesView({ copy, title, notes, notesPerPage, emptyText, onOpenNote, on
   const { pinned, unpinned } = useMemo(() => selectPinnedGroups(notes), [notes]);
   const pinnedVisible = pinned.slice(0, notesPerPage);
   const unpinnedVisible = unpinned.slice(0, Math.max(notesPerPage - pinnedVisible.length, 0));
-  const hiddenCount = Math.max(notes.length - pinnedVisible.length - unpinnedVisible.length, 0);
-
   if (!notes.length) {
     return (
       <div className="flex h-full min-h-[calc(100vh-7.5rem)] items-center justify-center p-6 text-center">
@@ -825,13 +804,10 @@ function NotesView({ copy, title, notes, notesPerPage, emptyText, onOpenNote, on
   }
 
   return (
-    <div className="content-scrollable space-y-6 p-4 sm:p-5">
+    <div className="content-scrollable space-y-5 p-3 sm:p-4">
       <div>
         <h2 className="text-xl font-black tracking-tight sm:text-2xl">{title}</h2>
-        <p className="mt-1 text-sm text-foreground/52">Показано {pinnedVisible.length + unpinnedVisible.length} из {notes.length} заметок. Размер текущей страницы: {notesPerPage}.</p>
       </div>
-
-      {hiddenCount ? <div className="rounded-2xl border border-border bg-surface-strong px-4 py-3 text-sm font-semibold text-foreground/60">Еще {hiddenCount} заметок остаются за пределами текущего display limit.</div> : null}
 
       {pinnedVisible.length ? (
         <section>
@@ -839,7 +815,7 @@ function NotesView({ copy, title, notes, notesPerPage, emptyText, onOpenNote, on
             <Heart className="h-4 w-4" />
             {copy.shell.sections.pinned}
           </div>
-          <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-4">
+          <div className="notes-grid">
             {pinnedVisible.map((note) => (
               <NoteCard key={note.id} folders={visibleFolders} note={note} onOpenNote={onOpenNote} onOpenSheet={onOpenSheet} view={view} />
             ))}
@@ -850,7 +826,7 @@ function NotesView({ copy, title, notes, notesPerPage, emptyText, onOpenNote, on
       {unpinnedVisible.length ? (
         <section>
           <div className="mb-3 text-sm font-black uppercase tracking-[0.2em] text-foreground/42">{copy.shell.sections.notes}</div>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="notes-grid">
             {unpinnedVisible.map((note) => (
               <NoteCard key={note.id} folders={visibleFolders} note={note} onOpenNote={onOpenNote} onOpenSheet={onOpenSheet} view={view} />
             ))}
@@ -865,15 +841,11 @@ function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: { note: Note
   const [folderPickerOpen, setFolderPickerOpen] = useState(false);
   const setCurrentNoteId = useNotesStore((state) => state.setCurrentNoteId);
 
-  const folderName = folders.find((folder) => folder.id === note.folderId)?.name ?? "Без папки";
   const previewText = note.lock?.hidden ? maskLockedPreview(note.id) : stripHtml(note.content);
   const reminderLabel = note.reminderAt
     ? new Date(note.reminderAt).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
     : null;
   const aiBadgeTone = note.aiStatus === "error" ? "text-rose-500 bg-rose-500/10" : note.aiStatus === "pending" ? "text-amber-600 bg-amber-500/10" : note.aiStatus === "analyzing" ? "text-sky-600 bg-sky-500/10" : "text-emerald-600 bg-emerald-500/10";
-  const accessLabel = getNoteAccessLabel(note);
-  const analysisLabel = note.aiStatus === "done" ? "Статус анализа: готово" : note.aiStatus === "pending" ? "Статус анализа: в очереди" : note.aiStatus === "analyzing" ? "Статус анализа: анализируется" : "Статус анализа: ошибка";
-
   function openReminderSheet(anchor: SheetAnchor) {
     setCurrentNoteId(note.id);
     onOpenSheet("reminder", anchor);
@@ -881,8 +853,8 @@ function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: { note: Note
   }
 
   return (
-    <article className={`note-card relative overflow-visible rounded-[1.35rem] border bg-surface-strong p-4 text-left shadow-md shadow-violet-950/4 transition hover:-translate-y-0.5 hover:shadow-lg border-border ${note.trashedAt ? "border-dashed border-rose-300" : "border-border"}`}>
-      <div className="absolute right-3 top-3 z-10 flex items-start gap-1">
+    <article className={`note-card relative overflow-visible rounded-[1.35rem] border bg-surface-strong p-3 text-left shadow-md shadow-violet-950/4 transition hover:-translate-y-0.5 hover:shadow-lg border-border ${note.trashedAt ? "border-dashed border-rose-300" : "border-border"}`}>
+      <div className="absolute right-2 top-2 z-10 flex items-start gap-1">
         {view === "trash" ? null : (
           <>
             <button className={`flex h-9 w-9 items-center justify-center rounded-xl bg-surface/92 text-foreground/56 backdrop-blur hover:bg-background ${note.pinned ? "text-accent" : ""}`} onClick={() => togglePinned(note.id)} type="button">
@@ -902,18 +874,17 @@ function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: { note: Note
       </div>
 
       <button className="block w-full text-left" onClick={() => onOpenNote(note.id)} type="button">
-        <div className="flex min-h-7 flex-wrap items-center gap-2 pr-28 text-[11px] font-black uppercase tracking-[0.18em] text-foreground/42">
+        <div className="flex min-h-7 flex-wrap items-center gap-2 pr-20 text-[11px] font-black uppercase tracking-[0.18em] text-foreground/42">
           {note.reminderAt ? <span className="rounded-full bg-amber-500/10 px-2 py-1 text-amber-600">{reminderLabel}</span> : null}
           {note.lock ? <span className="rounded-full bg-foreground/8 px-2 py-1">Locked</span> : null}
           {note.isArchived ? <span className="rounded-full bg-foreground/8 px-2 py-1">Archive</span> : null}
           <span className={`rounded-full px-2 py-1 ${aiBadgeTone}`}>AI: {note.aiStatus}</span>
-          <span className="rounded-full border border-border px-2 py-1">{folderName}</span>
         </div>
-        <h3 className="mt-2 pr-28 text-base leading-6 font-black tracking-tight">{note.title}</h3>
+        <h3 className="mt-2 pr-20 text-sm leading-5 font-black tracking-tight">{note.title}</h3>
         <p className={`mt-2 line-clamp-3 text-sm leading-6 text-foreground/58 ${note.lock?.hidden ? "select-none" : ""}`}>{previewText}</p>
         <div className="mt-3 flex flex-wrap gap-2">
           {note.userTags.map((tag) => (
-            <span className="rounded-full border border-border px-3 py-1 text-xs font-semibold text-foreground/56" key={tag}>
+            <span className="rounded-full border border-border px-2 py-1 text-[11px] font-semibold text-foreground/56" key={tag}>
               #{tag}
             </span>
           ))}
@@ -1300,25 +1271,6 @@ function PagesContent() {
       <Button className="w-full rounded-2xl" onClick={() => addPage(noteId)} type="button" variant="secondary">Добавить страницу</Button>
     </div>
   );
-}
-
-function getNoteAccessLabel(note: Note) {
-  if (!note.access.length) {
-    return "Ваш доступ: владелец";
-  }
-
-  const hasEditor = note.access.some((item) => item.role === "editor");
-  const hasViewer = note.access.some((item) => item.role === "viewer");
-
-  if (hasEditor) {
-    return "Ваш доступ: редактор";
-  }
-
-  if (hasViewer) {
-    return "Ваш доступ: коментатор";
-  }
-
-  return "Ваш доступ: владелец";
 }
 
 function LockContent({ onClose }: { onClose: () => void }) {
