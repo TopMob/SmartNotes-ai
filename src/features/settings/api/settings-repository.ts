@@ -1,4 +1,5 @@
 import type { UserSettings, UserSettingsPatch } from "@/entities/settings";
+import { localSettingsRepository } from "@/features/settings/api/local-settings-repository";
 import { createSupabaseBrowserClient } from "@/shared/api/supabase/client";
 
 import { mapSettingsInsert, mapSettingsPatchToUpdate, mapSettingsRow } from "./settings-mappers";
@@ -11,6 +12,11 @@ export type SettingsRepository = {
 export const settingsRepository: SettingsRepository = {
   async get(userId) {
     const supabase = createSupabaseBrowserClient();
+
+    if (!supabase) {
+      return localSettingsRepository.get(userId);
+    }
+
     const { data, error } = await supabase.from("user_settings").select("*").eq("id", userId).maybeSingle();
 
     if (error) {
@@ -31,6 +37,11 @@ export const settingsRepository: SettingsRepository = {
   },
   async patch(userId, patch) {
     const supabase = createSupabaseBrowserClient();
+
+    if (!supabase) {
+      return localSettingsRepository.patch(userId, patch);
+    }
+
     const { data, error } = await supabase
       .from("user_settings")
       .update(mapSettingsPatchToUpdate(patch))

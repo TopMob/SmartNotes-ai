@@ -1,4 +1,5 @@
 import type { Note, NoteDraft } from "@/entities/note";
+import { localNotesRepository } from "@/features/notes/api/local-notes-repository";
 import { createSupabaseBrowserClient } from "@/shared/api/supabase/client";
 
 import { mapNoteDraftToInsert, mapNotePatchToUpdate, mapNoteRow } from "./note-mappers";
@@ -15,6 +16,11 @@ export type NotesRepository = {
 export const notesRepository: NotesRepository = {
   async list() {
     const supabase = createSupabaseBrowserClient();
+
+    if (!supabase) {
+      return localNotesRepository.list();
+    }
+
     const { data, error } = await supabase.from("notes").select("*").order("updated_at", { ascending: false });
 
     if (error) {
@@ -25,6 +31,11 @@ export const notesRepository: NotesRepository = {
   },
   async create(note) {
     const supabase = createSupabaseBrowserClient();
+
+    if (!supabase) {
+      return localNotesRepository.create(note);
+    }
+
     const { data, error } = await supabase.from("notes").insert(mapNoteDraftToInsert(note)).select("*").single();
 
     if (error) {
@@ -35,6 +46,11 @@ export const notesRepository: NotesRepository = {
   },
   async patch(noteId, patch) {
     const supabase = createSupabaseBrowserClient();
+
+    if (!supabase) {
+      return localNotesRepository.patch(noteId, patch);
+    }
+
     const { data, error } = await supabase.from("notes").update(mapNotePatchToUpdate(patch)).eq("id", noteId).select("*").single();
 
     if (error) {
@@ -51,6 +67,11 @@ export const notesRepository: NotesRepository = {
   },
   async remove(noteId) {
     const supabase = createSupabaseBrowserClient();
+
+    if (!supabase) {
+      return localNotesRepository.remove(noteId);
+    }
+
     const { error } = await supabase.from("notes").delete().eq("id", noteId);
 
     if (error) {

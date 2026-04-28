@@ -12,6 +12,16 @@ import { createSupabaseBrowserClient } from "@/shared/api/supabase/client";
 
 const AUTH_BOOT_TIMEOUT_MS = 8_000;
 
+function createLocalModeUser() {
+  return {
+    id: "local-user",
+    uid: "local-user",
+    email: "local@smartnotes.app",
+    displayName: "Local User",
+    photoURL: null,
+  };
+}
+
 async function syncSession(session: Session | null) {
   const store = useAuthStore.getState();
 
@@ -21,6 +31,12 @@ async function syncSession(session: Session | null) {
   }
 
   const supabase = createSupabaseBrowserClient();
+
+   if (!supabase) {
+    store.setAuthState({ status: "degraded", user: null, degraded: true, error: "Supabase client is unavailable in this environment" });
+    return;
+  }
+
   await bootstrapProfile(supabase, session.user);
   store.setAuthState({ status: "authenticated", user: mapAuthUser(session.user) });
 }
@@ -49,16 +65,28 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
 
         if (!runtimeConfig.url || !runtimeConfig.publishableKey) {
           useAuthStore.getState().setAuthState({
-            status: "degraded",
-            user: null,
+            status: "authenticated",
+            user: createLocalModeUser(),
             degraded: true,
-            error: "Supabase runtime config is incomplete",
+            error: "Supabase runtime config is incomplete. Running in local mode.",
           });
           setReady(true);
           return;
         }
 
         const supabase = createSupabaseBrowserClient();
+
+        if (!supabase) {
+          useAuthStore.getState().setAuthState({
+            status: "authenticated",
+            user: createLocalModeUser(),
+            degraded: true,
+            error: "Supabase browser client is unavailable. Running in local mode.",
+          });
+          setReady(true);
+          return;
+        }
+
         const [{ data: sessionData }, authListener] = await Promise.all([
           supabase.auth.getSession(),
           Promise.resolve(
@@ -83,10 +111,10 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
         return () => authListener.data.subscription.unsubscribe();
       } catch (error) {
         useAuthStore.getState().setAuthState({
-          status: "degraded",
-          user: null,
+          status: "authenticated",
+          user: createLocalModeUser(),
           degraded: true,
-          error: error instanceof Error ? error.message : "Failed to bootstrap auth",
+          error: error instanceof Error ? `${error.message}. Running in local mode.` : "Failed to bootstrap auth. Running in local mode.",
         });
         setReady(true);
       } finally {

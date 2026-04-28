@@ -13,6 +13,6 @@ export function useSettingsQuery() {
   return useQuery({
     queryKey: userId ? queryKeys.settings(userId) : ["settings", "anonymous"],
     queryFn: () => settingsRepository.get(userId!),
-    enabled: authStatus === "authenticated" && !!userId,
+    enabled: (authStatus === "authenticated" || authStatus === "degraded") && !!userId,
   });
 }

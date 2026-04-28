@@ -13,6 +13,6 @@ export function useNotesQuery() {
   return useQuery({
     queryKey: userId ? queryKeys.notes(userId) : ["notes", "anonymous"],
     queryFn: () => notesRepository.list(),
-    enabled: authStatus === "authenticated" && !!userId,
+    enabled: (authStatus === "authenticated" || authStatus === "degraded") && !!userId,
   });
 }

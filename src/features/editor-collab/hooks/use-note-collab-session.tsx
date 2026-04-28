@@ -79,14 +79,14 @@ export function NoteCollabSessionProvider({ note, children }: NoteCollabProvider
       indexeddbRef.current = indexeddb;
       channel = createNoteCollabChannel(note.id);
       channelRef.current = channel;
-      transportRef.current = bindYjsSupabaseChannel({ noteId: note.id, channel, doc: session.doc });
+      transportRef.current = channel ? bindYjsSupabaseChannel({ noteId: note.id, channel, doc: session.doc }) : null;
       setCollabDiagnostic(note.id, {
         status: "hydrating",
         hydratedFromQuery: false,
-        transport: "connected",
+        transport: channel ? "connected" : "idle",
         persistence: "idle",
         durable: "idle",
-        message: "Started local persistence and realtime transport.",
+        message: channel ? "Started local persistence and realtime transport." : "Started local persistence without Supabase realtime transport.",
       });
     } catch (cause) {
       setStatus("error");
@@ -124,7 +124,7 @@ export function NoteCollabSessionProvider({ note, children }: NoteCollabProvider
         setCollabDiagnostic(note.id, {
           status: "ready",
           hydratedFromQuery: true,
-          transport: "connected",
+          transport: channel ? "connected" : "idle",
           persistence: "synced",
           durable: durableState.error ? "error" : durableState.isSaving ? "saving" : durableState.lastSavedAt ? "saved" : "idle",
           message: hasIndexedPages ? "Restored local IndexedDB snapshot." : "Hydrated note session from durable query snapshot.",
@@ -135,7 +135,7 @@ export function NoteCollabSessionProvider({ note, children }: NoteCollabProvider
         setCollabDiagnostic(note.id, {
           status: "error",
           hydratedFromQuery: false,
-          transport: "connected",
+          transport: channel ? "connected" : "idle",
           persistence: "error",
           durable: "error",
           message: cause instanceof Error ? cause.message : "Failed to hydrate collaborative note session.",

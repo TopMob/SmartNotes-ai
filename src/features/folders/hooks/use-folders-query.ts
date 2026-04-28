@@ -13,6 +13,6 @@ export function useFoldersQuery() {
   return useQuery({
     queryKey: userId ? queryKeys.folders(userId) : ["folders", "anonymous"],
     queryFn: () => foldersRepository.list(),
-    enabled: authStatus === "authenticated" && !!userId,
+    enabled: (authStatus === "authenticated" || authStatus === "degraded") && !!userId,
   });
 }

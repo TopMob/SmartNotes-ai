@@ -1,8 +1,15 @@
 import { createBrowserClient } from "@supabase/ssr";
 
-import { requireSupabasePublishableKey, requireSupabaseUrl } from "@/shared/api/supabase/env";
+import { getSupabasePublishableKey, getSupabaseUrl } from "@/shared/api/supabase/env";
 import type { Database } from "@/shared/api/supabase/types";
 
 export function createSupabaseBrowserClient() {
-  return createBrowserClient<Database>(requireSupabaseUrl(), requireSupabasePublishableKey());
+  const url = getSupabaseUrl();
+  const publishableKey = getSupabasePublishableKey();
+
+  if (!url || !publishableKey) {
+    return null;
+  }
+
+  return createBrowserClient<Database>(url, publishableKey);
 }
