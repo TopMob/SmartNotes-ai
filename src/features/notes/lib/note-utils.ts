@@ -9,7 +9,8 @@ type NotePatchOptions = {
 export type NotePagePatch = Partial<Pick<NotePage, "title" | "content" | "drawingDataUrl" | "drawingRevision">>;
 export type NormalizedNotePatch = Partial<Note>;
 
-const analysisFields = new Set<keyof Note>(["title", "content", "pages", "userTags", "hiddenTags", "media"]);
+export const ANALYSIS_FIELD_KEYS: Array<keyof Note> = ["title", "content", "pages", "userTags", "hiddenTags", "media", "folderId"];
+const analysisFields = new Set<keyof Note>(ANALYSIS_FIELD_KEYS);
 
 export function nowIso() {
   return new Date().toISOString();

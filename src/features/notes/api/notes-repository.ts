@@ -8,8 +8,10 @@ export type NotesRepository = {
   list: () => Promise<Note[]>;
   create: (note: Note) => Promise<Note>;
   patch: (noteId: string, patch: Partial<Note>) => Promise<Note>;
+  batchCreate: (notes: Note[]) => Promise<Note[]>;
   trash: (noteId: string) => Promise<void>;
   restore: (noteId: string) => Promise<void>;
+  clearTrash: () => Promise<void>;
   remove: (noteId: string) => Promise<void>;
 };
 
@@ -59,11 +61,51 @@ export const notesRepository: NotesRepository = {
 
     return mapNoteRow(data);
   },
+  async batchCreate(notes) {
+    const supabase = createSupabaseBrowserClient();
+
+    if (!notes.length) {
+      return [];
+    }
+
+    if (!supabase) {
+      return localNotesRepository.batchCreate(notes);
+    }
+
+    const chunkSize = 50;
+    const created: Note[] = [];
+
+    for (let index = 0; index < notes.length; index += chunkSize) {
+      const chunk = notes.slice(index, index + chunkSize);
+      const { data, error } = await supabase.from("notes").insert(chunk.map(mapNoteDraftToInsert)).select("*");
+
+      if (error) {
+        throw error;
+      }
+
+      created.push(...data.map(mapNoteRow));
+    }
+
+    return created;
+  },
   async trash(noteId) {
     await this.patch(noteId, { trashedAt: new Date().toISOString() });
   },
   async restore(noteId) {
     await this.patch(noteId, { trashedAt: null });
+  },
+  async clearTrash() {
+    const supabase = createSupabaseBrowserClient();
+
+    if (!supabase) {
+      return localNotesRepository.clearTrash();
+    }
+
+    const { error } = await supabase.from("notes").delete().not("trashed_at", "is", null);
+
+    if (error) {
+      throw error;
+    }
   },
   async remove(noteId) {
     const supabase = createSupabaseBrowserClient();

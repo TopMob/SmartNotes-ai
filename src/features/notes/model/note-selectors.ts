@@ -1,78 +1,6 @@
 import type { Note } from "@/entities/note";
 import type { AppView } from "@/shared/store/ui-store";
-import { normalizeSearchToken } from "@/shared/lib/search";
-
-const ruToEnLayoutMap: Record<string, string> = {
-  й: "q",
-  ц: "w",
-  у: "e",
-  к: "r",
-  е: "t",
-  н: "y",
-  г: "u",
-  ш: "i",
-  щ: "o",
-  з: "p",
-  х: "[",
-  ъ: "]",
-  ф: "a",
-  ы: "s",
-  в: "d",
-  а: "f",
-  п: "g",
-  р: "h",
-  о: "j",
-  л: "k",
-  д: "l",
-  ж: ";",
-  э: "'",
-  я: "z",
-  ч: "x",
-  с: "c",
-  м: "v",
-  и: "b",
-  т: "n",
-  ь: "m",
-  б: ",",
-  ю: ".",
-};
-
-const enToRuLayoutMap = Object.fromEntries(Object.entries(ruToEnLayoutMap).map(([ru, en]) => [en, ru])) as Record<string, string>;
-
-const translitMap: Record<string, string> = {
-  а: "a",
-  б: "b",
-  в: "v",
-  г: "g",
-  д: "d",
-  е: "e",
-  ж: "zh",
-  з: "z",
-  и: "i",
-  й: "y",
-  к: "k",
-  л: "l",
-  м: "m",
-  н: "n",
-  о: "o",
-  п: "p",
-  р: "r",
-  с: "s",
-  т: "t",
-  у: "u",
-  ф: "f",
-  х: "h",
-  ц: "ts",
-  ч: "ch",
-  ш: "sh",
-  щ: "sch",
-  ы: "y",
-  э: "e",
-  ю: "yu",
-  я: "ya",
-  ь: "",
-  ъ: "",
-};
+import { scoreSearchMatch } from "@/shared/lib/search";
 
 export type NotesSort = "updated" | "ai_relevance" | "importance" | "alphabet" | "text_length" | "manual";
 
@@ -132,28 +60,16 @@ function matchesSearch(note: Note, searchQuery: string) {
     return true;
   }
 
-  const haystack = [note.title, note.content, ...note.userTags, ...note.hiddenTags, note.resurfacingClass ?? ""]
-    .join(" ")
-    .toLowerCase()
-    .replaceAll("ё", "е");
-  const tokens = searchQuery
-    .split(/\s+/u)
-    .map(normalizeSearchToken)
-    .filter(Boolean);
-
-  function remapKeyboardLayout(value: string, map: Record<string, string>) {
-    return [...value].map((char) => map[char] ?? char).join("");
-  }
-
-  function transliterateRu(value: string) {
-    return [...value].map((char) => translitMap[char] ?? char).join("");
-  }
-
-  function buildSearchVariants(value: string) {
-    return Array.from(new Set([value, remapKeyboardLayout(value, ruToEnLayoutMap), remapKeyboardLayout(value, enToRuLayoutMap), transliterateRu(value)].filter(Boolean)));
-  }
-
-  return tokens.every((token) => buildSearchVariants(token).some((variant) => buildSearchVariants(haystack).some((candidate) => candidate.includes(variant))));
+  return scoreSearchMatch(
+    [
+      { value: note.title, weight: 8 },
+      { value: note.content, weight: 3 },
+      { value: note.userTags.join(" "), weight: 6 },
+      { value: note.hiddenTags.join(" "), weight: 4 },
+      { value: note.resurfacingClass ?? "", weight: 2 },
+    ],
+    searchQuery,
+  ) > 0;
 }
 
 function matchesFilter(note: Note, filter: NotesFilter, now: Date) {
@@ -197,6 +113,26 @@ function compareNotes(left: Note, right: Note, sort: NotesSort) {
   }
 }
 
+function compareBySearchScore(left: Note, right: Note, searchQuery: string) {
+  if (!searchQuery.trim()) {
+    return 0;
+  }
+
+  const scoreNote = (note: Note) =>
+    scoreSearchMatch(
+      [
+        { value: note.title, weight: 8 },
+        { value: note.content, weight: 3 },
+        { value: note.userTags.join(" "), weight: 6 },
+        { value: note.hiddenTags.join(" "), weight: 4 },
+        { value: note.resurfacingClass ?? "", weight: 2 },
+      ],
+      searchQuery,
+    );
+
+  return scoreNote(right) - scoreNote(left);
+}
+
 export function selectVisibleNotes(input: SelectNotesInput) {
   const filter = { ...DEFAULT_NOTES_FILTER, ...input.filter };
   const now = input.now ?? new Date();
@@ -205,7 +141,7 @@ export function selectVisibleNotes(input: SelectNotesInput) {
     .filter((note) => matchesView(note, input.view, input.activeFolderId))
     .filter((note) => matchesSearch(note, input.searchQuery))
     .filter((note) => matchesFilter(note, filter, now))
-    .sort((left, right) => compareNotes(left, right, filter.sort));
+    .sort((left, right) => compareBySearchScore(left, right, input.searchQuery) || compareNotes(left, right, filter.sort));
 }
 
 export function selectPinnedGroups(notes: Note[]) {

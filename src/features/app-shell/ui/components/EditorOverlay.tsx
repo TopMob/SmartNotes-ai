@@ -12,6 +12,7 @@ import {
   List,
   MoreHorizontal,
   Paintbrush,
+  Redo2,
   Save,
   Share2,
   Strikethrough,
@@ -36,7 +37,7 @@ import { useNoteUiStore } from "@/features/notes/model/note-ui-store";
 import { setMediaDiagnostic } from "@/services/diagnostics/runtime-diagnostics";
 import { Button } from "@/shared/ui/button";
 
-import { getSheetAnchor, plainTextToEditorContent, serializeEditorSnapshot, type SheetAnchor, type SheetName } from "./shared";
+import { getSheetAnchor, plainTextToEditorContent, serializeEditorSnapshot, shareNote, type SheetAnchor, type SheetName } from "./shared";
 
 type EditorOverlayProps = {
   note: Note;
@@ -178,8 +179,9 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
           </div>
           <button className="flex h-9 w-9 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={(event) => onOpenSheet("pages", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><Folder className="h-5 w-5" /></button>
           <div className="ml-auto flex items-center gap-1">
-            <button className="flex h-9 w-9 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" type="button"><Undo2 className="h-5 w-5" /></button>
-            <button className="flex h-9 w-9 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" type="button"><Share2 className="h-5 w-5" /></button>
+            <button className="flex h-9 w-9 items-center justify-center rounded-2xl hover:bg-surface-strong disabled:opacity-35 sm:h-10 sm:w-10" disabled={!editor.can().undo()} onClick={() => editor.chain().focus().undo().run()} type="button"><Undo2 className="h-5 w-5" /></button>
+            <button className="flex h-9 w-9 items-center justify-center rounded-2xl hover:bg-surface-strong disabled:opacity-35 sm:h-10 sm:w-10" disabled={!editor.can().redo()} onClick={() => editor.chain().focus().redo().run()} type="button"><Redo2 className="h-5 w-5" /></button>
+            <button className="flex h-9 w-9 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={() => void shareNote(note)} type="button"><Share2 className="h-5 w-5" /></button>
             <button className="flex h-9 w-9 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={(event) => onOpenSheet("note", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><MoreHorizontal className="h-5 w-5" /></button>
             <button className="flex h-9 w-9 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={() => setToolbarVisible(!toolbarVisible)} type="button"><ChevronDown className="h-5 w-5" /></button>
           </div>
@@ -197,6 +199,9 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
               <ToolButton active={editor.isActive({ textAlign: "center" })} icon={AlignCenter} onClick={() => editor.chain().focus().setTextAlign("center").run()} />
               <ToolButton active={editor.isActive({ textAlign: "right" })} icon={AlignRight} onClick={() => editor.chain().focus().setTextAlign("right").run()} />
               <ToolButton active={editor.isActive("bulletList")} icon={List} onClick={() => editor.chain().focus().toggleBulletList().run()} />
+              <ToolButton label="1." active={editor.isActive("orderedList")} onClick={() => editor.chain().focus().toggleOrderedList().run()} />
+              <ToolButton label="HR" onClick={() => editor.chain().focus().setHorizontalRule().run()} />
+              <ToolButton label="Clear" onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()} />
               <ToolButton active={editor.isActive("link")} label="Link" onClick={() => { const url = window.prompt("Ссылка"); if (url) { editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run(); } }} />
               <ToolButton icon={Paintbrush} label="Sketch" onClick={() => { addPage(`Sketch ${pageCount + 1}`); setCurrentNotePageIndex(pageCount); }} />
               <ToolButton icon={FileImage} label="Add image" onClick={() => void handleAttachImage()} />
