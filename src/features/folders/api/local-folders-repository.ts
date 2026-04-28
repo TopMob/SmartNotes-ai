@@ -32,6 +32,17 @@ export const localFoldersRepository = {
     writeFolders(folders.map((item) => (item.id === folderId ? updated : item)));
     return updated;
   },
+  async reorder(updates: Array<{ folderId: string; folderOrder: number }>) {
+    const orderById = new Map(updates.map((item) => [item.folderId, item.folderOrder]));
+    const folders = readFolders().map((folder) => {
+      const folderOrder = orderById.get(folder.id);
+
+      return folderOrder === undefined ? folder : { ...folder, folderOrder, updatedAt: new Date().toISOString() };
+    });
+
+    writeFolders(folders);
+    return folders.sort((left, right) => left.folderOrder - right.folderOrder);
+  },
   async remove(folderId: string) {
     writeFolders(readFolders().filter((item) => item.id !== folderId));
   },

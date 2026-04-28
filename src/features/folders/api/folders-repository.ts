@@ -9,6 +9,7 @@ export type FoldersRepository = {
   list: () => Promise<Folder[]>;
   create: (draft: FolderDraft, ownerId: string, folderOrder: number) => Promise<Folder>;
   patch: (folderId: string, patch: Partial<Folder>) => Promise<Folder>;
+  reorder: (orderedFolderIds: string[]) => Promise<Folder[]>;
   remove: (folderId: string) => Promise<void>;
 };
 
@@ -66,6 +67,18 @@ export const foldersRepository: FoldersRepository = {
     }
 
     return mapFolderRow(data);
+  },
+  async reorder(orderedFolderIds) {
+    const supabase = createSupabaseBrowserClient();
+    const updates = orderedFolderIds.map((folderId, folderOrder) => ({ folderId, folderOrder }));
+
+    if (!supabase) {
+      return localFoldersRepository.reorder(updates);
+    }
+
+    const folders = await Promise.all(updates.map(({ folderId, folderOrder }) => this.patch(folderId, { folderOrder })));
+
+    return folders.sort((left, right) => left.folderOrder - right.folderOrder);
   },
   async remove(folderId) {
     const supabase = createSupabaseBrowserClient();

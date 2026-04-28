@@ -54,6 +54,10 @@ export function SmartNotesShell() {
   const setActiveFolderId = useUiStore((state) => state.setActiveFolderId);
   const setSearchQuery = useUiStore((state) => state.setSearchQuery);
   const setNotesSort = useUiStore((state) => state.setNotesSort);
+  const savedFilters = useUiStore((state) => state.savedFilters);
+  const saveCurrentFilter = useUiStore((state) => state.saveCurrentFilter);
+  const applySavedFilter = useUiStore((state) => state.applySavedFilter);
+  const deleteSavedFilter = useUiStore((state) => state.deleteSavedFilter);
   const toggleFolderFilter = useUiStore((state) => state.toggleFolderFilter);
   const toggleTagFilter = useUiStore((state) => state.toggleTagFilter);
   const setUpdatedWindowDays = useUiStore((state) => state.setUpdatedWindowDays);
@@ -250,14 +254,23 @@ export function SmartNotesShell() {
             <TopFiltersPopup
               folders={folders}
               notesFilter={notesFilter}
+              savedFilters={savedFilters}
               tagDraft={tagDraft}
               tagSuggestions={filteredTagSuggestions}
               onResetFilters={resetNotesFilter}
+              onApplySavedFilter={applySavedFilter}
+              onDeleteSavedFilter={deleteSavedFilter}
+              onSaveCurrentFilter={saveCurrentFilter}
               onSetNotesSort={setNotesSort}
               onSetUpdatedWindowDays={setUpdatedWindowDays}
               onToggleFolderFilter={toggleFolderFilter}
               onToggleTagFilter={toggleTagFilter}
               onTagDraftChange={setTagDraft}
+              visibleSections={{
+                savedFilters: settings?.interface.showSavedFilters ?? true,
+                tagFilter: settings?.interface.showTagFilter ?? true,
+                updatedPeriodFilter: settings?.interface.showUpdatedPeriodFilter ?? true,
+              }}
             />
           ) : null}
 

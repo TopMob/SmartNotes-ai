@@ -9,6 +9,7 @@ type UiState = {
   activeFolderId: string | null;
   searchQuery: string;
   notesFilter: NotesFilter;
+  savedFilters: Array<{ id: string; name: string; filter: NotesFilter }>;
   mobileSidebarOpen: boolean;
   desktopSidebarOpen: boolean;
   desktopSidebarPinned: boolean;
@@ -20,6 +21,9 @@ type UiState = {
   toggleTagFilter: (tag: string) => void;
   setUpdatedWindowDays: (days: number | null) => void;
   resetNotesFilter: () => void;
+  saveCurrentFilter: (name: string) => void;
+  applySavedFilter: (id: string) => void;
+  deleteSavedFilter: (id: string) => void;
   openMobileSidebar: () => void;
   closeMobileSidebar: () => void;
   toggleMobileSidebar: () => void;
@@ -33,6 +37,7 @@ export const useUiStore = create<UiState>((set) => ({
   activeFolderId: null,
   searchQuery: "",
   notesFilter: DEFAULT_NOTES_FILTER,
+  savedFilters: [],
   mobileSidebarOpen: false,
   desktopSidebarOpen: false,
   desktopSidebarPinned: false,
@@ -60,6 +65,31 @@ export const useUiStore = create<UiState>((set) => ({
     })),
   setUpdatedWindowDays: (updatedWindowDays) => set((state) => ({ notesFilter: { ...state.notesFilter, updatedWindowDays } })),
   resetNotesFilter: () => set({ notesFilter: DEFAULT_NOTES_FILTER }),
+  saveCurrentFilter: (name) =>
+    set((state) => {
+      const trimmedName = name.trim();
+
+      if (!trimmedName) {
+        return {};
+      }
+
+      const savedFilter = {
+        id: `filter_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`,
+        name: trimmedName,
+        filter: state.notesFilter,
+      };
+
+      return {
+        savedFilters: [savedFilter, ...state.savedFilters.filter((item) => item.name !== trimmedName)].slice(0, 12),
+      };
+    }),
+  applySavedFilter: (id) =>
+    set((state) => {
+      const savedFilter = state.savedFilters.find((item) => item.id === id);
+
+      return savedFilter ? { notesFilter: savedFilter.filter } : {};
+    }),
+  deleteSavedFilter: (id) => set((state) => ({ savedFilters: state.savedFilters.filter((item) => item.id !== id) })),
   openMobileSidebar: () => set({ mobileSidebarOpen: true }),
   closeMobileSidebar: () => set({ mobileSidebarOpen: false }),
   toggleMobileSidebar: () => set((state) => ({ mobileSidebarOpen: !state.mobileSidebarOpen })),

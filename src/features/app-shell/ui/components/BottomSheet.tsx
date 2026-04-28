@@ -11,19 +11,20 @@ import { useFoldersQuery } from "@/features/folders/hooks/use-folders-query";
 import { createNoteLock, verifyNoteLock } from "@/features/lock-center/lib/lock-service";
 import { useNoteActions } from "@/features/notes/hooks/use-note-mutations";
 import { useNotesQuery } from "@/features/notes/hooks/use-notes-query";
-import { parseImportedNoteFile } from "@/features/notes/lib/note-import";
+import { parseImportedNotesFile } from "@/features/notes/lib/note-import";
 import { useNoteUiStore } from "@/features/notes/model/note-ui-store";
 import { useSettingsQuery } from "@/features/settings/hooks/use-settings-query";
 import { getMediaDiagnostic, listCollabDiagnostics } from "@/services/diagnostics/runtime-diagnostics";
 import { publish } from "@/services/event-bus";
 import { requestNotificationPermission } from "@/services/notifications/notification-service";
 import { scheduleReminder } from "@/services/reminders/reminder-service";
-import { listPendingAiAnalysis } from "@/services/ai/ai-queue";
+import { clearAiAnalysisQueue, listPendingAiAnalysis } from "@/services/ai/ai-queue";
 import { listSyncQueue } from "@/services/sync/sync-queue";
+import { getConsoleLogs } from "@/services/console-log-store";
 import { getUiCopy } from "@/shared/lib/i18n";
 import { Button } from "@/shared/ui/button";
 
-import { exportNoteAsPdf, exportNoteAsTxt, exportNoteForImport, getNotePlainText, type SheetState } from "./shared";
+import { downloadTextFile, exportNoteAsPdf, exportNoteAsTxt, exportNoteForImport, getNotePlainText, safeFileName, shareFolder, shareNote, type SheetState } from "./shared";
 
 type BottomSheetProps = {
   sheet: SheetState;
@@ -52,7 +53,9 @@ export function BottomSheet({ sheet, activeFolder, isDesktop, onClose }: BottomS
               ? "Создать папку"
               : name === "reminder"
                 ? "Напоминание"
-                : "О приложении";
+                : name === "admin-tools"
+                  ? "Диагностика"
+                  : "О приложении";
   const topSheet = name === "pages";
   const mobileSheet = !isDesktop;
   const folderPopup = name === "folder" && !!anchor && !mobileSheet;
@@ -73,6 +76,7 @@ export function BottomSheet({ sheet, activeFolder, isDesktop, onClose }: BottomS
         {name === "pages" ? <PagesContent /> : null}
         {name === "lock" ? <LockContent onClose={onClose} /> : null}
         {name === "about" ? <AboutContent /> : null}
+        {name === "admin-tools" ? <DiagnosticsContent /> : null}
         {name === "create-folder" ? <CreateFolderContent onClose={onClose} /> : null}
         {name === "reminder" ? <ReminderContent onClose={onClose} /> : null}
       </section>
@@ -130,7 +134,7 @@ async function copyNoteText(note: Note) {
 function NoteActionSheet() {
   const { data: notes = [] } = useNotesQuery();
   const { data: folders = [] } = useFoldersQuery();
-  const { moveNoteToFolder, patchNote, setArchived, trashNote } = useNoteActions();
+  const { moveNoteToFolder, patchNote, restoreNote, permanentlyDeleteNote, setArchived, setReminder, trashNote } = useNoteActions();
   const currentNoteId = useNoteUiStore((state) => state.currentNoteId);
   const [folderPickerOpen, setFolderPickerOpen] = useState(false);
   const note = notes.find((item) => item.id === currentNoteId) ?? null;
@@ -155,7 +159,7 @@ function NoteActionSheet() {
         return false;
       }
 
-      await patchNote(note.id, { lock: null }, { scheduleAnalysis: false });
+      await patchNote(note.id, { lock: { ...note.lock, hidden: !note.lock.hidden } }, { scheduleAnalysis: false });
       return true;
     }
 
@@ -188,16 +192,26 @@ function NoteActionSheet() {
   return (
     <div className="mt-4 space-y-4 pb-6">
       <div className="grid gap-2 sm:grid-cols-2">
-        <ActionCard label="Отметить для повторного анализа" onClick={() => void patchNote(note.id, { aiStatus: "pending", aiProcessed: false, analyzed: false, aiError: null }, { scheduleAnalysis: false })} />
-        <ActionCard label={note.lock ? "Разблокировать заметку" : "Заблокировать заметку"} onClick={() => void toggleNoteLock()} />
-        <ActionCard label={note.isArchived ? "Вернуть из архива" : "Архивировать"} onClick={() => void setArchived(note.id, !note.isArchived)} />
-        <ActionCard destructive label="Удалить" onClick={() => void trashNote(note.id)} />
-        <ActionCard label="Копировать текст" onClick={() => void copyNoteText(note)} />
-        <ActionCard label="Переместить в папку" onClick={() => setFolderPickerOpen((value) => !value)} />
-        <ActionCard label="Напоминание" onClick={() => void patchNote(note.id, { reminderAt: note.reminderAt ?? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() }, { scheduleAnalysis: false })} />
-        <ActionCard label="Скачать файл для импорта" onClick={() => exportNoteForImport(note)} />
-        <ActionCard label="Скачать TXT" onClick={() => exportNoteAsTxt(note)} />
-        <ActionCard label="Экспорт PDF" onClick={() => exportNoteAsPdf(note)} />
+        {note.trashedAt ? (
+          <>
+            <ActionCard label="Восстановить" onClick={() => void restoreNote(note.id)} />
+            <ActionCard destructive label="Удалить навсегда" onClick={() => void permanentlyDeleteNote(note.id)} />
+          </>
+        ) : (
+          <>
+            <ActionCard label="Отметить для повторного анализа" onClick={() => void patchNote(note.id, { aiStatus: "pending", aiProcessed: false, analyzed: false, aiError: null }, { scheduleAnalysis: false })} />
+            <ActionCard label={note.lock?.hidden ? "Показать по паролю" : note.lock ? "Скрыть снова" : "Заблокировать заметку"} onClick={() => void toggleNoteLock()} />
+            <ActionCard label={note.isArchived ? "Вернуть из архива" : "Архивировать"} onClick={() => void setArchived(note.id, !note.isArchived)} />
+            <ActionCard destructive label="Удалить" onClick={() => void trashNote(note.id)} />
+            <ActionCard label="Копировать текст" onClick={() => void copyNoteText(note)} />
+            <ActionCard label="Поделиться заметкой" onClick={() => void shareNote(note)} />
+            <ActionCard label="Переместить в папку" onClick={() => setFolderPickerOpen((value) => !value)} />
+            <ActionCard label={note.reminderAt ? "Очистить напоминание" : "Напоминание"} onClick={() => { const reminderAt = note.reminderAt ? null : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); void setReminder(note.id, reminderAt); scheduleReminder(note.id, reminderAt); }} />
+            <ActionCard label="Скачать файл для импорта" onClick={() => exportNoteForImport(note)} />
+            <ActionCard label="Скачать TXT" onClick={() => exportNoteAsTxt(note)} />
+            <ActionCard label="Экспорт PDF" onClick={() => exportNoteAsPdf(note)} />
+          </>
+        )}
       </div>
 
       {folderPickerOpen ? (
@@ -229,7 +243,7 @@ function ActionCard({ label, onClick, destructive = false }: { label: string; on
 }
 
 function FolderActionList({ activeFolder }: { activeFolder: FolderEntity | null }) {
-  const { hideFolder, renameFolder, trashFolder, unhideFolder } = useFolderActions();
+  const { hideFolder, moveFolder, renameFolder, trashFolder, unhideFolder, updateFolderDescription } = useFolderActions();
 
   if (!activeFolder) {
     return null;
@@ -255,10 +269,25 @@ function FolderActionList({ activeFolder }: { activeFolder: FolderEntity | null 
     void trashFolder(folder.id);
   }
 
+  function handleDescription() {
+    const nextValue = window.prompt("Описание папки", folder.description ?? "");
+
+    if (nextValue === null) {
+      return;
+    }
+
+    const nextDescription = nextValue.trim() || null;
+
+    void updateFolderDescription(folder.id, nextDescription);
+  }
+
   return (
     <div className="mt-4 space-y-2">
-      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" type="button">Поделиться</button>
+      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={() => void shareFolder(folder)} type="button">Поделиться</button>
       <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={handleRename} type="button">Переименовать</button>
+      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={handleDescription} type="button">Изменить описание</button>
+      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={() => void moveFolder(folder.id, -1)} type="button">Поднять выше</button>
+      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={() => void moveFolder(folder.id, 1)} type="button">Опустить ниже</button>
       {folder.isHidden ? <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={() => void unhideFolder(folder.id)} type="button">Показать</button> : <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={() => void hideFolder(folder.id)} type="button">Скрыть</button>}
       <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left text-rose-500 hover:bg-surface-strong" onClick={handleDelete} type="button">Удалить</button>
     </div>
@@ -358,6 +387,7 @@ function LockContent({ onClose }: { onClose: () => void }) {
 
 function AboutContent() {
   const { createNote } = useNoteActions();
+  const { data: notes = [] } = useNotesQuery();
   const { data: settings } = useSettingsQuery();
   const lang = settings?.lang ?? "ru";
   const copy = getUiCopy(lang);
@@ -379,18 +409,21 @@ function AboutContent() {
 
       try {
         const text = await file.text();
-        const importedNote = parseImportedNoteFile(text, userId);
-        await createNote(
-          {
-            title: importedNote.title,
-            content: importedNote.content,
-            folderId: importedNote.folderId,
-            userTags: importedNote.userTags,
-          },
-          userId,
-          importedNote,
-        );
-        publish("noteImported", { noteId: importedNote.id, title: importedNote.title });
+        const importedNotes = parseImportedNotesFile(text, userId);
+
+        for (const importedNote of importedNotes) {
+          await createNote(
+            {
+              title: importedNote.title,
+              content: importedNote.content,
+              folderId: importedNote.folderId,
+              userTags: importedNote.userTags,
+            },
+            userId,
+            importedNote,
+          );
+          publish("noteImported", { noteId: importedNote.id, title: importedNote.title });
+        }
       } catch (error) {
         window.alert(error instanceof Error ? error.message : "Не удалось импортировать заметку.");
       }
@@ -399,9 +432,41 @@ function AboutContent() {
   }
 
   function handleFeedbackSubmit() {
-    publish("feedbackSubmitted", { rating });
+    publish("feedbackSubmitted", {
+      rating,
+      feedback,
+      diagnostics: getConsoleLogs(),
+      systemLanguage: navigator.language,
+      userAgent: navigator.userAgent,
+    });
     window.alert("Спасибо за обратную связь!");
     setFeedback("");
+  }
+
+  function exportAllNotes() {
+    const exportable = notes.filter((note) => !note.lock?.hidden);
+
+    downloadTextFile(
+      `smartnotes-all-${new Date().toISOString().slice(0, 10)}.json`,
+      JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), notes: exportable }, null, 2),
+      "application/json;charset=utf-8",
+    );
+  }
+
+  function exportFolderNotes() {
+    const folderId = window.prompt("ID папки для экспорта")?.trim();
+
+    if (!folderId) {
+      return;
+    }
+
+    const exportable = notes.filter((note) => note.folderId === folderId && !note.lock?.hidden);
+
+    downloadTextFile(
+      `${safeFileName(`smartnotes-folder-${folderId}`)}.json`,
+      JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), folderId, notes: exportable }, null, 2),
+      "application/json;charset=utf-8",
+    );
   }
 
   return (
@@ -423,7 +488,11 @@ function AboutContent() {
           </ul>
           <h3 className="mt-3 text-2xl font-black">Обратная связь</h3>
           <a className="mt-4 inline-flex font-black text-accent hover:underline" href="https://t.me/SmartNotesInfo_bot" rel="noreferrer" target="_blank">@SmartNotesInfo_bot</a>
-          <Button className="mt-4 w-full rounded-2xl" onClick={() => void handleImportNote()} type="button" variant="secondary">Импортировать заметку из JSON</Button>
+          <div className="mt-4 grid gap-2 sm:grid-cols-3">
+            <Button className="rounded-2xl" onClick={() => void handleImportNote()} type="button" variant="secondary">Импорт JSON</Button>
+            <Button className="rounded-2xl" onClick={exportAllNotes} type="button" variant="secondary">Экспорт всех</Button>
+            <Button className="rounded-2xl" onClick={exportFolderNotes} type="button" variant="secondary">Экспорт папки</Button>
+          </div>
         </section>
       ) : (
         <section className="rounded-[1.5rem] border border-border bg-surface-strong p-5">
@@ -496,6 +565,7 @@ export function DiagnosticsContent() {
     <div className="mt-4 space-y-4">
       <section className="rounded-[1.5rem] border border-border bg-surface-strong p-4">
         <div className="text-xs font-black uppercase tracking-[0.18em] text-foreground/42">Runtime Diagnostics</div>
+        <Button className="mt-3 rounded-2xl" onClick={clearAiAnalysisQueue} type="button" variant="secondary">Очистить AI queue</Button>
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
           <div className="rounded-2xl bg-background px-4 py-3 text-sm font-semibold text-foreground/72">Active collab sessions: {collabDiagnostics.length}</div>
           <div className="rounded-2xl bg-background px-4 py-3 text-sm font-semibold text-foreground/72">Sync backlog: {syncQueue.length}</div>

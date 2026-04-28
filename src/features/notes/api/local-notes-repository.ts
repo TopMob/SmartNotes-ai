@@ -20,6 +20,12 @@ export const localNotesRepository = {
     writeNotes([note, ...notes.filter((item) => item.id !== note.id)]);
     return note;
   },
+  async batchCreate(notesToCreate: Note[]) {
+    const notes = readNotes();
+    const createIds = new Set(notesToCreate.map((note) => note.id));
+    writeNotes([...notesToCreate, ...notes.filter((item) => !createIds.has(item.id))]);
+    return notesToCreate;
+  },
   async patch(noteId: string, patch: Partial<Note>) {
     const notes = readNotes();
     const nextNote = notes.find((item) => item.id === noteId);
@@ -34,5 +40,8 @@ export const localNotesRepository = {
   },
   async remove(noteId: string) {
     writeNotes(readNotes().filter((item) => item.id !== noteId));
+  },
+  async clearTrash() {
+    writeNotes(readNotes().filter((item) => !item.trashedAt));
   },
 };

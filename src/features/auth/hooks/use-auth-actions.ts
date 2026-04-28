@@ -3,10 +3,13 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { sendPasswordReset, signInWithEmail, signInWithGoogle, signOut, signUpWithEmail } from "@/features/auth/api/auth-client";
+import { sendPasswordReset, signInWithEmail, signInWithGoogle, signOut, signUpWithEmail, updateCurrentProfile } from "@/features/auth/api/auth-client";
+import { useAuthStore } from "@/features/auth/model/auth-store";
 
 export function useAuthActions() {
   const router = useRouter();
+  const user = useAuthStore((state) => state.user);
+  const setAuthState = useAuthStore((state) => state.setAuthState);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -45,6 +48,24 @@ export function useAuthActions() {
     loginWithGoogle: async () => {
       await run(async () => {
         await signInWithGoogle();
+      });
+    },
+    updateProfile: async (payload: { displayName?: string; photoURL?: string | null }) => {
+      await run(async () => {
+        const remoteUpdated = await updateCurrentProfile(payload);
+
+        if (user) {
+          setAuthState({
+            status: "authenticated",
+            user: {
+              ...user,
+              displayName: payload.displayName === undefined ? user.displayName : payload.displayName,
+              photoURL: payload.photoURL === undefined ? user.photoURL : payload.photoURL,
+            },
+            degraded: !remoteUpdated,
+            error: remoteUpdated ? null : "Профиль обновлен локально: Supabase runtime config не задан.",
+          });
+        }
       });
     },
     resetPassword: async (email: string) => {

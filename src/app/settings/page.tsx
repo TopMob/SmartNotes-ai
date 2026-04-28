@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   Database,
   Palette,
+  Plus,
   RotateCcw,
   SlidersHorizontal,
   Type,
@@ -143,6 +144,29 @@ export default function SettingsPage() {
     });
   }
 
+  async function uploadBackground(target: "mainBackgroundUrl" | "sidebarBackgroundUrl") {
+    const picker = document.createElement("input");
+    picker.type = "file";
+    picker.accept = "image/*";
+    picker.onchange = async () => {
+      const file = picker.files?.[0];
+
+      if (!file) {
+        return;
+      }
+
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(reader.error ?? new Error("Не удалось прочитать файл."));
+        reader.readAsDataURL(file);
+      });
+
+      void patchSettings({ [target]: dataUrl });
+    };
+    picker.click();
+  }
+
   return (
     <main className="min-h-screen overflow-x-hidden px-4 py-4 sm:px-6 lg:p-6">
       <div className="mx-auto grid max-w-7xl min-w-0 gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
@@ -208,10 +232,12 @@ export default function SettingsPage() {
                   <label className="block w-full min-w-0 truncate text-sm font-bold text-foreground/72">
                     {copy.settings.appearance.mainBackgroundUrl}
                     <input className="mt-2 w-full min-w-0 rounded-2xl border border-border bg-background px-3 py-2 text-xs sm:px-4 sm:py-3 sm:text-sm" onChange={(event) => void patchSettings({ mainBackgroundUrl: event.target.value || null })} placeholder="https://..." type="url" value={settings.mainBackgroundUrl ?? ""} />
+                    <button className="mt-2 inline-flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold" onClick={() => void uploadBackground("mainBackgroundUrl")} type="button"><Plus className="h-3.5 w-3.5" />Файл</button>
                   </label>
                   <label className="block w-full min-w-0 truncate text-sm font-bold text-foreground/72">
                     {copy.settings.appearance.sidebarBackgroundUrl}
                     <input className="mt-2 w-full min-w-0 rounded-2xl border border-border bg-background px-3 py-2 text-xs sm:px-4 sm:py-3 sm:text-sm" onChange={(event) => void patchSettings({ sidebarBackgroundUrl: event.target.value || null })} placeholder="https://..." type="url" value={settings.sidebarBackgroundUrl ?? ""} />
+                    <button className="mt-2 inline-flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold" onClick={() => void uploadBackground("sidebarBackgroundUrl")} type="button"><Plus className="h-3.5 w-3.5" />Файл</button>
                   </label>
                 </div>
               </Panel>

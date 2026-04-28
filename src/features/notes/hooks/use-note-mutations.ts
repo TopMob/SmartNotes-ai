@@ -7,6 +7,7 @@ import { useAuthStore } from "@/features/auth/model/auth-store";
 import { notesRepository } from "@/features/notes/api/notes-repository";
 import { useNotesQuery } from "@/features/notes/hooks/use-notes-query";
 import {
+  ANALYSIS_FIELD_KEYS,
   buildMediaPatch,
   buildPageAddPatch,
   buildPageDeletePatch,
@@ -18,6 +19,7 @@ import {
 } from "@/features/notes/lib/note-utils";
 import { enqueueSyncItem } from "@/services/sync/sync-queue";
 import { publish } from "@/services/event-bus";
+import { scheduleAiAnalysis } from "@/services/ai/ai-queue";
 import { queryKeys } from "@/shared/lib/react-query/query-keys";
 
 type NotesSnapshot = { previousNotes: Note[] | undefined };
@@ -58,6 +60,7 @@ export function useCreateNoteMutation() {
     },
     onSuccess: (note) => {
       enqueueSyncItem({ id: note.id, entity: "note", operation: "create", payload: { noteId: note.id } });
+      scheduleAiAnalysis(note.id);
     },
     onSettled: () => {
       if (!userId) {
@@ -100,6 +103,10 @@ export function useUpdateNoteMutation() {
     },
     onSuccess: (_note, { noteId, patch }) => {
       enqueueSyncItem({ id: noteId, entity: "note", operation: "patch", payload: patch });
+
+      if (patch.aiStatus === "pending" || patch.aiProcessed === false || patch.analyzed === false || ANALYSIS_FIELD_KEYS.some((field) => field in patch)) {
+        scheduleAiAnalysis(noteId);
+      }
     },
     onSettled: () => {
       if (!userId) {
@@ -150,10 +157,50 @@ export function useDeleteNoteMutation() {
   });
 }
 
+export function useClearTrashMutation() {
+  const queryClient = useQueryClient();
+  const userId = useAuthStore((state) => state.user?.id ?? null);
+
+  return useMutation({
+    mutationFn: async () => notesRepository.clearTrash(),
+    onMutate: async () => {
+      if (!userId) {
+        return { previousNotes: undefined } satisfies NotesSnapshot;
+      }
+
+      const queryKey = queryKeys.notes(userId);
+      await queryClient.cancelQueries({ queryKey });
+      const previousNotes = queryClient.getQueryData<Note[]>(queryKey);
+
+      queryClient.setQueryData<Note[]>(queryKey, (current = []) => current.filter((note) => !note.trashedAt));
+
+      return { previousNotes } satisfies NotesSnapshot;
+    },
+    onError: (_error, _variables, context) => {
+      if (!userId || !context) {
+        return;
+      }
+
+      queryClient.setQueryData(queryKeys.notes(userId), context.previousNotes);
+    },
+    onSuccess: () => {
+      enqueueSyncItem({ id: "trash", entity: "note", operation: "delete", payload: { scope: "trash" } });
+    },
+    onSettled: () => {
+      if (!userId) {
+        return;
+      }
+
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notes(userId) });
+    },
+  });
+}
+
 export function useNoteActions() {
   const createMutation = useCreateNoteMutation();
   const updateMutation = useUpdateNoteMutation();
   const deleteMutation = useDeleteNoteMutation();
+  const clearTrashMutation = useClearTrashMutation();
   const notes = useNotesQuery().data ?? [];
 
   function findNote(noteId: string) {
@@ -176,6 +223,7 @@ export function useNoteActions() {
     trashNote: (noteId: string) => updateMutation.mutateAsync({ noteId, patch: normalizeNotePatch({ trashedAt: nowIso() }, { scheduleAnalysis: false }) }),
     restoreNote: (noteId: string) => updateMutation.mutateAsync({ noteId, patch: normalizeNotePatch({ trashedAt: null }, { scheduleAnalysis: false }) }),
     permanentlyDeleteNote: (noteId: string) => deleteMutation.mutateAsync(noteId),
+    clearTrash: () => clearTrashMutation.mutateAsync(),
     togglePinned: (noteId: string) => {
       const note = findNote(noteId);
       return note ? updateMutation.mutateAsync({ noteId, patch: normalizeNotePatch({ pinned: !note.pinned }, { scheduleAnalysis: false }) }) : Promise.resolve();
@@ -188,8 +236,21 @@ export function useNoteActions() {
       updateMutation.mutateAsync({ noteId, patch: normalizeNotePatch({ isArchived }, { scheduleAnalysis: false }) }),
     setReminder: (noteId: string, reminderAt: string | null) =>
       updateMutation.mutateAsync({ noteId, patch: normalizeNotePatch({ reminderAt }, { scheduleAnalysis: false }) }),
-    moveNoteToFolder: (noteId: string, folderId: string | null) =>
-      updateMutation.mutateAsync({ noteId, patch: normalizeNotePatch({ folderId }, { scheduleAnalysis: false }) }),
+    moveNoteToFolder: (noteId: string, folderId: string | null) => {
+      const note = findNote(noteId);
+
+      return updateMutation.mutateAsync({
+        noteId,
+        patch: normalizeNotePatch(
+          {
+            folderId,
+            folderOrder: folderId ? Date.now() : null,
+            hiddenTags: note ? Array.from(new Set([...note.hiddenTags, "manual-folder-signal"])) : undefined,
+          },
+          { scheduleAnalysis: true },
+        ),
+      });
+    },
     addPage: (noteId: string, title?: string) => {
       const note = findNote(noteId);
 
