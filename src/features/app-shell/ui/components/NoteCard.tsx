@@ -3,9 +3,9 @@ import { useState } from "react";
 
 import type { Folder as FolderEntity } from "@/entities/folder";
 import type { Note } from "@/entities/note";
+import { useNoteActions } from "@/features/notes/hooks/use-note-mutations";
 import { maskLockedPreview } from "@/features/lock-center/lib/lock-service";
-import { toggleFavorite, togglePinned } from "@/features/notes/model/note-actions";
-import { useNotesStore } from "@/features/notes/model/notes-store";
+import { useNoteUiStore } from "@/features/notes/model/note-ui-store";
 import type { AppView } from "@/shared/store/ui-store";
 
 import { getSheetAnchor, stripHtml, type SheetAnchor, type SheetName } from "./shared";
@@ -20,7 +20,8 @@ type NoteCardProps = {
 
 export function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: NoteCardProps) {
   const [folderPickerOpen, setFolderPickerOpen] = useState(false);
-  const setCurrentNoteId = useNotesStore((state) => state.setCurrentNoteId);
+  const { toggleFavorite, togglePinned } = useNoteActions();
+  const setCurrentNoteId = useNoteUiStore((state) => state.setCurrentNoteId);
 
   const previewText = note.lock?.hidden ? maskLockedPreview(note.id) : stripHtml(note.content);
   const reminderLabel = note.reminderAt

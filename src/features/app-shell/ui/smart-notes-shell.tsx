@@ -5,15 +5,18 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { Folder as FolderEntity } from "@/entities/folder";
 import { useAuthStore } from "@/features/auth/model/auth-store";
-import { addNote, createLocalNote } from "@/features/notes/model/note-actions";
+import { useFoldersQuery } from "@/features/folders/hooks/use-folders-query";
+import { useNoteActions } from "@/features/notes/hooks/use-note-mutations";
+import { useNotesQuery } from "@/features/notes/hooks/use-notes-query";
+import type { Note } from "@/entities/note";
+import { createLocalNote } from "@/features/notes/lib/note-utils";
 import { selectVisibleNotes } from "@/features/notes/model/note-selectors";
-import { useFoldersStore } from "@/features/folders/model/folders-store";
-import { useNotesStore } from "@/features/notes/model/notes-store";
+import { useNoteUiStore } from "@/features/notes/model/note-ui-store";
+import { useSettingsQuery } from "@/features/settings/hooks/use-settings-query";
 import { requestNotificationPermission, showNotification } from "@/services/notifications/notification-service";
 import { scheduleReminder } from "@/services/reminders/reminder-service";
 import { subscribe } from "@/services/event-bus";
 import { getUiCopy } from "@/shared/lib/i18n";
-import { useThemeStore } from "@/shared/store/theme-store";
 import { type AppView, useUiStore } from "@/shared/store/ui-store";
 
 import { BottomSheet } from "./components/BottomSheet";
@@ -25,12 +28,14 @@ import { TopFiltersPopup } from "./components/TopFiltersPopup";
 import type { SheetAnchor, SheetName, SheetState } from "./components/shared";
 
 export function SmartNotesShell() {
-  const rawFolders = useFoldersStore((state) => state.folders);
-  const notes = useNotesStore((state) => state.notes);
-  const currentNoteId = useNotesStore((state) => state.currentNoteId);
-  const editorDirty = useNotesStore((state) => state.editorDirty);
-  const setCurrentNoteId = useNotesStore((state) => state.setCurrentNoteId);
-  const setCurrentNotePageIndex = useNotesStore((state) => state.setCurrentNotePageIndex);
+  const { data: rawFolders = [] } = useFoldersQuery();
+  const { data: notes = [] } = useNotesQuery();
+  const { createNote } = useNoteActions();
+  const { data: settings } = useSettingsQuery();
+  const currentNoteId = useNoteUiStore((state) => state.currentNoteId);
+  const editorDirty = useNoteUiStore((state) => state.editorDirty);
+  const setCurrentNoteId = useNoteUiStore((state) => state.setCurrentNoteId);
+  const setCurrentNotePageIndex = useNoteUiStore((state) => state.setCurrentNotePageIndex);
   const view = useUiStore((state) => state.view);
   const activeFolderId = useUiStore((state) => state.activeFolderId);
   const searchQuery = useUiStore((state) => state.searchQuery);
@@ -38,10 +43,10 @@ export function SmartNotesShell() {
   const mobileSidebarOpen = useUiStore((state) => state.mobileSidebarOpen);
   const desktopSidebarOpen = useUiStore((state) => state.desktopSidebarOpen);
   const desktopSidebarPinned = useUiStore((state) => state.desktopSidebarPinned);
-  const reduceMotion = useThemeStore((state) => state.reduceMotion);
-  const folderViewMode = useThemeStore((state) => state.folderViewMode);
-  const notesPerPage = useThemeStore((state) => state.notesPerPage);
-  const lang = useThemeStore((state) => state.lang);
+  const reduceMotion = settings?.reduceMotion ?? false;
+  const folderViewMode = settings?.folderViewMode ?? "full";
+  const notesPerPage = settings?.notesPerPage ?? 10;
+  const lang = settings?.lang ?? "ru";
   const authUser = useAuthStore((state) => state.user);
   const copy = getUiCopy(lang);
   const setView = useUiStore((state) => state.setView);
@@ -72,10 +77,10 @@ export function SmartNotesShell() {
   const trashedFolders = useMemo(() => rawFolders.filter((folder) => Boolean(folder.trashedAt)), [rawFolders]);
   const activeFolder = useMemo(() => rawFolders.find((folder) => folder.id === activeFolderId) ?? null, [activeFolderId, rawFolders]);
   const tagOptions = useMemo(
-    () => Array.from(new Set(notes.flatMap((note) => note.userTags))).sort((left, right) => left.localeCompare(right)),
+    () => Array.from(new Set(notes.flatMap((note: Note) => note.userTags))).sort((left: string, right: string) => left.localeCompare(right)),
     [notes],
   );
-  const currentNote = useMemo(() => notes.find((note) => note.id === currentNoteId) ?? null, [currentNoteId, notes]);
+  const currentNote = useMemo(() => notes.find((note: Note) => note.id === currentNoteId) ?? null, [currentNoteId, notes]);
   const visibleNotes = useMemo(
     () => selectVisibleNotes({ notes, view, activeFolderId, searchQuery, filter: notesFilter }),
     [activeFolderId, notes, notesFilter, searchQuery, view],
@@ -91,7 +96,7 @@ export function SmartNotesShell() {
 
   useEffect(() => {
     const unsubscribe = subscribe("reminderTriggered", async ({ noteId }) => {
-      const triggeredNote = useNotesStore.getState().notes.find((item) => item.id === noteId);
+      const triggeredNote = notes.find((item: Note) => item.id === noteId);
 
       if (!triggeredNote) {
         return;
@@ -109,10 +114,10 @@ export function SmartNotesShell() {
     return () => {
       unsubscribe();
     };
-  }, []);
+  }, [notes]);
 
   useEffect(() => {
-    notes.forEach((note) => scheduleReminder(note.id, note.reminderAt));
+    notes.forEach((note: Note) => scheduleReminder(note.id, note.reminderAt));
   }, [notes]);
 
   useEffect(() => {
@@ -180,7 +185,7 @@ export function SmartNotesShell() {
   }
 
   function openNote(noteId: string) {
-    const note = notes.find((item) => item.id === noteId);
+    const note = notes.find((item: Note) => item.id === noteId);
 
     if (!note) {
       return;
@@ -201,7 +206,7 @@ export function SmartNotesShell() {
 
   function createNoteDraft() {
     const note = createLocalNote({ title: "", content: "", folderId: activeFolderId, userTags: [] }, authUser?.id ?? "local-user");
-    void addNote({ title: "", content: "", folderId: activeFolderId, userTags: [] }, authUser?.id ?? "local-user", note);
+    void createNote({ title: "", content: "", folderId: activeFolderId, userTags: [] }, authUser?.id ?? "local-user", note);
     setCurrentNoteId(note.id);
     setEditorOpen(true);
   }

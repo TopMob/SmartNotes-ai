@@ -26,8 +26,8 @@ import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useRef, type ComponentType } from "react";
 
 import type { Note } from "@/entities/note";
-import { attachMedia, addPage, patchNote, updatePage } from "@/features/notes/model/note-actions";
-import { useNotesStore } from "@/features/notes/model/notes-store";
+import { useNoteActions } from "@/features/notes/hooks/use-note-mutations";
+import { useNoteUiStore } from "@/features/notes/model/note-ui-store";
 import { Button } from "@/shared/ui/button";
 
 import { getSheetAnchor, plainTextToEditorContent, serializeEditorSnapshot, type SheetAnchor, type SheetName } from "./shared";
@@ -41,12 +41,13 @@ type EditorOverlayProps = {
 };
 
 export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setToolbarVisible }: EditorOverlayProps) {
-  const currentNotePageIndex = useNotesStore((state) => state.currentNotePageIndex);
-  const setCurrentNotePageIndex = useNotesStore((state) => state.setCurrentNotePageIndex);
+  const { addPage, attachMedia, patchNote, updatePage } = useNoteActions();
+  const currentNotePageIndex = useNoteUiStore((state) => state.currentNotePageIndex);
+  const setCurrentNotePageIndex = useNoteUiStore((state) => state.setCurrentNotePageIndex);
   const snapshotRef = useRef(serializeEditorSnapshot(note));
   const currentPage = note.pages[currentNotePageIndex] ?? note.pages[0];
-  const editorDirty = useNotesStore((state) => state.editorDirty);
-  const markEditorDirty = useNotesStore((state) => state.markEditorDirty);
+  const editorDirty = useNoteUiStore((state) => state.editorDirty);
+  const markEditorDirty = useNoteUiStore((state) => state.markEditorDirty);
 
   const editor = useEditor({
     extensions: [

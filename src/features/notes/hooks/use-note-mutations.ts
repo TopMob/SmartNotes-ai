@@ -1,0 +1,233 @@
+"use client";
+
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+
+import type { MediaDescriptor, Note, NoteDraft } from "@/entities/note";
+import { useAuthStore } from "@/features/auth/model/auth-store";
+import { notesRepository } from "@/features/notes/api/notes-repository";
+import { useNotesQuery } from "@/features/notes/hooks/use-notes-query";
+import {
+  buildMediaPatch,
+  buildPageAddPatch,
+  buildPageDeletePatch,
+  buildPageUpdatePatch,
+  createLocalNote,
+  normalizeNotePatch,
+  nowIso,
+  type NotePagePatch,
+} from "@/features/notes/lib/note-utils";
+import { scheduleAiAnalysis } from "@/services/ai/ai-queue";
+import { queryKeys } from "@/shared/lib/react-query/query-keys";
+
+type NotesSnapshot = { previousNotes: Note[] | undefined };
+
+function sortNotes(notes: Note[]) {
+  return [...notes].sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime());
+}
+
+export function useCreateNoteMutation() {
+  const queryClient = useQueryClient();
+  const userId = useAuthStore((state) => state.user?.id ?? null);
+
+  return useMutation({
+    mutationFn: async ({ draft, optimisticNote }: { draft: NoteDraft; optimisticNote?: Note }) => {
+      const note = optimisticNote ?? createLocalNote(draft, userId ?? "local-user");
+      return notesRepository.create(note);
+    },
+    onMutate: async ({ draft, optimisticNote }) => {
+      if (!userId) {
+        return { previousNotes: undefined } satisfies NotesSnapshot;
+      }
+
+      const queryKey = queryKeys.notes(userId);
+      await queryClient.cancelQueries({ queryKey });
+      const previousNotes = queryClient.getQueryData<Note[]>(queryKey);
+      const localNote = optimisticNote ?? createLocalNote(draft, userId);
+
+      queryClient.setQueryData<Note[]>(queryKey, sortNotes([localNote, ...(previousNotes ?? [])]));
+      scheduleAiAnalysis(localNote.id);
+
+      return { previousNotes } satisfies NotesSnapshot;
+    },
+    onError: (_error, _variables, context) => {
+      if (!userId || !context) {
+        return;
+      }
+
+      queryClient.setQueryData(queryKeys.notes(userId), context.previousNotes);
+    },
+    onSettled: () => {
+      if (!userId) {
+        return;
+      }
+
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notes(userId) });
+    },
+  });
+}
+
+export function useUpdateNoteMutation() {
+  const queryClient = useQueryClient();
+  const userId = useAuthStore((state) => state.user?.id ?? null);
+
+  return useMutation({
+    mutationFn: async ({ noteId, patch }: { noteId: string; patch: Partial<Note> }) => notesRepository.patch(noteId, patch),
+    onMutate: async ({ noteId, patch }) => {
+      if (!userId) {
+        return { previousNotes: undefined } satisfies NotesSnapshot;
+      }
+
+      const queryKey = queryKeys.notes(userId);
+      await queryClient.cancelQueries({ queryKey });
+      const previousNotes = queryClient.getQueryData<Note[]>(queryKey);
+
+      queryClient.setQueryData<Note[]>(queryKey, (current = []) =>
+        sortNotes(current.map((note) => (note.id === noteId ? { ...note, ...patch } : note))),
+      );
+
+      return { previousNotes } satisfies NotesSnapshot;
+    },
+    onError: (_error, _variables, context) => {
+      if (!userId || !context) {
+        return;
+      }
+
+      queryClient.setQueryData(queryKeys.notes(userId), context.previousNotes);
+    },
+    onSettled: () => {
+      if (!userId) {
+        return;
+      }
+
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notes(userId) });
+    },
+  });
+}
+
+export function useDeleteNoteMutation() {
+  const queryClient = useQueryClient();
+  const userId = useAuthStore((state) => state.user?.id ?? null);
+
+  return useMutation({
+    mutationFn: async (noteId: string) => notesRepository.remove(noteId),
+    onMutate: async (noteId) => {
+      if (!userId) {
+        return { previousNotes: undefined } satisfies NotesSnapshot;
+      }
+
+      const queryKey = queryKeys.notes(userId);
+      await queryClient.cancelQueries({ queryKey });
+      const previousNotes = queryClient.getQueryData<Note[]>(queryKey);
+
+      queryClient.setQueryData<Note[]>(queryKey, (current = []) => current.filter((note) => note.id !== noteId));
+
+      return { previousNotes } satisfies NotesSnapshot;
+    },
+    onError: (_error, _variables, context) => {
+      if (!userId || !context) {
+        return;
+      }
+
+      queryClient.setQueryData(queryKeys.notes(userId), context.previousNotes);
+    },
+    onSettled: () => {
+      if (!userId) {
+        return;
+      }
+
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notes(userId) });
+    },
+  });
+}
+
+export function useNoteActions() {
+  const createMutation = useCreateNoteMutation();
+  const updateMutation = useUpdateNoteMutation();
+  const deleteMutation = useDeleteNoteMutation();
+  const notes = useNotesQuery().data ?? [];
+
+  function findNote(noteId: string) {
+    return notes.find((item) => item.id === noteId) ?? null;
+  }
+
+  return {
+    createNote: (draft: NoteDraft, ownerId: string, optimisticNote = createLocalNote(draft, ownerId)) =>
+      createMutation.mutateAsync({ draft, optimisticNote }),
+    patchNote: async (noteId: string, patch: Partial<Note>, options?: { scheduleAnalysis?: boolean }) => {
+      const note = findNote(noteId);
+
+      if (!note) {
+        return;
+      }
+
+      const normalizedPatch = normalizeNotePatch(patch, options);
+      await updateMutation.mutateAsync({ noteId, patch: normalizedPatch });
+
+      if (normalizedPatch.aiStatus === "pending") {
+        scheduleAiAnalysis(noteId);
+      }
+    },
+    trashNote: (noteId: string) => updateMutation.mutateAsync({ noteId, patch: normalizeNotePatch({ trashedAt: nowIso() }, { scheduleAnalysis: false }) }),
+    restoreNote: (noteId: string) => updateMutation.mutateAsync({ noteId, patch: normalizeNotePatch({ trashedAt: null }, { scheduleAnalysis: false }) }),
+    permanentlyDeleteNote: (noteId: string) => deleteMutation.mutateAsync(noteId),
+    togglePinned: (noteId: string) => {
+      const note = findNote(noteId);
+      return note ? updateMutation.mutateAsync({ noteId, patch: normalizeNotePatch({ pinned: !note.pinned }, { scheduleAnalysis: false }) }) : Promise.resolve();
+    },
+    toggleFavorite: (noteId: string) => {
+      const note = findNote(noteId);
+      return note ? updateMutation.mutateAsync({ noteId, patch: normalizeNotePatch({ favorite: !note.favorite }, { scheduleAnalysis: false }) }) : Promise.resolve();
+    },
+    setArchived: (noteId: string, isArchived: boolean) =>
+      updateMutation.mutateAsync({ noteId, patch: normalizeNotePatch({ isArchived }, { scheduleAnalysis: false }) }),
+    setReminder: (noteId: string, reminderAt: string | null) =>
+      updateMutation.mutateAsync({ noteId, patch: normalizeNotePatch({ reminderAt }, { scheduleAnalysis: false }) }),
+    moveNoteToFolder: (noteId: string, folderId: string | null) =>
+      updateMutation.mutateAsync({ noteId, patch: normalizeNotePatch({ folderId }, { scheduleAnalysis: false }) }),
+    addPage: (noteId: string, title?: string) => {
+      const note = findNote(noteId);
+
+      if (!note) {
+        return null;
+      }
+
+      const { page, patch } = buildPageAddPatch(note, title);
+      void updateMutation.mutateAsync({ noteId, patch: normalizeNotePatch(patch) });
+      return page;
+    },
+    updatePage: (noteId: string, pageId: string, patch: NotePagePatch) => {
+      const note = findNote(noteId);
+
+      if (!note) {
+        return;
+      }
+
+      void updateMutation.mutateAsync({ noteId, patch: normalizeNotePatch(buildPageUpdatePatch(note, pageId, patch)) });
+    },
+    deletePage: (noteId: string, pageId: string) => {
+      const note = findNote(noteId);
+
+      if (!note) {
+        return false;
+      }
+
+      const patch = buildPageDeletePatch(note, pageId);
+
+      if (!patch) {
+        return false;
+      }
+
+      void updateMutation.mutateAsync({ noteId, patch: normalizeNotePatch(patch) });
+      return true;
+    },
+    attachMedia: (noteId: string, media: MediaDescriptor) => {
+      const note = findNote(noteId);
+
+      if (!note) {
+        return;
+      }
+
+      void updateMutation.mutateAsync({ noteId, patch: normalizeNotePatch(buildMediaPatch(note, media)) });
+    },
+  };
+}

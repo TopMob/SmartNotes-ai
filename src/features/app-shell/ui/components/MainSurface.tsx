@@ -3,10 +3,10 @@ import { useMemo } from "react";
 
 import type { Folder as FolderEntity } from "@/entities/folder";
 import type { Note } from "@/entities/note";
-import { permanentlyDeleteFolder, restoreFolder, unhideFolder } from "@/features/folders/model/folder-actions";
+import { useFolderActions } from "@/features/folders/hooks/use-folder-mutations";
+import { useFoldersQuery } from "@/features/folders/hooks/use-folders-query";
 import { selectPinnedGroups } from "@/features/notes/model/note-selectors";
-import { useFoldersStore } from "@/features/folders/model/folders-store";
-import { useNotesStore } from "@/features/notes/model/notes-store";
+import { useNotesQuery } from "@/features/notes/hooks/use-notes-query";
 import { listPendingAiAnalysis } from "@/services/ai/ai-queue";
 import { listSyncQueue } from "@/services/sync/sync-queue";
 import { getUiCopy } from "@/shared/lib/i18n";
@@ -78,7 +78,8 @@ export function MainSurface({ copy, view, folders, hiddenFolders, trashedFolders
 }
 
 function FoldersGrid({ folders, mode, emptyText, folderViewMode, onOpenFolder }: { folders: FolderEntity[]; mode: "active" | "hidden"; emptyText: string; folderViewMode: "compact" | "full"; onOpenFolder: (folder: FolderEntity) => void }) {
-  const notes = useNotesStore((state) => state.notes);
+  const { data: notes = [] } = useNotesQuery();
+  const { unhideFolder } = useFolderActions();
 
   if (!folders.length) {
     return (
@@ -115,6 +116,8 @@ function FoldersGrid({ folders, mode, emptyText, folderViewMode, onOpenFolder }:
 }
 
 function TrashView({ copy, notes, notesPerPage, trashedFolders, onOpenNote, onOpenSheet }: { copy: ReturnType<typeof getUiCopy>; notes: Note[]; notesPerPage: 5 | 10 | 20 | 50; trashedFolders: FolderEntity[]; onOpenNote: (noteId: string) => void; onOpenSheet: (sheet: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void }) {
+  const { permanentlyDeleteFolder, restoreFolder } = useFolderActions();
+
   return (
     <div className="content-scrollable space-y-6 p-4 sm:p-5">
       {trashedFolders.length ? (
@@ -141,7 +144,7 @@ function TrashView({ copy, notes, notesPerPage, trashedFolders, onOpenNote, onOp
 }
 
 function NotesView({ copy, title: _title, notes, notesPerPage, emptyText, onOpenNote, onOpenSheet, view }: { copy: ReturnType<typeof getUiCopy>; title: string; notes: Note[]; notesPerPage: 5 | 10 | 20 | 50; emptyText: string; onOpenNote: (noteId: string) => void; onOpenSheet: (sheet: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void; view: AppView }) {
-  const folders = useFoldersStore((state) => state.folders);
+  const { data: folders = [] } = useFoldersQuery();
   const visibleFolders = useMemo(() => folders.filter((folder) => !folder.trashedAt && !folder.isHidden), [folders]);
   const { pinned, unpinned } = useMemo(() => selectPinnedGroups(notes), [notes]);
   const pinnedVisible = pinned.slice(0, notesPerPage);

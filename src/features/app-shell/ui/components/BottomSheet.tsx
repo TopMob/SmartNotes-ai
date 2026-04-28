@@ -1,18 +1,19 @@
-import { Pencil, RotateCcw, Shield, Star, X } from "lucide-react";
+import { Pencil, Star, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import type { Folder as FolderEntity } from "@/entities/folder";
 import type { Note } from "@/entities/note";
 import { useAuthStore } from "@/features/auth/model/auth-store";
-import { addFolder, hideFolder, renameFolder, trashFolder, unhideFolder } from "@/features/folders/model/folder-actions";
-import { useFoldersStore } from "@/features/folders/model/folders-store";
+import { useFolderActions } from "@/features/folders/hooks/use-folder-mutations";
+import { useFoldersQuery } from "@/features/folders/hooks/use-folders-query";
 import { createNoteLock, verifyNoteLock } from "@/features/lock-center/lib/lock-service";
-import { addPage, deletePage, moveNoteToFolder, patchNote, setArchived, setReminder, trashNote, updatePage } from "@/features/notes/model/note-actions";
-import { useNotesStore } from "@/features/notes/model/notes-store";
+import { useNoteActions } from "@/features/notes/hooks/use-note-mutations";
+import { useNotesQuery } from "@/features/notes/hooks/use-notes-query";
+import { useNoteUiStore } from "@/features/notes/model/note-ui-store";
+import { useSettingsQuery } from "@/features/settings/hooks/use-settings-query";
 import { requestNotificationPermission } from "@/services/notifications/notification-service";
 import { scheduleReminder } from "@/services/reminders/reminder-service";
 import { getUiCopy } from "@/shared/lib/i18n";
-import { useThemeStore } from "@/shared/store/theme-store";
 import { Button } from "@/shared/ui/button";
 
 import { exportNoteAsPdf, exportNoteAsTxt, exportNoteForImport, getNotePlainText, type SheetState } from "./shared";
@@ -25,13 +26,26 @@ type BottomSheetProps = {
   onClose: () => void;
 };
 
-export function BottomSheet({ sheet, activeFolder, editorDirty, isDesktop, onClose }: BottomSheetProps) {
+export function BottomSheet({ sheet, activeFolder, isDesktop, onClose }: BottomSheetProps) {
   if (!sheet) {
     return null;
   }
 
   const { name, anchor } = sheet;
-  const title = name === "folder" ? "Папка" : name === "note" ? "Действия заметки" : name === "pages" ? "Страницы" : name === "lock" ? "Lock Center" : name === "create-folder" ? "Создать папку" : name === "reminder" ? "Напоминание" : "О приложении";
+  const title =
+    name === "folder"
+      ? "Папка"
+      : name === "note"
+        ? "Действия заметки"
+        : name === "pages"
+          ? "Страницы"
+          : name === "lock"
+            ? "Lock Center"
+            : name === "create-folder"
+              ? "Создать папку"
+              : name === "reminder"
+                ? "Напоминание"
+                : "О приложении";
   const topSheet = name === "pages";
   const mobileSheet = !isDesktop;
   const folderPopup = name === "folder" && !!anchor && !mobileSheet;
@@ -58,20 +72,16 @@ export function BottomSheet({ sheet, activeFolder, editorDirty, isDesktop, onClo
     );
   }
 
-  return (
-    folderPopup ? (
-      <div className="fixed inset-0 z-50 pointer-events-none">
-        <button aria-label="Закрыть меню" className="absolute inset-0 pointer-events-auto bg-transparent" onClick={onClose} type="button" />
-        <div className="pointer-events-auto absolute left-0 top-0">
-          {renderSheetContent()}
-        </div>
-      </div>
-    ) : (
-      <div className="fixed inset-0 z-50">
-        <button className="absolute inset-0 bg-black/50 backdrop-blur-md" onClick={onClose} type="button" />
-        {renderSheetContent()}
-      </div>
-    )
+  return folderPopup ? (
+    <div className="fixed inset-0 z-50 pointer-events-none">
+      <button aria-label="Закрыть меню" className="absolute inset-0 pointer-events-auto bg-transparent" onClick={onClose} type="button" />
+      <div className="pointer-events-auto absolute left-0 top-0">{renderSheetContent()}</div>
+    </div>
+  ) : (
+    <div className="fixed inset-0 z-50">
+      <button className="absolute inset-0 bg-black/50 backdrop-blur-md" onClick={onClose} type="button" />
+      {renderSheetContent()}
+    </div>
   );
 }
 
@@ -90,53 +100,6 @@ function getLockPassword(promptText: string) {
   }
 
   return password;
-}
-
-async function toggleNoteLock(noteId: string) {
-  const note = useNotesStore.getState().notes.find((item) => item.id === noteId);
-
-  if (!note) {
-    return false;
-  }
-
-  if (note.lock) {
-    const password = getLockPassword("Введите пароль для снятия блокировки");
-
-    if (!password) {
-      return false;
-    }
-
-    const valid = await verifyNoteLock(note.lock, password);
-
-    if (!valid) {
-      window.alert("Неверный пароль.");
-      return false;
-    }
-
-    void patchNote(noteId, { lock: null }, { scheduleAnalysis: false });
-    return true;
-  }
-
-  const password = getLockPassword("Задайте пароль для заметки");
-
-  if (!password) {
-    return false;
-  }
-
-  const confirmPassword = getLockPassword("Повторите пароль для подтверждения");
-
-  if (!confirmPassword) {
-    return false;
-  }
-
-  if (password !== confirmPassword) {
-    window.alert("Пароли не совпадают.");
-    return false;
-  }
-
-  const lock = await createNoteLock(password);
-  void patchNote(noteId, { lock }, { scheduleAnalysis: false });
-  return true;
 }
 
 async function copyNoteText(note: Note) {
@@ -158,11 +121,58 @@ async function copyNoteText(note: Note) {
 }
 
 function NoteActionSheet() {
-  const currentNoteId = useNotesStore((state) => state.currentNoteId);
-  const note = useNotesStore((state) => state.notes.find((item) => item.id === state.currentNoteId) ?? null);
-  const folders = useFoldersStore((state) => state.folders);
+  const { data: notes = [] } = useNotesQuery();
+  const { data: folders = [] } = useFoldersQuery();
+  const { moveNoteToFolder, patchNote, setArchived, trashNote } = useNoteActions();
+  const currentNoteId = useNoteUiStore((state) => state.currentNoteId);
   const [folderPickerOpen, setFolderPickerOpen] = useState(false);
+  const note = notes.find((item) => item.id === currentNoteId) ?? null;
   const visibleFolders = useMemo(() => folders.filter((folder) => !folder.trashedAt && !folder.isHidden), [folders]);
+
+  async function toggleNoteLock() {
+    if (!note) {
+      return false;
+    }
+
+    if (note.lock) {
+      const password = getLockPassword("Введите пароль для снятия блокировки");
+
+      if (!password) {
+        return false;
+      }
+
+      const valid = await verifyNoteLock(note.lock, password);
+
+      if (!valid) {
+        window.alert("Неверный пароль.");
+        return false;
+      }
+
+      await patchNote(note.id, { lock: null }, { scheduleAnalysis: false });
+      return true;
+    }
+
+    const password = getLockPassword("Задайте пароль для заметки");
+
+    if (!password) {
+      return false;
+    }
+
+    const confirmPassword = getLockPassword("Повторите пароль для подтверждения");
+
+    if (!confirmPassword) {
+      return false;
+    }
+
+    if (password !== confirmPassword) {
+      window.alert("Пароли не совпадают.");
+      return false;
+    }
+
+    const lock = await createNoteLock(password);
+    await patchNote(note.id, { lock }, { scheduleAnalysis: false });
+    return true;
+  }
 
   if (!currentNoteId || !note) {
     return null;
@@ -172,7 +182,7 @@ function NoteActionSheet() {
     <div className="mt-4 space-y-4 pb-6">
       <div className="grid gap-2 sm:grid-cols-2">
         <ActionCard label="Отметить для повторного анализа" onClick={() => void patchNote(note.id, { aiStatus: "pending", aiProcessed: false, analyzed: false, aiError: null }, { scheduleAnalysis: false })} />
-        <ActionCard label={note.lock ? "Разблокировать заметку" : "Заблокировать заметку"} onClick={() => void toggleNoteLock(note.id)} />
+        <ActionCard label={note.lock ? "Разблокировать заметку" : "Заблокировать заметку"} onClick={() => void toggleNoteLock()} />
         <ActionCard label={note.isArchived ? "Вернуть из архива" : "Архивировать"} onClick={() => void setArchived(note.id, !note.isArchived)} />
         <ActionCard destructive label="Удалить" onClick={() => void trashNote(note.id)} />
         <ActionCard label="Копировать текст" onClick={() => void copyNoteText(note)} />
@@ -212,6 +222,8 @@ function ActionCard({ label, onClick, destructive = false }: { label: string; on
 }
 
 function FolderActionList({ activeFolder }: { activeFolder: FolderEntity | null }) {
+  const { hideFolder, renameFolder, trashFolder, unhideFolder } = useFolderActions();
+
   if (!activeFolder) {
     return null;
   }
@@ -247,16 +259,16 @@ function FolderActionList({ activeFolder }: { activeFolder: FolderEntity | null 
 }
 
 function PagesContent() {
-  const currentNoteId = useNotesStore((state) => state.currentNoteId);
-  const note = useNotesStore((state) => state.notes.find((item) => item.id === state.currentNoteId) ?? null);
-  const currentNotePageIndex = useNotesStore((state) => state.currentNotePageIndex);
-  const setCurrentNotePageIndex = useNotesStore((state) => state.setCurrentNotePageIndex);
+  const { data: notes = [] } = useNotesQuery();
+  const { addPage, deletePage, updatePage } = useNoteActions();
+  const currentNoteId = useNoteUiStore((state) => state.currentNoteId);
+  const currentNotePageIndex = useNoteUiStore((state) => state.currentNotePageIndex);
+  const setCurrentNotePageIndex = useNoteUiStore((state) => state.setCurrentNotePageIndex);
+  const note = notes.find((item) => item.id === currentNoteId) ?? null;
 
   if (!currentNoteId || !note) {
     return null;
   }
-
-  const noteId = currentNoteId;
 
   function renamePage(pageId: string, currentTitle: string) {
     const nextTitle = window.prompt("Название страницы", currentTitle)?.trim();
@@ -265,7 +277,11 @@ function PagesContent() {
       return;
     }
 
-    updatePage(noteId, pageId, { title: nextTitle });
+    if (!currentNoteId) {
+      return;
+    }
+
+    updatePage(currentNoteId, pageId, { title: nextTitle });
   }
 
   function removePage(pageId: string) {
@@ -273,7 +289,11 @@ function PagesContent() {
       return;
     }
 
-    deletePage(noteId, pageId);
+    if (!currentNoteId) {
+      return;
+    }
+
+    deletePage(currentNoteId, pageId);
   }
 
   return (
@@ -290,22 +310,23 @@ function PagesContent() {
           </div>
         ))}
       </div>
-      <Button className="w-full rounded-2xl" onClick={() => addPage(noteId)} type="button" variant="secondary">Добавить страницу</Button>
+      <Button className="w-full rounded-2xl" onClick={() => currentNoteId ? addPage(currentNoteId) : null} type="button" variant="secondary">Добавить страницу</Button>
     </div>
   );
 }
 
 function LockContent({ onClose }: { onClose: () => void }) {
-  const currentNoteId = useNotesStore((state) => state.currentNoteId);
-  const note = useNotesStore((state) => state.notes.find((item) => item.id === state.currentNoteId) ?? null);
+  const { data: notes = [] } = useNotesQuery();
+  const { patchNote } = useNoteActions();
+  const currentNoteId = useNoteUiStore((state) => state.currentNoteId);
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const note = notes.find((item) => item.id === currentNoteId) ?? null;
 
   if (!currentNoteId || !note?.lock) {
     return null;
   }
 
-  const noteId = currentNoteId;
   const currentLock = note.lock;
 
   async function handleUnlock() {
@@ -316,17 +337,22 @@ function LockContent({ onClose }: { onClose: () => void }) {
       return;
     }
 
-    void patchNote(noteId, { lock: { ...currentLock, hidden: false } }, { scheduleAnalysis: false });
+    if (!currentNoteId) {
+      return;
+    }
+
+    await patchNote(currentNoteId, { lock: { ...currentLock, hidden: false } }, { scheduleAnalysis: false });
     setError(null);
     setPassword("");
     onClose();
   }
 
-  return <div className="mt-4 space-y-3"><p className="text-sm leading-6 text-foreground/58">Контент заметки скрыт до локальной verify-проверки. Preview уже замаскирован в карточке.</p><input autoComplete="off" className="h-10 w-full rounded-2xl border border-border bg-surface-strong px-4 outline-none sm:h-12" name={`lock_${noteId.slice(0, 6)}`} onChange={(event) => setPassword(event.target.value)} placeholder="Пароль заметки" type="password" value={password} />{error ? <p className="text-sm font-bold text-rose-500">{error}</p> : null}<Button className="h-10 w-full rounded-2xl sm:h-11" onClick={() => void handleUnlock()} type="button">Unlock</Button></div>;
+  return <div className="mt-4 space-y-3"><p className="text-sm leading-6 text-foreground/58">Контент заметки скрыт до локальной verify-проверки. Preview уже замаскирован в карточке.</p><input autoComplete="off" className="h-10 w-full rounded-2xl border border-border bg-surface-strong px-4 outline-none sm:h-12" name={`lock_${currentNoteId.slice(0, 6)}`} onChange={(event) => setPassword(event.target.value)} placeholder="Пароль заметки" type="password" value={password} />{error ? <p className="text-sm font-bold text-rose-500">{error}</p> : null}<Button className="h-10 w-full rounded-2xl sm:h-11" onClick={() => void handleUnlock()} type="button">Unlock</Button></div>;
 }
 
 function AboutContent() {
-  const lang = useThemeStore((state) => state.lang);
+  const { data: settings } = useSettingsQuery();
+  const lang = settings?.lang ?? "ru";
   const copy = getUiCopy(lang);
   const [tab, setTab] = useState<"about" | "rate">("about");
   const [rating, setRating] = useState(5);
@@ -351,12 +377,10 @@ function AboutContent() {
           </ul>
           <h3 className="mt-3 text-2xl font-black">Обратная связь</h3>
           <a className="mt-4 inline-flex font-black text-accent hover:underline" href="https://t.me/SmartNotesInfo_bot" rel="noreferrer" target="_blank">@SmartNotesInfo_bot</a>
-
         </section>
       ) : (
         <section className="rounded-[1.5rem] border border-border bg-surface-strong p-5">
           <p className="text-xs font-black uppercase tracking-[0.2em] text-accent">Оценить</p>
-          
           <div className="mt-4 flex gap-2">
             {[1, 2, 3, 4, 5].map((value) => (
               <button className={`flex h-10 w-10 items-center justify-center rounded-2xl border transition sm:h-11 sm:w-11 ${rating >= value ? "border-amber-400 bg-amber-400/12 text-amber-400" : "border-border bg-background text-foreground/42 hover:bg-surface"}`} key={value} onClick={() => setRating(value)} type="button">
@@ -373,6 +397,7 @@ function AboutContent() {
 }
 
 function CreateFolderContent({ onClose }: { onClose: () => void }) {
+  const { addFolder } = useFolderActions();
   const [name, setName] = useState("");
   const userId = useAuthStore((state) => state.user?.id ?? "local-user");
 
@@ -392,8 +417,10 @@ function CreateFolderContent({ onClose }: { onClose: () => void }) {
 }
 
 function ReminderContent({ onClose }: { onClose: () => void }) {
-  const currentNoteId = useNotesStore((state) => state.currentNoteId);
-  const note = useNotesStore((state) => state.notes.find((item) => item.id === state.currentNoteId) ?? null);
+  const { data: notes = [] } = useNotesQuery();
+  const { setReminder } = useNoteActions();
+  const currentNoteId = useNoteUiStore((state) => state.currentNoteId);
+  const note = notes.find((item) => item.id === currentNoteId) ?? null;
   const [value, setValue] = useState(note?.reminderAt ? note.reminderAt.slice(0, 16) : "");
 
   useEffect(() => {
@@ -409,5 +436,5 @@ function ReminderContent({ onClose }: { onClose: () => void }) {
     return null;
   }
 
-  return <div className="mt-4 space-y-3"><input className="h-10 w-full rounded-2xl border border-border bg-surface-strong px-4 outline-none sm:h-12" onChange={(event) => setValue(event.target.value)} type="datetime-local" value={value} /><div className="grid grid-cols-2 gap-2"><Button className="h-10 rounded-2xl sm:h-11" disabled={!value} onClick={async () => { const reminderAt = new Date(value).toISOString(); setReminder(currentNoteId, reminderAt); scheduleReminder(currentNoteId, reminderAt); await requestNotificationPermission(); onClose(); }} type="button">Сохранить</Button><Button className="h-10 rounded-2xl sm:h-11" onClick={() => { setReminder(currentNoteId, null); scheduleReminder(currentNoteId, null); onClose(); }} type="button" variant="secondary">Очистить</Button></div></div>;
+  return <div className="mt-4 space-y-3"><input className="h-10 w-full rounded-2xl border border-border bg-surface-strong px-4 outline-none sm:h-12" onChange={(event) => setValue(event.target.value)} type="datetime-local" value={value} /><div className="grid grid-cols-2 gap-2"><Button className="h-10 rounded-2xl sm:h-11" disabled={!value} onClick={async () => { const reminderAt = new Date(value).toISOString(); await setReminder(currentNoteId, reminderAt); scheduleReminder(currentNoteId, reminderAt); await requestNotificationPermission(); onClose(); }} type="button">Сохранить</Button><Button className="h-10 rounded-2xl sm:h-11" onClick={() => { void setReminder(currentNoteId, null); scheduleReminder(currentNoteId, null); onClose(); }} type="button" variant="secondary">Очистить</Button></div></div>;
 }

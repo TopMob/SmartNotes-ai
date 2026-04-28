@@ -157,6 +157,142 @@ export type Database = {
         };
         Relationships: [];
       };
+      user_settings: {
+        Row: {
+          id: string;
+          preset: "paper" | "smarthub" | "smartlib" | "cyber" | "lego" | "classic";
+          lang: "ru" | "en";
+          folder_view_mode: "compact" | "full";
+          notes_per_page: 5 | 10 | 20 | 50;
+          reduce_motion: boolean;
+          ui_opacity: number;
+          cards_opacity: number;
+          main_background_url: string | null;
+          sidebar_background_url: string | null;
+          custom_presets: Array<{
+            id: string;
+            name: string;
+            preset: "paper" | "smarthub" | "smartlib" | "cyber" | "lego" | "classic";
+            mainBackgroundUrl: string | null;
+            sidebarBackgroundUrl: string | null;
+            uiOpacity: number;
+            cardsOpacity: number;
+          }>;
+          editor: {
+            toolbarVisible: boolean;
+            bold: boolean;
+            italic: boolean;
+            underline: boolean;
+            strike: boolean;
+            bullets: boolean;
+            numbered: boolean;
+            hr: boolean;
+            alignText: boolean;
+            alignMedia: boolean;
+            clearFormat: boolean;
+            undoRedo: boolean;
+            links: boolean;
+            pages: boolean;
+            inlineTags: boolean;
+          };
+          interface: {
+            showSavedFilters: boolean;
+            showTagFilter: boolean;
+            showUpdatedPeriodFilter: boolean;
+          };
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id: string;
+          preset?: "paper" | "smarthub" | "smartlib" | "cyber" | "lego" | "classic";
+          lang?: "ru" | "en";
+          folder_view_mode?: "compact" | "full";
+          notes_per_page?: 5 | 10 | 20 | 50;
+          reduce_motion?: boolean;
+          ui_opacity?: number;
+          cards_opacity?: number;
+          main_background_url?: string | null;
+          sidebar_background_url?: string | null;
+          custom_presets?: Array<{
+            id: string;
+            name: string;
+            preset: "paper" | "smarthub" | "smartlib" | "cyber" | "lego" | "classic";
+            mainBackgroundUrl: string | null;
+            sidebarBackgroundUrl: string | null;
+            uiOpacity: number;
+            cardsOpacity: number;
+          }>;
+          editor?: {
+            toolbarVisible: boolean;
+            bold: boolean;
+            italic: boolean;
+            underline: boolean;
+            strike: boolean;
+            bullets: boolean;
+            numbered: boolean;
+            hr: boolean;
+            alignText: boolean;
+            alignMedia: boolean;
+            clearFormat: boolean;
+            undoRedo: boolean;
+            links: boolean;
+            pages: boolean;
+            inlineTags: boolean;
+          };
+          interface?: {
+            showSavedFilters: boolean;
+            showTagFilter: boolean;
+            showUpdatedPeriodFilter: boolean;
+          };
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          preset?: "paper" | "smarthub" | "smartlib" | "cyber" | "lego" | "classic";
+          lang?: "ru" | "en";
+          folder_view_mode?: "compact" | "full";
+          notes_per_page?: 5 | 10 | 20 | 50;
+          reduce_motion?: boolean;
+          ui_opacity?: number;
+          cards_opacity?: number;
+          main_background_url?: string | null;
+          sidebar_background_url?: string | null;
+          custom_presets?: Array<{
+            id: string;
+            name: string;
+            preset: "paper" | "smarthub" | "smartlib" | "cyber" | "lego" | "classic";
+            mainBackgroundUrl: string | null;
+            sidebarBackgroundUrl: string | null;
+            uiOpacity: number;
+            cardsOpacity: number;
+          }>;
+          editor?: {
+            toolbarVisible: boolean;
+            bold: boolean;
+            italic: boolean;
+            underline: boolean;
+            strike: boolean;
+            bullets: boolean;
+            numbered: boolean;
+            hr: boolean;
+            alignText: boolean;
+            alignMedia: boolean;
+            clearFormat: boolean;
+            undoRedo: boolean;
+            links: boolean;
+            pages: boolean;
+            inlineTags: boolean;
+          };
+          interface?: {
+            showSavedFilters: boolean;
+            showTagFilter: boolean;
+            showUpdatedPeriodFilter: boolean;
+          };
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

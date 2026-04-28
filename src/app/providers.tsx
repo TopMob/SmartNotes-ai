@@ -1,51 +1,39 @@
 "use client";
 
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 
 import { DataBootstrap } from "@/features/bootstrap/ui/data-bootstrap";
+import { useSettingsQuery } from "@/features/settings/hooks/use-settings-query";
+import { createAppQueryClient } from "@/shared/lib/react-query/query-client";
 import { PwaRegister } from "./pwa-register";
 import { AuthProvider } from "@/features/auth/ui/auth-provider";
-import { useThemeStore } from "@/shared/store/theme-store";
 
 function ThemeBridge() {
-  const preset = useThemeStore((state) => state.preset);
-  const lang = useThemeStore((state) => state.lang);
-  const mainBackgroundUrl = useThemeStore((state) => state.mainBackgroundUrl);
-  const sidebarBackgroundUrl = useThemeStore((state) => state.sidebarBackgroundUrl);
-  const uiOpacity = useThemeStore((state) => state.uiOpacity);
-  const cardsOpacity = useThemeStore((state) => state.cardsOpacity);
+  const { data: settings } = useSettingsQuery();
 
   useEffect(() => {
+    if (!settings) {
+      return;
+    }
+
     const root = document.documentElement;
 
-    root.lang = lang;
-    root.dataset.theme = preset;
-    root.style.setProperty("--ui-opacity", `${uiOpacity}`);
-    root.style.setProperty("--cards-opacity", `${cardsOpacity}`);
-    root.style.setProperty("--main-background-url", mainBackgroundUrl ? `url(${mainBackgroundUrl})` : "none");
-    root.style.setProperty("--sidebar-background-url", sidebarBackgroundUrl ? `url(${sidebarBackgroundUrl})` : "none");
-  }, [cardsOpacity, lang, mainBackgroundUrl, preset, sidebarBackgroundUrl, uiOpacity]);
+    root.lang = settings.lang;
+    root.dataset.theme = settings.preset;
+    root.style.setProperty("--ui-opacity", `${settings.uiOpacity}`);
+    root.style.setProperty("--cards-opacity", `${settings.cardsOpacity}`);
+    root.style.setProperty("--main-background-url", settings.mainBackgroundUrl ? `url(${settings.mainBackgroundUrl})` : "none");
+    root.style.setProperty("--sidebar-background-url", settings.sidebarBackgroundUrl ? `url(${settings.sidebarBackgroundUrl})` : "none");
+  }, [settings]);
 
   return null;
 }
 
 export function AppProviders({ children }: Readonly<{ children: ReactNode }>) {
   const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            staleTime: 30_000,
-            refetchOnWindowFocus: false,
-            retry: 1,
-          },
-          mutations: {
-            retry: 0,
-          },
-        },
-      }),
+    () => createAppQueryClient(),
   );
 
   return (
