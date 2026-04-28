@@ -16,7 +16,6 @@ import {
   nowIso,
   type NotePagePatch,
 } from "@/features/notes/lib/note-utils";
-import { scheduleAiAnalysis } from "@/services/ai/ai-queue";
 import { queryKeys } from "@/shared/lib/react-query/query-keys";
 
 type NotesSnapshot = { previousNotes: Note[] | undefined };
@@ -45,7 +44,6 @@ export function useCreateNoteMutation() {
       const localNote = optimisticNote ?? createLocalNote(draft, userId);
 
       queryClient.setQueryData<Note[]>(queryKey, sortNotes([localNote, ...(previousNotes ?? [])]));
-      scheduleAiAnalysis(localNote.id);
 
       return { previousNotes } satisfies NotesSnapshot;
     },
@@ -162,10 +160,6 @@ export function useNoteActions() {
 
       const normalizedPatch = normalizeNotePatch(patch, options);
       await updateMutation.mutateAsync({ noteId, patch: normalizedPatch });
-
-      if (normalizedPatch.aiStatus === "pending") {
-        scheduleAiAnalysis(noteId);
-      }
     },
     trashNote: (noteId: string) => updateMutation.mutateAsync({ noteId, patch: normalizeNotePatch({ trashedAt: nowIso() }, { scheduleAnalysis: false }) }),
     restoreNote: (noteId: string) => updateMutation.mutateAsync({ noteId, patch: normalizeNotePatch({ trashedAt: null }, { scheduleAnalysis: false }) }),
