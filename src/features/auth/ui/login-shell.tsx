@@ -4,6 +4,7 @@ import { ArrowLeft, Eye, EyeOff, KeyRound, Loader2, Mail, ShieldCheck, Sparkles 
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { useAuthActions } from "@/features/auth/hooks/use-auth-actions";
 import { Button } from "@/shared/ui/button";
 
 const authStates = ["Email + password", "Google OAuth", "Google One Tap", "Redirect fallback", "Runtime config", "Profile sync"];
@@ -12,11 +13,34 @@ export function LoginShell() {
   const [splash, setSplash] = useState(true);
   const [mode, setMode] = useState<"login" | "register">("login");
   const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [repeatPassword, setRepeatPassword] = useState("");
+  const { pending, error, message, loginWithEmail, registerWithEmail, loginWithGoogle, resetPassword } = useAuthActions();
 
   useEffect(() => {
     const timer = window.setTimeout(() => setSplash(false), 900);
     return () => window.clearTimeout(timer);
   }, []);
+
+  async function handleSubmit() {
+    const normalizedEmail = email.trim();
+
+    if (!normalizedEmail || !password) {
+      return;
+    }
+
+    if (mode === "register") {
+      if (password !== repeatPassword) {
+        return;
+      }
+
+      await registerWithEmail(normalizedEmail, password);
+      return;
+    }
+
+    await loginWithEmail(normalizedEmail, password);
+  }
 
   if (splash) {
     return (
@@ -80,7 +104,7 @@ export function LoginShell() {
             <button className={`rounded-xl px-4 py-3 text-sm font-black ${mode === "register" ? "bg-foreground text-background" : "text-foreground/54"}`} onClick={() => setMode("register")} type="button">Регистрация</button>
           </div>
 
-          <Button className="mt-5 h-12 w-full rounded-2xl bg-foreground text-background hover:bg-foreground/92">
+          <Button className="mt-5 h-12 w-full rounded-2xl bg-foreground text-background hover:bg-foreground/92" disabled={pending} onClick={() => void loginWithGoogle()}>
             <span className="mr-2 flex h-5 w-5 items-center justify-center rounded-full bg-background text-xs font-black text-foreground">G</span>
             Войти через Google
           </Button>
@@ -91,28 +115,31 @@ export function LoginShell() {
             <span className="h-px flex-1 bg-border" />
           </div>
 
-          <form className="space-y-3">
-            <Field icon={Mail} label="Email" placeholder="you@example.com" type="email" />
+          <form className="space-y-3" onSubmit={(event) => event.preventDefault()}>
+            <Field icon={Mail} label="Email" onChange={setEmail} placeholder="you@example.com" type="email" value={email} />
             <label className="block">
               <span className="mb-2 block text-sm font-bold text-foreground/62">Пароль</span>
                 <span className="flex min-h-12 items-center gap-3 rounded-2xl border border-border bg-surface-strong px-4 py-2.5">
                 <KeyRound className="h-5 w-5 text-foreground/34" />
-                <input className="min-w-0 flex-1 bg-transparent outline-none" placeholder="Минимум 8 символов" type={showPassword ? "text" : "password"} />
+                <input className="min-w-0 flex-1 bg-transparent outline-none" onChange={(event) => setPassword(event.target.value)} placeholder="Минимум 8 символов" type={showPassword ? "text" : "password"} value={password} />
                 <button className="text-foreground/38" onClick={() => setShowPassword((value) => !value)} type="button">
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </span>
             </label>
-            {mode === "register" && <Field icon={KeyRound} label="Повторите пароль" placeholder="Еще раз пароль" type="password" />}
+            {mode === "register" ? <Field icon={KeyRound} label="Повторите пароль" onChange={setRepeatPassword} placeholder="Еще раз пароль" type="password" value={repeatPassword} /> : null}
 
             {mode === "login" && (
               <div className="flex items-center justify-between gap-3 text-sm">
                 <label className="flex items-center gap-2 font-semibold text-foreground/62"><input className="h-4 w-4 accent-[var(--accent)]" type="checkbox" />Запомнить</label>
-                <button className="font-bold text-accent" type="button">Забыли пароль?</button>
+                <button className="font-bold text-accent" disabled={pending || !email.trim()} onClick={() => void resetPassword(email.trim())} type="button">Забыли пароль?</button>
               </div>
             )}
 
-            <Button className="h-12 w-full rounded-2xl text-base" type="button">{mode === "login" ? "Войти по email" : "Создать аккаунт"}</Button>
+            {mode === "register" && repeatPassword && password !== repeatPassword ? <p className="text-sm text-rose-500">Пароли не совпадают.</p> : null}
+            {error ? <p className="text-sm text-rose-500">{error}</p> : null}
+            {message ? <p className="text-sm text-emerald-600">{message}</p> : null}
+            <Button className="h-12 w-full rounded-2xl text-base" disabled={pending || !email.trim() || !password || (mode === "register" && password !== repeatPassword)} onClick={() => void handleSubmit()} type="button">{mode === "login" ? "Войти по email" : "Создать аккаунт"}</Button>
           </form>
         </div>
       </section>
@@ -120,13 +147,13 @@ export function LoginShell() {
   );
 }
 
-function Field({ icon: Icon, label, placeholder, type }: { icon: typeof Mail; label: string; placeholder: string; type: string }) {
+function Field({ icon: Icon, label, placeholder, type, value, onChange }: { icon: typeof Mail; label: string; placeholder: string; type: string; value: string; onChange: (value: string) => void }) {
   return (
     <label className="block">
       <span className="mb-2 block text-sm font-bold text-foreground/62">{label}</span>
       <span className="flex min-h-12 items-center gap-3 rounded-2xl border border-border bg-surface-strong px-4 py-2.5">
         <Icon className="h-5 w-5 text-foreground/34" />
-        <input className="min-w-0 flex-1 bg-transparent outline-none" inputMode={type === "email" ? "email" : undefined} placeholder={placeholder} type={type} />
+        <input className="min-w-0 flex-1 bg-transparent outline-none" inputMode={type === "email" ? "email" : undefined} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} type={type} value={value} />
       </span>
     </label>
   );

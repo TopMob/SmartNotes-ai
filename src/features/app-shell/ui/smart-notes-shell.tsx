@@ -4,6 +4,7 @@ import { Plus } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { Folder as FolderEntity } from "@/entities/folder";
+import { useAuthStore } from "@/features/auth/model/auth-store";
 import { addNote } from "@/features/notes/model/note-actions";
 import { selectVisibleNotes } from "@/features/notes/model/note-selectors";
 import { useFoldersStore } from "@/features/folders/model/folders-store";
@@ -41,6 +42,7 @@ export function SmartNotesShell() {
   const folderViewMode = useThemeStore((state) => state.folderViewMode);
   const notesPerPage = useThemeStore((state) => state.notesPerPage);
   const lang = useThemeStore((state) => state.lang);
+  const authUser = useAuthStore((state) => state.user);
   const copy = getUiCopy(lang);
   const setView = useUiStore((state) => state.setView);
   const setActiveFolderId = useUiStore((state) => state.setActiveFolderId);
@@ -198,7 +200,7 @@ export function SmartNotesShell() {
   }
 
   function createNoteDraft() {
-    const note = addNote({ title: "", content: "", folderId: activeFolderId, userTags: [] }, "local-user");
+    const note = addNote({ title: "", content: "", folderId: activeFolderId, userTags: [] }, authUser?.id ?? "local-user");
     setCurrentNoteId(note.id);
     setEditorOpen(true);
   }

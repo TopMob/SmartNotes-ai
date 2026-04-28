@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 
 import { PwaRegister } from "./pwa-register";
+import { AuthProvider } from "@/features/auth/ui/auth-provider";
 import { useThemeStore } from "@/shared/store/theme-store";
 
 function ThemeBridge() {
@@ -48,9 +49,11 @@ export function AppProviders({ children }: Readonly<{ children: ReactNode }>) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <PwaRegister />
-      <ThemeBridge />
-      {children}
+      <AuthProvider>
+        <PwaRegister />
+        <ThemeBridge />
+        {children}
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

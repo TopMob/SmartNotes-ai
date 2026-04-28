@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import type { Folder as FolderEntity } from "@/entities/folder";
 import type { Note } from "@/entities/note";
+import { useAuthStore } from "@/features/auth/model/auth-store";
 import { addFolder, hideFolder, renameFolder, trashFolder, unhideFolder } from "@/features/folders/model/folder-actions";
 import { useFoldersStore } from "@/features/folders/model/folders-store";
 import { createNoteLock, verifyNoteLock } from "@/features/lock-center/lib/lock-service";
@@ -373,6 +374,7 @@ function AboutContent() {
 
 function CreateFolderContent({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState("");
+  const userId = useAuthStore((state) => state.user?.id ?? "local-user");
 
   function handleCreate() {
     const normalized = name.trim();
@@ -381,7 +383,7 @@ function CreateFolderContent({ onClose }: { onClose: () => void }) {
       return;
     }
 
-    addFolder({ name: normalized, description: null, isHidden: false }, "local-user");
+    addFolder({ name: normalized, description: null, isHidden: false }, userId);
     setName("");
     onClose();
   }
