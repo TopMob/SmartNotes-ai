@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { Folder as FolderEntity } from "@/entities/folder";
 import { useAuthStore } from "@/features/auth/model/auth-store";
+import { NoteCollabSessionProvider } from "@/features/editor-collab/hooks/use-note-collab-session";
 import { useFoldersQuery } from "@/features/folders/hooks/use-folders-query";
 import { useNoteActions } from "@/features/notes/hooks/use-note-mutations";
 import { useNotesQuery } from "@/features/notes/hooks/use-notes-query";
@@ -277,8 +278,13 @@ export function SmartNotesShell() {
         <Plus className="h-6 w-6" />
       </button>
 
-      {editorOpen && currentNote ? <EditorOverlay note={currentNote} onClose={closeEditor} onOpenSheet={openSheet} toolbarVisible={toolbarVisible} setToolbarVisible={setToolbarVisible} /> : null}
-      <BottomSheet activeFolder={activeFolder} editorDirty={editorDirty} isDesktop={isDesktop} sheet={sheet} onClose={() => setSheet(null)} />
+      {editorOpen && currentNote ? (
+        <NoteCollabSessionProvider note={currentNote}>
+          <EditorOverlay note={currentNote} onClose={closeEditor} onOpenSheet={openSheet} toolbarVisible={toolbarVisible} setToolbarVisible={setToolbarVisible} />
+          <BottomSheet activeFolder={activeFolder} editorDirty={editorDirty} isDesktop={isDesktop} sheet={sheet} onClose={() => setSheet(null)} />
+        </NoteCollabSessionProvider>
+      ) : null}
+      {!editorOpen || !currentNote ? <BottomSheet activeFolder={activeFolder} editorDirty={editorDirty} isDesktop={isDesktop} sheet={sheet} onClose={() => setSheet(null)} /> : null}
     </main>
   );
 }

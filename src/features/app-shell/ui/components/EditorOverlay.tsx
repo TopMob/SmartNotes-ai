@@ -26,6 +26,9 @@ import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useRef, type ComponentType } from "react";
 
 import type { Note } from "@/entities/note";
+import { useNoteCollabPage } from "@/features/editor-collab/hooks/use-note-collab-page";
+import { useNoteCollabSession } from "@/features/editor-collab/hooks/use-note-collab-session";
+import { useNoteTitleTags } from "@/features/editor-collab/hooks/use-note-title-tags";
 import { useNoteActions } from "@/features/notes/hooks/use-note-mutations";
 import { useNoteUiStore } from "@/features/notes/model/note-ui-store";
 import { Button } from "@/shared/ui/button";
@@ -41,11 +44,13 @@ type EditorOverlayProps = {
 };
 
 export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setToolbarVisible }: EditorOverlayProps) {
-  const { addPage, attachMedia, patchNote, updatePage } = useNoteActions();
+  const { attachMedia } = useNoteActions();
   const currentNotePageIndex = useNoteUiStore((state) => state.currentNotePageIndex);
   const setCurrentNotePageIndex = useNoteUiStore((state) => state.setCurrentNotePageIndex);
+  const { status } = useNoteCollabSession();
+  const { page: currentPage, pageCount, addPage, setPageContent } = useNoteCollabPage(currentNotePageIndex);
+  const { title, userTags, setTitle, setUserTags } = useNoteTitleTags();
   const snapshotRef = useRef(serializeEditorSnapshot(note));
-  const currentPage = note.pages[currentNotePageIndex] ?? note.pages[0];
   const editorDirty = useNoteUiStore((state) => state.editorDirty);
   const markEditorDirty = useNoteUiStore((state) => state.markEditorDirty);
 
@@ -59,22 +64,16 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
     immediatelyRender: false,
     onUpdate: ({ editor: tiptapEditor }) => {
       const nextContent = tiptapEditor.getHTML();
-      updatePage(note.id, currentPage.id, { content: nextContent });
-      markEditorDirty(
-        serializeEditorSnapshot({
-          ...note,
-          content: nextContent,
-          pages: note.pages.map((page) => (page.id === currentPage.id ? { ...page, content: nextContent } : page)),
-        }) !== snapshotRef.current,
-      );
+      setPageContent(currentPage.id, nextContent);
+      markEditorDirty(true);
     },
   });
 
   useEffect(() => {
-    if (currentNotePageIndex > note.pages.length - 1) {
-      setCurrentNotePageIndex(Math.max(0, note.pages.length - 1));
+    if (currentNotePageIndex > pageCount - 1) {
+      setCurrentNotePageIndex(Math.max(0, pageCount - 1));
     }
-  }, [currentNotePageIndex, note.pages.length, setCurrentNotePageIndex]);
+  }, [currentNotePageIndex, pageCount, setCurrentNotePageIndex]);
 
   useEffect(() => {
     snapshotRef.current = serializeEditorSnapshot(note);
@@ -87,6 +86,12 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
   }, [currentPage.content, currentPage.id, editor]);
 
   useEffect(() => {
+    if (status === "ready") {
+      markEditorDirty(false);
+    }
+  }, [markEditorDirty, status]);
+
+  useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         handleClose();
@@ -97,35 +102,19 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [markEditorDirty, onClose]);
 
-  function syncDirtyState(nextSnapshot: string) {
-    markEditorDirty(nextSnapshot !== snapshotRef.current);
-  }
-
   function handleClose() {
-    syncDirtyState(serializeEditorSnapshot(note));
     onClose();
   }
 
   function handleTitleChange(value: string) {
-    const nextTitle = value || currentPage.title || "Untitled note";
-    void patchNote(note.id, { title: nextTitle }, { scheduleAnalysis: false });
-    syncDirtyState(
-      serializeEditorSnapshot({
-        ...note,
-        title: nextTitle,
-      }),
-    );
+    setTitle(value || currentPage.title || "Untitled note");
+    markEditorDirty(true);
   }
 
   function handleTagsBlur(value: string) {
     const tags = value.split(",").map((tag) => tag.trim()).filter(Boolean);
-    void patchNote(note.id, { userTags: tags }, { scheduleAnalysis: false });
-    syncDirtyState(
-      serializeEditorSnapshot({
-        ...note,
-        userTags: tags,
-      }),
-    );
+    setUserTags(tags);
+    markEditorDirty(true);
   }
 
   if (!editor) {
@@ -143,8 +132,8 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
           <button className="flex h-9 w-9 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={handleClose} type="button"><ChevronLeft className="h-5 w-5" /></button>
           <div className="flex items-center gap-1 rounded-2xl bg-surface-strong px-2 py-1 text-sm font-black">
             <button className="rounded-lg p-1 hover:bg-background disabled:opacity-35" disabled={currentNotePageIndex === 0} onClick={() => setCurrentNotePageIndex(Math.max(0, currentNotePageIndex - 1))} type="button"><ChevronLeft className="h-4 w-4" /></button>
-            {currentNotePageIndex + 1}/{note.pages.length}
-            <button className="rounded-lg p-1 hover:bg-background disabled:opacity-35" disabled={currentNotePageIndex >= note.pages.length - 1} onClick={() => setCurrentNotePageIndex(Math.min(note.pages.length - 1, currentNotePageIndex + 1))} type="button"><ChevronRight className="h-4 w-4" /></button>
+            {currentNotePageIndex + 1}/{pageCount}
+            <button className="rounded-lg p-1 hover:bg-background disabled:opacity-35" disabled={currentNotePageIndex >= pageCount - 1} onClick={() => setCurrentNotePageIndex(Math.min(pageCount - 1, currentNotePageIndex + 1))} type="button"><ChevronRight className="h-4 w-4" /></button>
           </div>
           <button className="flex h-9 w-9 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={(event) => onOpenSheet("pages", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><Folder className="h-5 w-5" /></button>
           <div className="ml-auto flex items-center gap-1">
@@ -156,7 +145,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
         </header>
 
         <section className="mt-3 min-h-0 flex-1 overflow-y-auto rounded-[2rem] border border-border bg-surface/88 p-4 shadow-2xl shadow-violet-950/8 sm:p-8">
-          <input className="w-full bg-transparent text-2xl font-black tracking-tight outline-none placeholder:text-foreground/28 sm:text-4xl" onChange={(event) => handleTitleChange(event.target.value)} placeholder="Заголовок" value={note.title} />
+          <input className="w-full bg-transparent text-2xl font-black tracking-tight outline-none placeholder:text-foreground/28 sm:text-4xl" onChange={(event) => handleTitleChange(event.target.value)} placeholder="Заголовок" value={title} />
           {toolbarVisible ? (
             <div className="sticky top-0 z-10 mt-4 flex flex-nowrap items-center gap-1.5 overflow-x-auto overflow-y-hidden rounded-2xl border border-border bg-surface-strong/92 p-1.5 backdrop-blur-xl">
               <ToolButton active={editor.isActive("bold")} icon={Bold} onClick={() => editor.chain().focus().toggleBold().run()} />
@@ -168,7 +157,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
               <ToolButton active={editor.isActive({ textAlign: "right" })} icon={AlignRight} onClick={() => editor.chain().focus().setTextAlign("right").run()} />
               <ToolButton active={editor.isActive("bulletList")} icon={List} onClick={() => editor.chain().focus().toggleBulletList().run()} />
               <ToolButton active={editor.isActive("link")} label="Link" onClick={() => { const url = window.prompt("Ссылка"); if (url) { editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run(); } }} />
-              <ToolButton icon={Paintbrush} label="Sketch" onClick={() => { addPage(note.id, `Sketch ${note.pages.length + 1}`); setCurrentNotePageIndex(note.pages.length); }} />
+              <ToolButton icon={Paintbrush} label="Sketch" onClick={() => { addPage(`Sketch ${pageCount + 1}`); setCurrentNotePageIndex(pageCount); }} />
               <ToolButton icon={FileImage} label="Add image" onClick={() => { const url = window.prompt("Ссылка на изображение"); if (!url) return; attachMedia(note.id, { id: `media_${Date.now().toString(36)}`, provider: "google-drive", fileId: url, url, mimeType: "image/*", name: "Image", size: 0, thumbnailUrl: url }); }} />
             </div>
           ) : null}
@@ -180,7 +169,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
         </section>
 
         <footer className="mt-3 flex items-center gap-2 rounded-[1.5rem] border border-border bg-surface/92 p-2 shadow-xl shadow-violet-950/8">
-          <label className="flex min-h-9 flex-1 items-center gap-2 rounded-2xl bg-surface-strong px-3 sm:min-h-11"><Tag className="h-4 w-4 text-accent" /><input className="min-w-0 flex-1 bg-transparent outline-none" defaultValue={note.userTags.join(", ")} onBlur={(event) => handleTagsBlur(event.target.value)} placeholder="tag1, tag2" /></label>
+          <label className="flex min-h-9 flex-1 items-center gap-2 rounded-2xl bg-surface-strong px-3 sm:min-h-11"><Tag className="h-4 w-4 text-accent" /><input className="min-w-0 flex-1 bg-transparent outline-none" defaultValue={userTags.join(", ")} onBlur={(event) => handleTagsBlur(event.target.value)} placeholder="tag1, tag2" /></label>
           <div className="text-xs font-bold text-foreground/48">{editorDirty ? "Есть несохраненные локальные изменения" : "Все изменения в локальном state"}</div>
           <Button className="h-10 rounded-2xl sm:h-11" onClick={handleClose} type="button"><Save className="mr-2 h-4 w-4" />Готово</Button>
         </footer>

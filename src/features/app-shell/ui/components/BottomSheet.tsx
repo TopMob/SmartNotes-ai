@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import type { Folder as FolderEntity } from "@/entities/folder";
 import type { Note } from "@/entities/note";
 import { useAuthStore } from "@/features/auth/model/auth-store";
+import { useNoteCollabPage } from "@/features/editor-collab/hooks/use-note-collab-page";
+import { useNoteCollabSession } from "@/features/editor-collab/hooks/use-note-collab-session";
 import { useFolderActions } from "@/features/folders/hooks/use-folder-mutations";
 import { useFoldersQuery } from "@/features/folders/hooks/use-folders-query";
 import { createNoteLock, verifyNoteLock } from "@/features/lock-center/lib/lock-service";
@@ -259,14 +261,13 @@ function FolderActionList({ activeFolder }: { activeFolder: FolderEntity | null 
 }
 
 function PagesContent() {
-  const { data: notes = [] } = useNotesQuery();
-  const { addPage, deletePage, updatePage } = useNoteActions();
   const currentNoteId = useNoteUiStore((state) => state.currentNoteId);
   const currentNotePageIndex = useNoteUiStore((state) => state.currentNotePageIndex);
   const setCurrentNotePageIndex = useNoteUiStore((state) => state.setCurrentNotePageIndex);
-  const note = notes.find((item) => item.id === currentNoteId) ?? null;
+  const { noteId } = useNoteCollabSession();
+  const { pages, addPage, removePage: removeCollabPage, setPageTitle } = useNoteCollabPage(currentNotePageIndex);
 
-  if (!currentNoteId || !note) {
+  if (!currentNoteId || currentNoteId !== noteId) {
     return null;
   }
 
@@ -281,7 +282,7 @@ function PagesContent() {
       return;
     }
 
-    updatePage(currentNoteId, pageId, { title: nextTitle });
+    setPageTitle(pageId, nextTitle);
   }
 
   function removePage(pageId: string) {
@@ -293,24 +294,24 @@ function PagesContent() {
       return;
     }
 
-    deletePage(currentNoteId, pageId);
+    removeCollabPage(pageId);
   }
 
   return (
     <div className="mt-4 space-y-3">
       <div className="grid gap-2">
-        {note.pages.map((page, index) => (
+        {pages.map((page, index) => (
           <div className={`flex items-center gap-3 rounded-2xl p-3 transition ${currentNotePageIndex === index ? "bg-accent/10 text-accent" : "bg-surface-strong hover:bg-background"}`} key={page.id}>
             <button className="flex min-w-0 flex-1 items-center gap-3 text-left" onClick={() => setCurrentNotePageIndex(index)} type="button">
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/12 text-sm font-black text-accent">{index + 1}</span>
               <span className="min-w-0 flex-1 truncate font-bold">{page.title}</span>
             </button>
             <button className="rounded-xl p-2 text-foreground/60 hover:bg-background" onClick={() => renamePage(page.id, page.title)} type="button"><Pencil className="h-4 w-4" /></button>
-            {note.pages.length > 1 ? <button className="rounded-xl px-3 py-2 text-xs font-bold text-rose-500 hover:bg-background" onClick={() => removePage(page.id)} type="button">Удалить</button> : null}
+            {pages.length > 1 ? <button className="rounded-xl px-3 py-2 text-xs font-bold text-rose-500 hover:bg-background" onClick={() => removePage(page.id)} type="button">Удалить</button> : null}
           </div>
         ))}
       </div>
-      <Button className="w-full rounded-2xl" onClick={() => currentNoteId ? addPage(currentNoteId) : null} type="button" variant="secondary">Добавить страницу</Button>
+      <Button className="w-full rounded-2xl" onClick={() => currentNoteId ? addPage() : null} type="button" variant="secondary">Добавить страницу</Button>
     </div>
   );
 }
