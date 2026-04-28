@@ -113,7 +113,7 @@ async function toggleNoteLock(noteId: string) {
       return false;
     }
 
-    patchNote(noteId, { lock: null }, { scheduleAnalysis: false });
+    void patchNote(noteId, { lock: null }, { scheduleAnalysis: false });
     return true;
   }
 
@@ -135,7 +135,7 @@ async function toggleNoteLock(noteId: string) {
   }
 
   const lock = await createNoteLock(password);
-  patchNote(noteId, { lock }, { scheduleAnalysis: false });
+  void patchNote(noteId, { lock }, { scheduleAnalysis: false });
   return true;
 }
 
@@ -171,13 +171,13 @@ function NoteActionSheet() {
   return (
     <div className="mt-4 space-y-4 pb-6">
       <div className="grid gap-2 sm:grid-cols-2">
-        <ActionCard label="Отметить для повторного анализа" onClick={() => patchNote(note.id, { aiStatus: "pending", aiProcessed: false, analyzed: false, aiError: null }, { scheduleAnalysis: false })} />
+        <ActionCard label="Отметить для повторного анализа" onClick={() => void patchNote(note.id, { aiStatus: "pending", aiProcessed: false, analyzed: false, aiError: null }, { scheduleAnalysis: false })} />
         <ActionCard label={note.lock ? "Разблокировать заметку" : "Заблокировать заметку"} onClick={() => void toggleNoteLock(note.id)} />
-        <ActionCard label={note.isArchived ? "Вернуть из архива" : "Архивировать"} onClick={() => setArchived(note.id, !note.isArchived)} />
-        <ActionCard destructive label="Удалить" onClick={() => trashNote(note.id)} />
+        <ActionCard label={note.isArchived ? "Вернуть из архива" : "Архивировать"} onClick={() => void setArchived(note.id, !note.isArchived)} />
+        <ActionCard destructive label="Удалить" onClick={() => void trashNote(note.id)} />
         <ActionCard label="Копировать текст" onClick={() => void copyNoteText(note)} />
         <ActionCard label="Переместить в папку" onClick={() => setFolderPickerOpen((value) => !value)} />
-        <ActionCard label="Напоминание" onClick={() => patchNote(note.id, { reminderAt: note.reminderAt ?? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() }, { scheduleAnalysis: false })} />
+        <ActionCard label="Напоминание" onClick={() => void patchNote(note.id, { reminderAt: note.reminderAt ?? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() }, { scheduleAnalysis: false })} />
         <ActionCard label="Скачать файл для импорта" onClick={() => exportNoteForImport(note)} />
         <ActionCard label="Скачать TXT" onClick={() => exportNoteAsTxt(note)} />
         <ActionCard label="Экспорт PDF" onClick={() => exportNoteAsPdf(note)} />
@@ -187,9 +187,9 @@ function NoteActionSheet() {
         <div className="rounded-[1.5rem] border border-border bg-surface-strong p-4">
           <div className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-foreground/42">Папки</div>
           <div className="grid gap-2 sm:grid-cols-2">
-            <ActionCard label="Без папки" onClick={() => { moveNoteToFolder(note.id, null); setFolderPickerOpen(false); }} />
+            <ActionCard label="Без папки" onClick={() => { void moveNoteToFolder(note.id, null); setFolderPickerOpen(false); }} />
             {visibleFolders.map((folder) => (
-              <ActionCard key={folder.id} label={folder.name} onClick={() => { moveNoteToFolder(note.id, folder.id); setFolderPickerOpen(false); }} />
+              <ActionCard key={folder.id} label={folder.name} onClick={() => { void moveNoteToFolder(note.id, folder.id); setFolderPickerOpen(false); }} />
             ))}
           </div>
         </div>
@@ -225,7 +225,7 @@ function FolderActionList({ activeFolder }: { activeFolder: FolderEntity | null 
       return;
     }
 
-    renameFolder(folder.id, nextName);
+    void renameFolder(folder.id, nextName);
   }
 
   function handleDelete() {
@@ -233,14 +233,14 @@ function FolderActionList({ activeFolder }: { activeFolder: FolderEntity | null 
       return;
     }
 
-    trashFolder(folder.id);
+    void trashFolder(folder.id);
   }
 
   return (
     <div className="mt-4 space-y-2">
       <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" type="button">Поделиться</button>
       <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={handleRename} type="button">Переименовать</button>
-      {folder.isHidden ? <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={() => unhideFolder(folder.id)} type="button">Показать</button> : <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={() => hideFolder(folder.id)} type="button">Скрыть</button>}
+      {folder.isHidden ? <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={() => void unhideFolder(folder.id)} type="button">Показать</button> : <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={() => void hideFolder(folder.id)} type="button">Скрыть</button>}
       <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left text-rose-500 hover:bg-surface-strong" onClick={handleDelete} type="button">Удалить</button>
     </div>
   );
@@ -316,7 +316,7 @@ function LockContent({ onClose }: { onClose: () => void }) {
       return;
     }
 
-    patchNote(noteId, { lock: { ...currentLock, hidden: false } }, { scheduleAnalysis: false });
+    void patchNote(noteId, { lock: { ...currentLock, hidden: false } }, { scheduleAnalysis: false });
     setError(null);
     setPassword("");
     onClose();
@@ -383,7 +383,7 @@ function CreateFolderContent({ onClose }: { onClose: () => void }) {
       return;
     }
 
-    addFolder({ name: normalized, description: null, isHidden: false }, userId);
+    void addFolder({ name: normalized, description: null, isHidden: false }, userId);
     setName("");
     onClose();
   }

@@ -105,7 +105,7 @@ function FoldersGrid({ folders, mode, emptyText, folderViewMode, onOpenFolder }:
             </button>
             <div className="mt-4 flex items-center justify-between gap-3 text-sm text-foreground/56">
               <span>{notesCount} заметок</span>
-              {mode === "hidden" ? <button className="rounded-xl bg-background px-3 py-2 font-bold text-accent" onClick={() => unhideFolder(folder.id)} type="button">Показать</button> : null}
+              {mode === "hidden" ? <button className="rounded-xl bg-background px-3 py-2 font-bold text-accent" onClick={() => void unhideFolder(folder.id)} type="button">Показать</button> : null}
             </div>
           </div>
         );
@@ -126,8 +126,8 @@ function TrashView({ copy, notes, notesPerPage, trashedFolders, onOpenNote, onOp
                 <h3 className="text-base font-black tracking-tight">{folder.name}</h3>
                 <p className="mt-2 text-sm text-foreground/56">{folder.description}</p>
                 <div className="mt-4 flex gap-2">
-                  <button className="rounded-xl bg-background px-3 py-2 text-sm font-bold text-accent" onClick={() => restoreFolder(folder.id)} type="button">{copy.shell.actions.restore}</button>
-                  <button className="rounded-xl bg-background px-3 py-2 text-sm font-bold text-rose-500" onClick={() => permanentlyDeleteFolder(folder.id)} type="button">{copy.shell.actions.delete}</button>
+                  <button className="rounded-xl bg-background px-3 py-2 text-sm font-bold text-accent" onClick={() => void restoreFolder(folder.id)} type="button">{copy.shell.actions.restore}</button>
+                  <button className="rounded-xl bg-background px-3 py-2 text-sm font-bold text-rose-500" onClick={() => void permanentlyDeleteFolder(folder.id)} type="button">{copy.shell.actions.delete}</button>
                 </div>
               </div>
             ))}

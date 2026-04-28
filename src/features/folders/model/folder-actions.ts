@@ -1,5 +1,6 @@
 import type { Folder, FolderDraft } from "@/entities/folder";
-import { enqueueSyncItem } from "@/services/sync/sync-queue";
+
+import { foldersRepository } from "@/features/folders/api/folders-repository";
 
 import { useFoldersStore } from "./folders-store";
 
@@ -36,15 +37,6 @@ function normalizeFolderDescription(description: string | null) {
   return trimmed.slice(0, FOLDER_DESCRIPTION_SOFT_LIMIT);
 }
 
-function queueFolderSync(folderId: string, operation: "create" | "patch" | "delete", payload: unknown) {
-  enqueueSyncItem({
-    id: `${operation}_${folderId}_${Date.now().toString(36)}`,
-    entity: "folder",
-    operation,
-    payload,
-  });
-}
-
 export function createLocalFolder(draft: FolderDraft, ownerId: string, folderOrder: number): Folder {
   const createdAt = nowIso();
 
@@ -63,18 +55,31 @@ export function createLocalFolder(draft: FolderDraft, ownerId: string, folderOrd
   };
 }
 
-export function addFolder(draft: FolderDraft, ownerId: string) {
+export async function addFolder(draft: FolderDraft, ownerId: string) {
   const folders = useFoldersStore.getState().folders;
   const nextOrder = folders.length ? Math.max(...folders.map((folder) => folder.folderOrder)) + 1 : 0;
-  const folder = createLocalFolder(draft, ownerId, nextOrder);
+  const optimisticFolder = createLocalFolder(draft, ownerId, nextOrder);
 
-  useFoldersStore.getState().addFolder(folder);
-  queueFolderSync(folder.id, "create", { folder });
+  useFoldersStore.getState().addFolder(optimisticFolder);
 
-  return folder;
+  try {
+    const folder = await foldersRepository.create(draft, ownerId, nextOrder);
+    useFoldersStore.getState().removeFolder(optimisticFolder.id);
+    useFoldersStore.getState().addFolder(folder);
+    return folder;
+  } catch (error) {
+    useFoldersStore.getState().removeFolder(optimisticFolder.id);
+    throw error;
+  }
 }
 
-export function patchFolder(folderId: string, patch: Partial<Folder>) {
+export async function patchFolder(folderId: string, patch: Partial<Folder>) {
+  const currentFolder = useFoldersStore.getState().folders.find((folder) => folder.id === folderId);
+
+  if (!currentFolder) {
+    return;
+  }
+
   const finalPatch: Partial<Folder> = {
     ...patch,
     ...(patch.name === undefined ? null : { name: normalizeFolderName(patch.name) }),
@@ -83,34 +88,53 @@ export function patchFolder(folderId: string, patch: Partial<Folder>) {
   };
 
   useFoldersStore.getState().patchFolder(folderId, finalPatch);
-  queueFolderSync(folderId, "patch", { folderId, patch: finalPatch });
+
+  try {
+    const updatedFolder = await foldersRepository.patch(folderId, finalPatch);
+    useFoldersStore.getState().patchFolder(folderId, updatedFolder);
+  } catch (error) {
+    useFoldersStore.getState().patchFolder(folderId, currentFolder);
+    throw error;
+  }
 }
 
 export function renameFolder(folderId: string, name: string) {
-  patchFolder(folderId, { name });
+  return patchFolder(folderId, { name });
 }
 
 export function updateFolderDescription(folderId: string, description: string | null) {
-  patchFolder(folderId, { description });
+  return patchFolder(folderId, { description });
 }
 
 export function hideFolder(folderId: string) {
-  patchFolder(folderId, { isHidden: true });
+  return patchFolder(folderId, { isHidden: true });
 }
 
 export function unhideFolder(folderId: string) {
-  patchFolder(folderId, { isHidden: false });
+  return patchFolder(folderId, { isHidden: false });
 }
 
 export function trashFolder(folderId: string) {
-  patchFolder(folderId, { trashedAt: nowIso() });
+  return patchFolder(folderId, { trashedAt: nowIso() });
 }
 
 export function restoreFolder(folderId: string) {
-  patchFolder(folderId, { trashedAt: null });
+  return patchFolder(folderId, { trashedAt: null });
 }
 
-export function permanentlyDeleteFolder(folderId: string) {
+export async function permanentlyDeleteFolder(folderId: string) {
+  const currentFolder = useFoldersStore.getState().folders.find((folder) => folder.id === folderId);
+
+  if (!currentFolder) {
+    return;
+  }
+
   useFoldersStore.getState().removeFolder(folderId);
-  queueFolderSync(folderId, "delete", { folderId });
+
+  try {
+    await foldersRepository.remove(folderId);
+  } catch (error) {
+    useFoldersStore.getState().addFolder(currentFolder);
+    throw error;
+  }
 }

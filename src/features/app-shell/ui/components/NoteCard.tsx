@@ -38,10 +38,10 @@ export function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: NoteC
       <div className="absolute right-3 top-3 z-10 flex items-start gap-1">
         {view === "trash" ? null : (
           <>
-            <button className={`flex h-9 w-9 items-center justify-center rounded-xl bg-surface/92 text-foreground/56 backdrop-blur hover:bg-background ${note.pinned ? "text-accent" : ""}`} onClick={() => togglePinned(note.id)} type="button">
+            <button className={`flex h-9 w-9 items-center justify-center rounded-xl bg-surface/92 text-foreground/56 backdrop-blur hover:bg-background ${note.pinned ? "text-accent" : ""}`} onClick={() => void togglePinned(note.id)} type="button">
               <PinGlyph active={note.pinned} />
             </button>
-            <button className={`flex h-9 w-9 items-center justify-center rounded-xl bg-surface/92 backdrop-blur hover:bg-background ${note.favorite ? "text-rose-500" : "text-foreground/56"}`} onClick={() => toggleFavorite(note.id)} type="button">
+            <button className={`flex h-9 w-9 items-center justify-center rounded-xl bg-surface/92 backdrop-blur hover:bg-background ${note.favorite ? "text-rose-500" : "text-foreground/56"}`} onClick={() => void toggleFavorite(note.id)} type="button">
               <Heart className={`h-4 w-4 ${note.favorite ? "fill-current" : ""}`} />
             </button>
           </>

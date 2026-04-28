@@ -3,60 +3,7 @@ import { createJSONStorage, persist, type StateStorage } from "zustand/middlewar
 
 import type { Folder } from "@/entities/folder";
 
-const starterFolders: Folder[] = [
-  {
-    id: "work",
-    ownerId: "local-user",
-    name: "Работа",
-    description: "Проекты, задачи и рабочие заметки.",
-    isHidden: false,
-    isArchived: false,
-    folderOrder: 0,
-    accessRole: "owner",
-    createdAt: new Date("2026-01-03").toISOString(),
-    updatedAt: new Date("2026-04-26").toISOString(),
-    trashedAt: null,
-  },
-  {
-    id: "ideas",
-    ownerId: "local-user",
-    name: "Идеи продукта",
-    description: "Фичи, гипотезы, концепты и заметки по UX.",
-    isHidden: false,
-    isArchived: false,
-    folderOrder: 1,
-    accessRole: "owner",
-    createdAt: new Date("2026-01-11").toISOString(),
-    updatedAt: new Date("2026-04-26").toISOString(),
-    trashedAt: null,
-  },
-  {
-    id: "study",
-    ownerId: "local-user",
-    name: "Учеба",
-    description: "Материалы, исследования и черновики.",
-    isHidden: false,
-    isArchived: false,
-    folderOrder: 2,
-    accessRole: "owner",
-    createdAt: new Date("2026-02-01").toISOString(),
-    updatedAt: new Date("2026-04-20").toISOString(),
-    trashedAt: null,
-  },
-  {
-    id: "personal",
-    ownerId: "local-user",
-    name: "Личное",
-    description: "Личные записи, планы и напоминания.",
-    isHidden: false,
-    isArchived: false,
-    folderOrder: 3,
-    accessRole: "owner",
-    createdAt: new Date("2026-02-14").toISOString(),
-    updatedAt: new Date("2026-04-18").toISOString(),
-    trashedAt: null,
-  },
-];
+const starterFolders: Folder[] = [];
 
 const memoryStorage: StateStorage = {
   getItem: () => null,

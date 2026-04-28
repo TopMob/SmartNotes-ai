@@ -1,6 +1,6 @@
 import type { MediaDescriptor, Note, NoteDraft, NotePage } from "@/entities/note";
+import { notesRepository } from "@/features/notes/api/notes-repository";
 import { scheduleAiAnalysis } from "@/services/ai/ai-queue";
-import { enqueueSyncItem } from "@/services/sync/sync-queue";
 
 import { useNotesStore } from "./notes-store";
 
@@ -61,15 +61,6 @@ function shouldScheduleAnalysis(patch: Partial<Note>, requested: boolean) {
   return requested && Object.keys(patch).some((field) => analysisFields.has(field as keyof Note));
 }
 
-function queueNoteSync(noteId: string, operation: "create" | "patch" | "delete", payload: unknown) {
-  enqueueSyncItem({
-    id: `${operation}_${noteId}_${Date.now().toString(36)}`,
-    entity: "note",
-    operation,
-    payload,
-  });
-}
-
 export function createLocalNote(draft: NoteDraft, ownerId: string): Note {
   const createdAt = nowIso();
   const firstPage = createInitialPage(draft.content);
@@ -104,18 +95,30 @@ export function createLocalNote(draft: NoteDraft, ownerId: string): Note {
   };
 }
 
-export function addNote(draft: NoteDraft, ownerId: string) {
-  const note = createLocalNote(draft, ownerId);
+export async function addNote(draft: NoteDraft, ownerId: string, optimisticNote = createLocalNote(draft, ownerId)) {
 
-  useNotesStore.getState().addNote(note);
-  queueNoteSync(note.id, "create", { note });
-  scheduleAiAnalysis(note.id);
+  useNotesStore.getState().addNote(optimisticNote);
+  scheduleAiAnalysis(optimisticNote.id);
 
-  return note;
+  try {
+    const note = await notesRepository.create(optimisticNote);
+    useNotesStore.getState().removeNote(optimisticNote.id);
+    useNotesStore.getState().addNote(note);
+    return note;
+  } catch (error) {
+    useNotesStore.getState().removeNote(optimisticNote.id);
+    throw error;
+  }
 }
 
-export function patchNote(noteId: string, patch: Partial<Note>, options: NotePatchOptions = {}) {
+export async function patchNote(noteId: string, patch: Partial<Note>, options: NotePatchOptions = {}) {
   const { queueSync = true, scheduleAnalysis = true } = options;
+  const currentNote = useNotesStore.getState().notes.find((item) => item.id === noteId);
+
+  if (!currentNote) {
+    return;
+  }
+
   const analysisPending = shouldScheduleAnalysis(patch, scheduleAnalysis);
   const finalPatch: Partial<Note> = {
     ...patch,
@@ -133,7 +136,13 @@ export function patchNote(noteId: string, patch: Partial<Note>, options: NotePat
   useNotesStore.getState().patchNote(noteId, finalPatch);
 
   if (queueSync) {
-    queueNoteSync(noteId, "patch", { noteId, patch: finalPatch });
+    try {
+      const updatedNote = await notesRepository.patch(noteId, finalPatch);
+      useNotesStore.getState().patchNote(noteId, updatedNote);
+    } catch (error) {
+      useNotesStore.getState().patchNote(noteId, currentNote);
+      throw error;
+    }
   }
 
   if (analysisPending) {
@@ -142,16 +151,28 @@ export function patchNote(noteId: string, patch: Partial<Note>, options: NotePat
 }
 
 export function trashNote(noteId: string) {
-  patchNote(noteId, { trashedAt: nowIso() }, { scheduleAnalysis: false });
+  return patchNote(noteId, { trashedAt: nowIso() }, { scheduleAnalysis: false });
 }
 
 export function restoreNote(noteId: string) {
-  patchNote(noteId, { trashedAt: null }, { scheduleAnalysis: false });
+  return patchNote(noteId, { trashedAt: null }, { scheduleAnalysis: false });
 }
 
-export function permanentlyDeleteNote(noteId: string) {
+export async function permanentlyDeleteNote(noteId: string) {
+  const currentNote = useNotesStore.getState().notes.find((item) => item.id === noteId);
+
+  if (!currentNote) {
+    return;
+  }
+
   useNotesStore.getState().removeNote(noteId);
-  queueNoteSync(noteId, "delete", { noteId });
+
+  try {
+    await notesRepository.remove(noteId);
+  } catch (error) {
+    useNotesStore.getState().addNote(currentNote);
+    throw error;
+  }
 }
 
 export function togglePinned(noteId: string) {
@@ -161,7 +182,7 @@ export function togglePinned(noteId: string) {
     return;
   }
 
-  patchNote(noteId, { pinned: !note.pinned }, { scheduleAnalysis: false });
+  return patchNote(noteId, { pinned: !note.pinned }, { scheduleAnalysis: false });
 }
 
 export function toggleFavorite(noteId: string) {
@@ -171,19 +192,19 @@ export function toggleFavorite(noteId: string) {
     return;
   }
 
-  patchNote(noteId, { favorite: !note.favorite }, { scheduleAnalysis: false });
+  return patchNote(noteId, { favorite: !note.favorite }, { scheduleAnalysis: false });
 }
 
 export function setArchived(noteId: string, isArchived: boolean) {
-  patchNote(noteId, { isArchived }, { scheduleAnalysis: false });
+  return patchNote(noteId, { isArchived }, { scheduleAnalysis: false });
 }
 
 export function setReminder(noteId: string, reminderAt: string | null) {
-  patchNote(noteId, { reminderAt }, { scheduleAnalysis: false });
+  return patchNote(noteId, { reminderAt }, { scheduleAnalysis: false });
 }
 
 export function moveNoteToFolder(noteId: string, folderId: string | null) {
-  patchNote(noteId, { folderId }, { scheduleAnalysis: false });
+  return patchNote(noteId, { folderId }, { scheduleAnalysis: false });
 }
 
 export function addPage(noteId: string, title?: string) {
@@ -202,7 +223,7 @@ export function addPage(noteId: string, title?: string) {
   };
   const pages = [...note.pages, page];
 
-  patchNote(noteId, { pages, content: mergeContentFromPages(pages) });
+  void patchNote(noteId, { pages, content: mergeContentFromPages(pages) });
 
   return page;
 }
@@ -225,7 +246,7 @@ export function updatePage(noteId: string, pageId: string, patch: NotePagePatch)
   );
   const contentPatch = patch.content === undefined ? null : { content: mergeContentFromPages(pages) };
 
-  patchNote(noteId, { pages, ...contentPatch });
+  void patchNote(noteId, { pages, ...contentPatch });
 }
 
 export function deletePage(noteId: string, pageId: string) {
@@ -237,7 +258,7 @@ export function deletePage(noteId: string, pageId: string) {
 
   const pages = note.pages.filter((page) => page.id !== pageId);
 
-  patchNote(noteId, { pages, content: mergeContentFromPages(pages) });
+  void patchNote(noteId, { pages, content: mergeContentFromPages(pages) });
 
   return true;
 }
@@ -249,5 +270,5 @@ export function attachMedia(noteId: string, media: MediaDescriptor) {
     return;
   }
 
-  patchNote(noteId, { media: [...note.media, media] });
+  void patchNote(noteId, { media: [...note.media, media] });
 }

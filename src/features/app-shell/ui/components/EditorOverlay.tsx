@@ -107,7 +107,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
 
   function handleTitleChange(value: string) {
     const nextTitle = value || currentPage.title || "Untitled note";
-    patchNote(note.id, { title: nextTitle }, { scheduleAnalysis: false });
+    void patchNote(note.id, { title: nextTitle }, { scheduleAnalysis: false });
     syncDirtyState(
       serializeEditorSnapshot({
         ...note,
@@ -118,7 +118,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
 
   function handleTagsBlur(value: string) {
     const tags = value.split(",").map((tag) => tag.trim()).filter(Boolean);
-    patchNote(note.id, { userTags: tags }, { scheduleAnalysis: false });
+    void patchNote(note.id, { userTags: tags }, { scheduleAnalysis: false });
     syncDirtyState(
       serializeEditorSnapshot({
         ...note,

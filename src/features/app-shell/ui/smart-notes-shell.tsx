@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { Folder as FolderEntity } from "@/entities/folder";
 import { useAuthStore } from "@/features/auth/model/auth-store";
-import { addNote } from "@/features/notes/model/note-actions";
+import { addNote, createLocalNote } from "@/features/notes/model/note-actions";
 import { selectVisibleNotes } from "@/features/notes/model/note-selectors";
 import { useFoldersStore } from "@/features/folders/model/folders-store";
 import { useNotesStore } from "@/features/notes/model/notes-store";
@@ -200,7 +200,8 @@ export function SmartNotesShell() {
   }
 
   function createNoteDraft() {
-    const note = addNote({ title: "", content: "", folderId: activeFolderId, userTags: [] }, authUser?.id ?? "local-user");
+    const note = createLocalNote({ title: "", content: "", folderId: activeFolderId, userTags: [] }, authUser?.id ?? "local-user");
+    void addNote({ title: "", content: "", folderId: activeFolderId, userTags: [] }, authUser?.id ?? "local-user", note);
     setCurrentNoteId(note.id);
     setEditorOpen(true);
   }

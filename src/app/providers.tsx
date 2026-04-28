@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 
+import { DataBootstrap } from "@/features/bootstrap/ui/data-bootstrap";
 import { PwaRegister } from "./pwa-register";
 import { AuthProvider } from "@/features/auth/ui/auth-provider";
 import { useThemeStore } from "@/shared/store/theme-store";
@@ -50,9 +51,11 @@ export function AppProviders({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <PwaRegister />
-        <ThemeBridge />
-        {children}
+        <DataBootstrap>
+          <PwaRegister />
+          <ThemeBridge />
+          {children}
+        </DataBootstrap>
       </AuthProvider>
     </QueryClientProvider>
   );
