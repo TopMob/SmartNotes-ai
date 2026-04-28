@@ -3,6 +3,7 @@ type EventMap = {
   syncQueued: { entity: "note" | "folder" | "settings"; id: string };
   syncFailed: { message: string };
   feedbackSubmitted: { rating: number };
+  noteImported: { noteId: string; title: string };
 };
 
 type EventName = keyof EventMap;

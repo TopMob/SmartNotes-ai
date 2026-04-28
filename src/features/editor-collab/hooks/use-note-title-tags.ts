@@ -2,10 +2,12 @@
 
 import * as Y from "yjs";
 
+import { NOTE_COLLAB_ROOT_KEY } from "@/features/editor-collab/lib/note-collab-constants";
+
 import { useNoteCollabSession, useNoteCollabSnapshot } from "./use-note-collab-session";
 
 function getRoot(doc: Y.Doc) {
-  return doc.getMap<unknown>("note");
+  return doc.getMap<unknown>(NOTE_COLLAB_ROOT_KEY);
 }
 
 function getTitle(doc: Y.Doc) {

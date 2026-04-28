@@ -2,11 +2,25 @@
 
 import * as Y from "yjs";
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { normalizeNotePatch } from "@/features/notes/lib/note-utils";
 
 import type { Note } from "@/entities/note";
-import { applyNoteToYDoc, createYDocFromNote, readNoteSnapshotFromYDoc, type YNoteDocSnapshot } from "@/features/editor-collab/model/yjs-note-doc";
+import { createNoteCollabChannel } from "@/features/editor-collab/api/create-note-collab-channel";
+import { bindYjsSupabaseChannel } from "@/features/editor-collab/lib/bind-yjs-supabase-channel";
+import { createNoteIndexeddbProvider } from "@/features/editor-collab/lib/create-note-indexeddb-provider";
+import { applyNoteToYDoc, buildDurableNotePatchFromYDoc, createEmptyYNoteDoc, readNoteSnapshotFromYDoc, type YNoteDocSnapshot } from "@/features/editor-collab/model/yjs-note-doc";
+import type { IndexeddbPersistence } from "y-indexeddb";
+import type { RealtimeChannel } from "@supabase/supabase-js";
+import { clearCollabDiagnostic, setCollabDiagnostic } from "@/services/diagnostics/runtime-diagnostics";
 
 type NoteCollabStatus = "hydrating" | "ready" | "error";
+
+type DurableState = {
+  isSaving: boolean;
+  lastSavedAt: number | null;
+  error: Error | null;
+  hasUnsavedChanges: boolean;
+};
 
 type NoteCollabSessionValue = {
   doc: Y.Doc;
@@ -14,6 +28,9 @@ type NoteCollabSessionValue = {
   status: NoteCollabStatus;
   error: Error | null;
   hydratedFromQuery: boolean;
+  querySnapshotSerialized: string;
+  durableState: DurableState;
+  setDurableState: React.Dispatch<React.SetStateAction<DurableState>>;
 };
 
 const NoteCollabSessionContext = createContext<NoteCollabSessionValue | null>(null);
@@ -24,18 +41,28 @@ type NoteCollabProviderProps = {
 };
 
 export function NoteCollabSessionProvider({ note, children }: NoteCollabProviderProps) {
-  const sessionRef = useRef<{ noteId: string; doc: Y.Doc } | null>(null);
+  const sessionRef = useRef<{ noteId: string; doc: Y.Doc } | null>({
+    noteId: note.id,
+    doc: createEmptyYNoteDoc(),
+  });
+  const indexeddbRef = useRef<IndexeddbPersistence | null>(null);
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const transportRef = useRef<{ destroy: () => void } | null>(null);
+  const didHydrateFromQueryRef = useRef(false);
   const [status, setStatus] = useState<NoteCollabStatus>("hydrating");
   const [error, setError] = useState<Error | null>(null);
   const [hydratedFromQuery, setHydratedFromQuery] = useState(false);
-
-  if (!sessionRef.current || sessionRef.current.noteId !== note.id) {
-    sessionRef.current?.doc.destroy();
-    sessionRef.current = {
-      noteId: note.id,
-      doc: createYDocFromNote(note),
-    };
-  }
+  const [durableState, setDurableState] = useState<DurableState>({
+    isSaving: false,
+    lastSavedAt: null,
+    error: null,
+    hasUnsavedChanges: false,
+  });
+  const querySnapshotSerialized = useMemo(() => {
+    const doc = createEmptyYNoteDoc();
+    applyNoteToYDoc(doc, note);
+    return JSON.stringify(normalizeNotePatch(buildDurableNotePatchFromYDoc(doc), { scheduleAnalysis: false }));
+  }, [note]);
 
   useEffect(() => {
     const session = sessionRef.current;
@@ -44,18 +71,95 @@ export function NoteCollabSessionProvider({ note, children }: NoteCollabProvider
       return;
     }
 
+    let indexeddb: IndexeddbPersistence | null = null;
+    let channel: RealtimeChannel | null = null;
+
     try {
-      applyNoteToYDoc(session.doc, note);
-      setHydratedFromQuery(true);
-      setStatus("ready");
-      setError(null);
+      indexeddb = createNoteIndexeddbProvider(note.id, session.doc);
+      indexeddbRef.current = indexeddb;
+      channel = createNoteCollabChannel(note.id);
+      channelRef.current = channel;
+      transportRef.current = bindYjsSupabaseChannel({ noteId: note.id, channel, doc: session.doc });
+      setCollabDiagnostic(note.id, {
+        status: "hydrating",
+        hydratedFromQuery: false,
+        transport: "connected",
+        persistence: "idle",
+        durable: "idle",
+        message: "Started local persistence and realtime transport.",
+      });
     } catch (cause) {
       setStatus("error");
-      setError(cause instanceof Error ? cause : new Error("Failed to hydrate collaborative note session."));
+      setError(cause instanceof Error ? cause : new Error("Failed to initialize collaborative note session."));
+      setCollabDiagnostic(note.id, {
+        status: "error",
+        hydratedFromQuery: false,
+        transport: "error",
+        persistence: "error",
+        durable: "error",
+        message: cause instanceof Error ? cause.message : "Failed to initialize collaborative note session.",
+      });
+      return;
     }
-  }, [note]);
+
+    let cancelled = false;
+
+    void indexeddb.whenSynced.then(() => {
+      if (cancelled || didHydrateFromQueryRef.current) {
+        return;
+      }
+
+      try {
+        const indexedSnapshot = readNoteSnapshotFromYDoc(session.doc);
+        const hasIndexedPages = indexedSnapshot.pages.some((page) => Boolean(page.content) || page.title !== "Page 1" || page.drawingDataUrl !== null || page.drawingRevision !== 0);
+
+        if (!hasIndexedPages) {
+          applyNoteToYDoc(session.doc, note);
+        }
+
+        didHydrateFromQueryRef.current = true;
+        setHydratedFromQuery(true);
+        setStatus("ready");
+        setError(null);
+        setCollabDiagnostic(note.id, {
+          status: "ready",
+          hydratedFromQuery: true,
+          transport: "connected",
+          persistence: "synced",
+          durable: durableState.error ? "error" : durableState.isSaving ? "saving" : durableState.lastSavedAt ? "saved" : "idle",
+          message: hasIndexedPages ? "Restored local IndexedDB snapshot." : "Hydrated note session from durable query snapshot.",
+        });
+      } catch (cause) {
+        setStatus("error");
+        setError(cause instanceof Error ? cause : new Error("Failed to hydrate collaborative note session."));
+        setCollabDiagnostic(note.id, {
+          status: "error",
+          hydratedFromQuery: false,
+          transport: "connected",
+          persistence: "error",
+          durable: "error",
+          message: cause instanceof Error ? cause.message : "Failed to hydrate collaborative note session.",
+        });
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      transportRef.current?.destroy();
+      transportRef.current = null;
+      channelRef.current = null;
+      indexeddbRef.current?.destroy();
+      indexeddbRef.current = null;
+      clearCollabDiagnostic(note.id);
+    };
+  }, [note.id]);
 
   useEffect(() => () => {
+    transportRef.current?.destroy();
+    transportRef.current = null;
+    channelRef.current = null;
+    indexeddbRef.current?.destroy();
+    indexeddbRef.current = null;
     sessionRef.current?.doc.destroy();
     sessionRef.current = null;
   }, []);
@@ -73,8 +177,11 @@ export function NoteCollabSessionProvider({ note, children }: NoteCollabProvider
       status,
       error,
       hydratedFromQuery,
+      querySnapshotSerialized,
+      durableState,
+      setDurableState,
     };
-  }, [error, hydratedFromQuery, status]);
+  }, [durableState, error, hydratedFromQuery, querySnapshotSerialized, status]);
 
   return <NoteCollabSessionContext.Provider value={value}>{children}</NoteCollabSessionContext.Provider>;
 }

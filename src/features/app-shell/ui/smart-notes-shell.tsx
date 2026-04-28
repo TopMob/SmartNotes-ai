@@ -279,7 +279,7 @@ export function SmartNotesShell() {
       </button>
 
       {editorOpen && currentNote ? (
-        <NoteCollabSessionProvider note={currentNote}>
+        <NoteCollabSessionProvider key={currentNote.id} note={currentNote}>
           <EditorOverlay note={currentNote} onClose={closeEditor} onOpenSheet={openSheet} toolbarVisible={toolbarVisible} setToolbarVisible={setToolbarVisible} />
           <BottomSheet activeFolder={activeFolder} editorDirty={editorDirty} isDesktop={isDesktop} sheet={sheet} onClose={() => setSheet(null)} />
         </NoteCollabSessionProvider>

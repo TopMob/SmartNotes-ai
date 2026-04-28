@@ -27,6 +27,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tailwind-merge": "latest",
+    "y-indexeddb": "^9.0.12",
     "yjs": "latest",
     "zustand": "latest"
   },

@@ -1,9 +1,9 @@
 import * as Y from "yjs";
 
 import type { Note, NotePage } from "@/entities/note";
+import { NOTE_COLLAB_ROOT_KEY } from "@/features/editor-collab/lib/note-collab-constants";
 import { createInitialPage, mergeContentFromPages, trimPageTitle } from "@/features/notes/lib/note-utils";
 
-const ROOT_KEY = "note";
 const USER_TAGS_KEY = "userTags";
 const PAGES_KEY = "pages";
 const PAGE_CONTENT_KEY = "content";
@@ -45,7 +45,7 @@ function setYText(target: Y.Text, value: string) {
 }
 
 function getRoot(doc: Y.Doc) {
-  return doc.getMap<unknown>(ROOT_KEY);
+  return doc.getMap<unknown>(NOTE_COLLAB_ROOT_KEY);
 }
 
 function getOrCreateTags(root: Y.Map<unknown>) {
@@ -175,6 +175,12 @@ export function applyNoteToYDoc(doc: Y.Doc, note: Pick<Note, "id" | "title" | "f
 export function createYDocFromNote(note: Pick<Note, "id" | "title" | "folderId" | "userTags" | "content" | "pages">) {
   const doc = new Y.Doc();
   return applyNoteToYDoc(doc, note);
+}
+
+export function createEmptyYNoteDoc() {
+  const doc = new Y.Doc();
+  ensureYNoteDoc(doc);
+  return doc;
 }
 
 export function readNoteSnapshotFromYDoc(doc: Y.Doc): YNoteDocSnapshot {

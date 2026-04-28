@@ -8,6 +8,7 @@ import { useFoldersQuery } from "@/features/folders/hooks/use-folders-query";
 import { selectPinnedGroups } from "@/features/notes/model/note-selectors";
 import { useNotesQuery } from "@/features/notes/hooks/use-notes-query";
 import { listPendingAiAnalysis } from "@/services/ai/ai-queue";
+import { listCollabDiagnostics, getMediaDiagnostic } from "@/services/diagnostics/runtime-diagnostics";
 import { listSyncQueue } from "@/services/sync/sync-queue";
 import { getUiCopy } from "@/shared/lib/i18n";
 import type { AppView } from "@/shared/store/ui-store";
@@ -197,6 +198,8 @@ function AdminToolsView({ notes }: { notes: Note[] }) {
   const analyzing = notes.filter((note) => note.aiStatus === "analyzing").length;
   const queued = listPendingAiAnalysis().length;
   const syncBacklog = listSyncQueue().length;
+  const collabSessions = listCollabDiagnostics().length;
+  const mediaDiagnostic = getMediaDiagnostic();
 
   return (
     <div className="grid gap-4 p-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -204,6 +207,8 @@ function AdminToolsView({ notes }: { notes: Note[] }) {
         { title: "AI pending / queued", value: `${pending} / ${queued}`, icon: Brain },
         { title: "AI analyzing / errors", value: `${analyzing} / ${failed}`, icon: Shield },
         { title: "Sync backlog", value: syncBacklog, icon: RotateCcw },
+        { title: "Collab sessions", value: collabSessions, icon: Sparkles },
+        { title: "Media mode", value: mediaDiagnostic.degraded ? "degraded" : mediaDiagnostic.provider, icon: Folder },
       ].map((card) => {
         const Icon = card.icon;
 

@@ -20,7 +20,7 @@ export type NotePage = {
 
 export type MediaDescriptor = {
   id: string;
-  provider: "google-drive";
+  provider: "google-drive" | "local-inline";
   fileId: string;
   url: string | null;
   mimeType: string;

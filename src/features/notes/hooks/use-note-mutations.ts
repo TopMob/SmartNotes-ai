@@ -16,6 +16,8 @@ import {
   nowIso,
   type NotePagePatch,
 } from "@/features/notes/lib/note-utils";
+import { enqueueSyncItem } from "@/services/sync/sync-queue";
+import { publish } from "@/services/event-bus";
 import { queryKeys } from "@/shared/lib/react-query/query-keys";
 
 type NotesSnapshot = { previousNotes: Note[] | undefined };
@@ -54,6 +56,9 @@ export function useCreateNoteMutation() {
 
       queryClient.setQueryData(queryKeys.notes(userId), context.previousNotes);
     },
+    onSuccess: (note) => {
+      enqueueSyncItem({ id: note.id, entity: "note", operation: "create", payload: { noteId: note.id } });
+    },
     onSettled: () => {
       if (!userId) {
         return;
@@ -85,12 +90,16 @@ export function useUpdateNoteMutation() {
 
       return { previousNotes } satisfies NotesSnapshot;
     },
-    onError: (_error, _variables, context) => {
+    onError: (error, _variables, context) => {
       if (!userId || !context) {
         return;
       }
 
+      publish("syncFailed", { message: error instanceof Error ? error.message : "Failed to update note." });
       queryClient.setQueryData(queryKeys.notes(userId), context.previousNotes);
+    },
+    onSuccess: (_note, { noteId, patch }) => {
+      enqueueSyncItem({ id: noteId, entity: "note", operation: "patch", payload: patch });
     },
     onSettled: () => {
       if (!userId) {
@@ -134,6 +143,9 @@ export function useDeleteNoteMutation() {
       }
 
       void queryClient.invalidateQueries({ queryKey: queryKeys.notes(userId) });
+    },
+    onSuccess: (_data, noteId) => {
+      enqueueSyncItem({ id: noteId, entity: "note", operation: "delete", payload: null });
     },
   });
 }

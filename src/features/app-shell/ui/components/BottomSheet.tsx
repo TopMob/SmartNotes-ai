@@ -11,10 +11,15 @@ import { useFoldersQuery } from "@/features/folders/hooks/use-folders-query";
 import { createNoteLock, verifyNoteLock } from "@/features/lock-center/lib/lock-service";
 import { useNoteActions } from "@/features/notes/hooks/use-note-mutations";
 import { useNotesQuery } from "@/features/notes/hooks/use-notes-query";
+import { parseImportedNoteFile } from "@/features/notes/lib/note-import";
 import { useNoteUiStore } from "@/features/notes/model/note-ui-store";
 import { useSettingsQuery } from "@/features/settings/hooks/use-settings-query";
+import { getMediaDiagnostic, listCollabDiagnostics } from "@/services/diagnostics/runtime-diagnostics";
+import { publish } from "@/services/event-bus";
 import { requestNotificationPermission } from "@/services/notifications/notification-service";
 import { scheduleReminder } from "@/services/reminders/reminder-service";
+import { listPendingAiAnalysis } from "@/services/ai/ai-queue";
+import { listSyncQueue } from "@/services/sync/sync-queue";
 import { getUiCopy } from "@/shared/lib/i18n";
 import { Button } from "@/shared/ui/button";
 
@@ -352,12 +357,52 @@ function LockContent({ onClose }: { onClose: () => void }) {
 }
 
 function AboutContent() {
+  const { createNote } = useNoteActions();
   const { data: settings } = useSettingsQuery();
   const lang = settings?.lang ?? "ru";
   const copy = getUiCopy(lang);
   const [tab, setTab] = useState<"about" | "rate">("about");
   const [rating, setRating] = useState(5);
   const [feedback, setFeedback] = useState("");
+  const userId = useAuthStore((state) => state.user?.id ?? "local-user");
+
+  async function handleImportNote() {
+    const picker = document.createElement("input");
+    picker.type = "file";
+    picker.accept = ".json,application/json";
+    picker.onchange = async () => {
+      const file = picker.files?.[0];
+
+      if (!file) {
+        return;
+      }
+
+      try {
+        const text = await file.text();
+        const importedNote = parseImportedNoteFile(text, userId);
+        await createNote(
+          {
+            title: importedNote.title,
+            content: importedNote.content,
+            folderId: importedNote.folderId,
+            userTags: importedNote.userTags,
+          },
+          userId,
+          importedNote,
+        );
+        publish("noteImported", { noteId: importedNote.id, title: importedNote.title });
+      } catch (error) {
+        window.alert(error instanceof Error ? error.message : "Не удалось импортировать заметку.");
+      }
+    };
+    picker.click();
+  }
+
+  function handleFeedbackSubmit() {
+    publish("feedbackSubmitted", { rating });
+    window.alert("Спасибо за обратную связь!");
+    setFeedback("");
+  }
 
   return (
     <div className="mt-5 grid gap-4">
@@ -378,6 +423,7 @@ function AboutContent() {
           </ul>
           <h3 className="mt-3 text-2xl font-black">Обратная связь</h3>
           <a className="mt-4 inline-flex font-black text-accent hover:underline" href="https://t.me/SmartNotesInfo_bot" rel="noreferrer" target="_blank">@SmartNotesInfo_bot</a>
+          <Button className="mt-4 w-full rounded-2xl" onClick={() => void handleImportNote()} type="button" variant="secondary">Импортировать заметку из JSON</Button>
         </section>
       ) : (
         <section className="rounded-[1.5rem] border border-border bg-surface-strong p-5">
@@ -390,7 +436,7 @@ function AboutContent() {
             ))}
           </div>
           <textarea className="mt-4 min-h-32 w-full rounded-2xl border border-border bg-background p-4 text-sm outline-none" onChange={(event) => setFeedback(event.target.value)} placeholder="Feedback, пояснение" value={feedback} />
-          <Button className="mt-4 w-full rounded-2xl" type="button">Отправить</Button>
+          <Button className="mt-4 w-full rounded-2xl" onClick={handleFeedbackSubmit} type="button">Отправить</Button>
         </section>
       )}
     </div>
@@ -438,4 +484,45 @@ function ReminderContent({ onClose }: { onClose: () => void }) {
   }
 
   return <div className="mt-4 space-y-3"><input className="h-10 w-full rounded-2xl border border-border bg-surface-strong px-4 outline-none sm:h-12" onChange={(event) => setValue(event.target.value)} type="datetime-local" value={value} /><div className="grid grid-cols-2 gap-2"><Button className="h-10 rounded-2xl sm:h-11" disabled={!value} onClick={async () => { const reminderAt = new Date(value).toISOString(); await setReminder(currentNoteId, reminderAt); scheduleReminder(currentNoteId, reminderAt); await requestNotificationPermission(); onClose(); }} type="button">Сохранить</Button><Button className="h-10 rounded-2xl sm:h-11" onClick={() => { void setReminder(currentNoteId, null); scheduleReminder(currentNoteId, null); onClose(); }} type="button" variant="secondary">Очистить</Button></div></div>;
+}
+
+export function DiagnosticsContent() {
+  const collabDiagnostics = listCollabDiagnostics();
+  const mediaDiagnostic = getMediaDiagnostic();
+  const syncQueue = listSyncQueue();
+  const aiQueue = listPendingAiAnalysis();
+
+  return (
+    <div className="mt-4 space-y-4">
+      <section className="rounded-[1.5rem] border border-border bg-surface-strong p-4">
+        <div className="text-xs font-black uppercase tracking-[0.18em] text-foreground/42">Runtime Diagnostics</div>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <div className="rounded-2xl bg-background px-4 py-3 text-sm font-semibold text-foreground/72">Active collab sessions: {collabDiagnostics.length}</div>
+          <div className="rounded-2xl bg-background px-4 py-3 text-sm font-semibold text-foreground/72">Sync backlog: {syncQueue.length}</div>
+          <div className="rounded-2xl bg-background px-4 py-3 text-sm font-semibold text-foreground/72">AI queue: {aiQueue.length}</div>
+          <div className="rounded-2xl bg-background px-4 py-3 text-sm font-semibold text-foreground/72">Media mode: {mediaDiagnostic.provider}{mediaDiagnostic.degraded ? " (degraded)" : ""}</div>
+        </div>
+      </section>
+
+      {collabDiagnostics.map((diagnostic) => (
+        <section className="rounded-[1.5rem] border border-border bg-surface-strong p-4" key={diagnostic.noteId}>
+          <div className="text-sm font-black">{diagnostic.noteId}</div>
+          <div className="mt-2 grid gap-2 text-sm text-foreground/64 sm:grid-cols-2">
+            <div>Status: {diagnostic.status}</div>
+            <div>Transport: {diagnostic.transport}</div>
+            <div>Persistence: {diagnostic.persistence}</div>
+            <div>Durable: {diagnostic.durable}</div>
+            <div>Hydrated: {diagnostic.hydratedFromQuery ? "yes" : "no"}</div>
+            <div>Updated: {new Date(diagnostic.updatedAt).toLocaleString("ru-RU")}</div>
+          </div>
+          {diagnostic.message ? <p className="mt-2 text-sm text-foreground/56">{diagnostic.message}</p> : null}
+        </section>
+      ))}
+
+      <section className="rounded-[1.5rem] border border-border bg-surface-strong p-4">
+        <div className="text-sm font-black">Media</div>
+        <p className="mt-2 text-sm text-foreground/56">{mediaDiagnostic.message}</p>
+      </section>
+    </div>
+  );
 }

@@ -3,12 +3,13 @@
 import * as Y from "yjs";
 
 import type { NotePage } from "@/entities/note";
+import { NOTE_COLLAB_ROOT_KEY } from "@/features/editor-collab/lib/note-collab-constants";
 import { createInitialPage, createId, trimPageTitle } from "@/features/notes/lib/note-utils";
 
 import { useNoteCollabSession, useNoteCollabSnapshot } from "./use-note-collab-session";
 
 function getPages(doc: Y.Doc) {
-  const root = doc.getMap<unknown>("note");
+  const root = doc.getMap<unknown>(NOTE_COLLAB_ROOT_KEY);
   const pages = root.get("pages");
 
   if (!(pages instanceof Y.Array)) {
