@@ -31,8 +31,18 @@ const themePresets = ["paper", "smarthub", "smartlib", "cyber", "lego", "classic
 export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState<(typeof sections)[number]["id"]>("appearance");
   const [presetName, setPresetName] = useState("");
-  const { data: settings } = useSettingsQuery();
+  const { data: settings, isLoading, error } = useSettingsQuery();
   const { patchSettings, resetSettings } = useSettingsActions();
+
+  if (isLoading) {
+    return (
+      <main className="min-h-screen px-4 py-4 sm:px-6 lg:p-6">
+        <div className="mx-auto max-w-3xl rounded-[1.6rem] border border-border bg-surface p-6 text-sm text-foreground/64 shadow-2xl shadow-violet-950/8 backdrop-blur-2xl">
+          Загрузка настроек...
+        </div>
+      </main>
+    );
+  }
 
   const lang = settings?.lang ?? "ru";
   const copy = getUiCopy(lang);
@@ -59,7 +69,16 @@ export default function SettingsPage() {
   );
 
   if (!settings) {
-    return null;
+    return (
+      <main className="min-h-screen px-4 py-4 sm:px-6 lg:p-6">
+        <div className="mx-auto max-w-3xl rounded-[1.6rem] border border-border bg-surface p-6 shadow-2xl shadow-violet-950/8 backdrop-blur-2xl">
+          <h1 className="text-xl font-black">{copy.settings.title}</h1>
+          <p className="mt-2 text-sm text-foreground/64">
+            {error instanceof Error ? error.message : "Не удалось загрузить настройки."}
+          </p>
+        </div>
+      </main>
+    );
   }
 
   const settingsData = settings;

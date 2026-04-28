@@ -20,7 +20,7 @@ export const settingsRepository: SettingsRepository = {
     const { data, error } = await supabase.from("user_settings").select("*").eq("id", userId).maybeSingle();
 
     if (error) {
-      throw error;
+      return localSettingsRepository.get(userId);
     }
 
     if (data) {
@@ -30,7 +30,7 @@ export const settingsRepository: SettingsRepository = {
     const { data: inserted, error: insertError } = await supabase.from("user_settings").insert(mapSettingsInsert(userId)).select("*").single();
 
     if (insertError) {
-      throw insertError;
+      return localSettingsRepository.get(userId);
     }
 
     return mapSettingsRow(inserted);
@@ -50,7 +50,7 @@ export const settingsRepository: SettingsRepository = {
       .single();
 
     if (error) {
-      throw error;
+      return localSettingsRepository.patch(userId, patch);
     }
 
     return mapSettingsRow(data);

@@ -8,11 +8,11 @@ import { queryKeys } from "@/shared/lib/react-query/query-keys";
 
 export function useFoldersQuery() {
   const authStatus = useAuthStore((state) => state.status);
-  const userId = useAuthStore((state) => state.user?.id ?? null);
+  const userId = useAuthStore((state) => state.user?.id ?? "local-user");
 
   return useQuery({
-    queryKey: userId ? queryKeys.folders(userId) : ["folders", "anonymous"],
+    queryKey: queryKeys.folders(userId),
     queryFn: () => foldersRepository.list(),
-    enabled: (authStatus === "authenticated" || authStatus === "degraded") && !!userId,
+    enabled: authStatus !== "loading",
   });
 }

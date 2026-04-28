@@ -22,15 +22,11 @@ function normalizeSettingsPatch(patch: UserSettingsPatch): UserSettingsPatch {
 
 export function useUpdateSettingsMutation() {
   const queryClient = useQueryClient();
-  const userId = useAuthStore((state) => state.user?.id ?? null);
+  const userId = useAuthStore((state) => state.user?.id ?? "local-user");
 
   return useMutation({
-    mutationFn: async (patch: UserSettingsPatch) => settingsRepository.patch(userId!, normalizeSettingsPatch(patch)),
+    mutationFn: async (patch: UserSettingsPatch) => settingsRepository.patch(userId, normalizeSettingsPatch(patch)),
     onMutate: async (patch) => {
-      if (!userId) {
-        return { previousSettings: undefined } satisfies SettingsSnapshot;
-      }
-
       const queryKey = queryKeys.settings(userId);
       await queryClient.cancelQueries({ queryKey });
       const previousSettings = queryClient.getQueryData<UserSettings>(queryKey);
@@ -48,17 +44,13 @@ export function useUpdateSettingsMutation() {
       return { previousSettings } satisfies SettingsSnapshot;
     },
     onError: (_error, _variables, context) => {
-      if (!userId || !context) {
+      if (!context) {
         return;
       }
 
       queryClient.setQueryData(queryKeys.settings(userId), context.previousSettings);
     },
     onSettled: () => {
-      if (!userId) {
-        return;
-      }
-
       void queryClient.invalidateQueries({ queryKey: queryKeys.settings(userId) });
     },
   });
