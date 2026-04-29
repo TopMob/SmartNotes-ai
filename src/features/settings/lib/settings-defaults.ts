@@ -55,6 +55,14 @@ export function normalizeSettings(settings: UserSettings): UserSettings {
     notesPerPage: normalizeNotesPerPage(settings.notesPerPage),
     uiOpacity: clampOpacity(settings.uiOpacity),
     cardsOpacity: clampOpacity(settings.cardsOpacity),
-    customPresets: settings.customPresets.slice(0, 6),
+    customPresets: Array.isArray(settings.customPresets) ? settings.customPresets.slice(0, 6) : [],
+    editor: {
+      ...DEFAULT_EDITOR_SETTINGS,
+      ...settings.editor,
+    },
+    interface: {
+      ...DEFAULT_USER_SETTINGS.interface,
+      ...settings.interface,
+    },
   };
 }

@@ -5,6 +5,7 @@ export type AuthStatus = "loading" | "authenticated" | "anonymous" | "degraded";
 export type AuthRuntimeConfig = {
   url: string | null;
   publishableKey: string | null;
+  googleClientId: string | null;
 };
 
 export type AuthState = {

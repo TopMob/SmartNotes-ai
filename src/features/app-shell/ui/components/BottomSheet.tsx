@@ -11,7 +11,6 @@ import { useFoldersQuery } from "@/features/folders/hooks/use-folders-query";
 import { createNoteLock, verifyNoteLock } from "@/features/lock-center/lib/lock-service";
 import { useNoteActions } from "@/features/notes/hooks/use-note-mutations";
 import { useNotesQuery } from "@/features/notes/hooks/use-notes-query";
-import { parseImportedNotesFile } from "@/features/notes/lib/note-import";
 import { useNoteUiStore } from "@/features/notes/model/note-ui-store";
 import { useSettingsQuery } from "@/features/settings/hooks/use-settings-query";
 import { getMediaDiagnostic, listCollabDiagnostics } from "@/services/diagnostics/runtime-diagnostics";
@@ -24,7 +23,7 @@ import { getConsoleLogs } from "@/services/console-log-store";
 import { getUiCopy } from "@/shared/lib/i18n";
 import { Button } from "@/shared/ui/button";
 
-import { downloadTextFile, exportNoteAsPdf, exportNoteAsTxt, exportNoteForImport, getNotePlainText, safeFileName, shareFolder, shareNote, type SheetState } from "./shared";
+import { exportNoteAsPdf, exportNoteAsTxt, exportNoteForImport, getNotePlainText, shareFolder, shareNote, type SheetState } from "./shared";
 
 type BottomSheetProps = {
   sheet: SheetState;
@@ -386,50 +385,12 @@ function LockContent({ onClose }: { onClose: () => void }) {
 }
 
 function AboutContent() {
-  const { createNote } = useNoteActions();
-  const { data: notes = [] } = useNotesQuery();
   const { data: settings } = useSettingsQuery();
   const lang = settings?.lang ?? "ru";
   const copy = getUiCopy(lang);
   const [tab, setTab] = useState<"about" | "rate">("about");
   const [rating, setRating] = useState(5);
   const [feedback, setFeedback] = useState("");
-  const userId = useAuthStore((state) => state.user?.id ?? "local-user");
-
-  async function handleImportNote() {
-    const picker = document.createElement("input");
-    picker.type = "file";
-    picker.accept = ".json,application/json";
-    picker.onchange = async () => {
-      const file = picker.files?.[0];
-
-      if (!file) {
-        return;
-      }
-
-      try {
-        const text = await file.text();
-        const importedNotes = parseImportedNotesFile(text, userId);
-
-        for (const importedNote of importedNotes) {
-          await createNote(
-            {
-              title: importedNote.title,
-              content: importedNote.content,
-              folderId: importedNote.folderId,
-              userTags: importedNote.userTags,
-            },
-            userId,
-            importedNote,
-          );
-          publish("noteImported", { noteId: importedNote.id, title: importedNote.title });
-        }
-      } catch (error) {
-        window.alert(error instanceof Error ? error.message : "Не удалось импортировать заметку.");
-      }
-    };
-    picker.click();
-  }
 
   function handleFeedbackSubmit() {
     publish("feedbackSubmitted", {
@@ -441,32 +402,6 @@ function AboutContent() {
     });
     window.alert("Спасибо за обратную связь!");
     setFeedback("");
-  }
-
-  function exportAllNotes() {
-    const exportable = notes.filter((note) => !note.lock?.hidden);
-
-    downloadTextFile(
-      `smartnotes-all-${new Date().toISOString().slice(0, 10)}.json`,
-      JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), notes: exportable }, null, 2),
-      "application/json;charset=utf-8",
-    );
-  }
-
-  function exportFolderNotes() {
-    const folderId = window.prompt("ID папки для экспорта")?.trim();
-
-    if (!folderId) {
-      return;
-    }
-
-    const exportable = notes.filter((note) => note.folderId === folderId && !note.lock?.hidden);
-
-    downloadTextFile(
-      `${safeFileName(`smartnotes-folder-${folderId}`)}.json`,
-      JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), folderId, notes: exportable }, null, 2),
-      "application/json;charset=utf-8",
-    );
   }
 
   return (
@@ -488,11 +423,6 @@ function AboutContent() {
           </ul>
           <h3 className="mt-3 text-2xl font-black">Обратная связь</h3>
           <a className="mt-4 inline-flex font-black text-accent hover:underline" href="https://t.me/SmartNotesInfo_bot" rel="noreferrer" target="_blank">@SmartNotesInfo_bot</a>
-          <div className="mt-4 grid gap-2 sm:grid-cols-3">
-            <Button className="rounded-2xl" onClick={() => void handleImportNote()} type="button" variant="secondary">Импорт JSON</Button>
-            <Button className="rounded-2xl" onClick={exportAllNotes} type="button" variant="secondary">Экспорт всех</Button>
-            <Button className="rounded-2xl" onClick={exportFolderNotes} type="button" variant="secondary">Экспорт папки</Button>
-          </div>
         </section>
       ) : (
         <section className="rounded-[1.5rem] border border-border bg-surface-strong p-5">

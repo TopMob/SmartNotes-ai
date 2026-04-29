@@ -1,14 +1,27 @@
 import type { Folder } from "@/entities/folder";
+import { getLocalUserScope } from "@/features/auth/lib/local-user-scope";
 import { readJsonFromLocalStorage, writeJsonToLocalStorage } from "@/shared/lib/local-storage";
 
-const LOCAL_FOLDERS_KEY = "smartnotes:local:folders";
+function getLocalFoldersKey() {
+  return `smartnotes:local:folders:${getLocalUserScope()}`;
+}
 
 function readFolders() {
-  return readJsonFromLocalStorage<Folder[]>(LOCAL_FOLDERS_KEY, []);
+  const scopedFolders = readJsonFromLocalStorage<Folder[]>(getLocalFoldersKey(), []);
+
+  if (scopedFolders.length) {
+    return scopedFolders;
+  }
+
+  if (getLocalUserScope() === "local-user") {
+    return readJsonFromLocalStorage<Folder[]>("smartnotes:local:folders", []);
+  }
+
+  return scopedFolders;
 }
 
 function writeFolders(folders: Folder[]) {
-  writeJsonToLocalStorage(LOCAL_FOLDERS_KEY, folders);
+  writeJsonToLocalStorage(getLocalFoldersKey(), folders);
 }
 
 export const localFoldersRepository = {

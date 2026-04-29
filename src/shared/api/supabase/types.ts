@@ -11,6 +11,8 @@ export type Database = {
           email: string | null;
           display_name: string | null;
           avatar_url: string | null;
+          plan: string;
+          metadata: Json;
           created_at: string;
           updated_at: string;
         };
@@ -19,6 +21,8 @@ export type Database = {
           email?: string | null;
           display_name?: string | null;
           avatar_url?: string | null;
+          plan?: string;
+          metadata?: Json;
           created_at?: string;
           updated_at?: string;
         };
@@ -26,6 +30,8 @@ export type Database = {
           email?: string | null;
           display_name?: string | null;
           avatar_url?: string | null;
+          plan?: string;
+          metadata?: Json;
           updated_at?: string;
         };
         Relationships: [];
@@ -40,6 +46,7 @@ export type Database = {
           is_archived: boolean;
           folder_order: number;
           access_role: "owner" | "editor" | "viewer";
+          metadata: Json;
           created_at: string;
           updated_at: string;
           trashed_at: string | null;
@@ -53,6 +60,7 @@ export type Database = {
           is_archived?: boolean;
           folder_order?: number;
           access_role?: "owner" | "editor" | "viewer";
+          metadata?: Json;
           created_at?: string;
           updated_at?: string;
           trashed_at?: string | null;
@@ -65,6 +73,7 @@ export type Database = {
           is_archived?: boolean;
           folder_order?: number;
           access_role?: "owner" | "editor" | "viewer";
+          metadata?: Json;
           created_at?: string;
           updated_at?: string;
           trashed_at?: string | null;
@@ -96,6 +105,7 @@ export type Database = {
           ai_error: string | null;
           ai_relevance: number;
           resurfacing_class: "task" | "idea" | "reference" | "archive" | null;
+          metadata: Json;
           created_at: string;
           updated_at: string;
           trashed_at: string | null;
@@ -124,6 +134,7 @@ export type Database = {
           ai_error?: string | null;
           ai_relevance?: number;
           resurfacing_class?: "task" | "idea" | "reference" | "archive" | null;
+          metadata?: Json;
           created_at?: string;
           updated_at?: string;
           trashed_at?: string | null;
@@ -151,6 +162,7 @@ export type Database = {
           ai_error?: string | null;
           ai_relevance?: number;
           resurfacing_class?: "task" | "idea" | "reference" | "archive" | null;
+          metadata?: Json;
           created_at?: string;
           updated_at?: string;
           trashed_at?: string | null;
@@ -200,6 +212,7 @@ export type Database = {
             showTagFilter: boolean;
             showUpdatedPeriodFilter: boolean;
           };
+          metadata: Json;
           created_at: string;
           updated_at: string;
         };
@@ -245,6 +258,7 @@ export type Database = {
             showTagFilter: boolean;
             showUpdatedPeriodFilter: boolean;
           };
+          metadata?: Json;
           created_at?: string;
           updated_at?: string;
         };
@@ -289,6 +303,7 @@ export type Database = {
             showTagFilter: boolean;
             showUpdatedPeriodFilter: boolean;
           };
+          metadata?: Json;
           updated_at?: string;
         };
         Relationships: [];

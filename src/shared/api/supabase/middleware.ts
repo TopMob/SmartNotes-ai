@@ -1,11 +1,18 @@
 import { createServerClient } from "@supabase/ssr";
 import type { NextRequest, NextResponse } from "next/server";
 
-import { requireSupabasePublishableKey, requireSupabaseUrl } from "@/shared/api/supabase/env";
+import { getSupabasePublishableKey, getSupabaseUrl } from "@/shared/api/supabase/env";
 import type { Database } from "@/shared/api/supabase/types";
 
 export function updateSupabaseSession(request: NextRequest, response: NextResponse) {
-  const supabase = createServerClient<Database>(requireSupabaseUrl(), requireSupabasePublishableKey(), {
+  const url = getSupabaseUrl();
+  const publishableKey = getSupabasePublishableKey();
+
+  if (!url || !publishableKey) {
+    return Promise.resolve(null);
+  }
+
+  const supabase = createServerClient<Database>(url, publishableKey, {
     cookies: {
       getAll() {
         return request.cookies.getAll();

@@ -1,27 +1,99 @@
 "use client";
 
-import { ArrowLeft, Eye, EyeOff, KeyRound, Loader2, Mail, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, KeyRound, Loader2, Mail, Sparkles, UserRound, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { useAuthActions } from "@/features/auth/hooks/use-auth-actions";
+import { useAuthStore } from "@/features/auth/model/auth-store";
 import { Button } from "@/shared/ui/button";
 
-const authStates = ["Email + password", "Google OAuth", "Google One Tap", "Redirect fallback", "Runtime config", "Profile sync"];
+type GoogleCredentialResponse = {
+  credential?: string;
+};
+
+type GoogleOneTapWindow = typeof window & {
+  google?: {
+    accounts?: {
+      id?: {
+        initialize: (config: { client_id: string; callback: (response: GoogleCredentialResponse) => void; cancel_on_tap_outside?: boolean }) => void;
+        prompt: () => void;
+        cancel?: () => void;
+      };
+    };
+  };
+};
+
+const googleScriptId = "smartnotes-google-one-tap";
 
 export function LoginShell() {
   const [splash, setSplash] = useState(true);
   const [mode, setMode] = useState<"login" | "register">("login");
   const [showPassword, setShowPassword] = useState(false);
+  const [guestDialogOpen, setGuestDialogOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [repeatPassword, setRepeatPassword] = useState("");
-  const { pending, error, message, loginWithEmail, registerWithEmail, loginWithGoogle, resetPassword } = useAuthActions();
+  const runtimeConfig = useAuthStore((state) => state.runtimeConfig);
+  const { pending, error, message, loginWithEmail, registerWithEmail, loginWithGoogle, loginWithGoogleOneTap, loginAsGuest, resetPassword } = useAuthActions();
 
   useEffect(() => {
     const timer = window.setTimeout(() => setSplash(false), 900);
     return () => window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    const googleClientId = runtimeConfig?.googleClientId;
+
+    if (!googleClientId) {
+      return;
+    }
+
+    const clientId = googleClientId;
+
+    function initializeOneTap() {
+      const google = (window as GoogleOneTapWindow).google;
+      const googleId = google?.accounts?.id;
+
+      if (!googleId) {
+        return;
+      }
+
+      googleId.initialize({
+        client_id: clientId,
+        callback: (response: GoogleCredentialResponse) => {
+          if (response.credential) {
+            void loginWithGoogleOneTap(response.credential);
+          }
+        },
+        cancel_on_tap_outside: true,
+      });
+      googleId.prompt();
+    }
+
+    if ((window as GoogleOneTapWindow).google?.accounts?.id) {
+      initializeOneTap();
+      return;
+    }
+
+    let script = document.getElementById(googleScriptId) as HTMLScriptElement | null;
+
+    if (!script) {
+      script = document.createElement("script");
+      script.id = googleScriptId;
+      script.src = "https://accounts.google.com/gsi/client";
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
+    }
+
+    script.addEventListener("load", initializeOneTap);
+
+    return () => {
+      script?.removeEventListener("load", initializeOneTap);
+      (window as GoogleOneTapWindow).google?.accounts?.id?.cancel?.();
+    };
+  }, [loginWithGoogleOneTap, runtimeConfig?.googleClientId]);
 
   async function handleSubmit() {
     const normalizedEmail = email.trim();
@@ -58,32 +130,9 @@ export function LoginShell() {
   }
 
   return (
-    <main className="grid min-h-screen px-4 py-4 sm:px-6 lg:grid-cols-[1fr_0.9fr] lg:gap-6 lg:p-6">
-      <section className="hidden overflow-hidden rounded-[2.5rem] border border-border bg-foreground p-8 text-background shadow-2xl shadow-violet-950/16 lg:flex lg:flex-col lg:justify-between">
-        <div>
-          <Link className="inline-flex items-center gap-2 rounded-full bg-background/10 px-4 py-2 text-sm font-bold text-background/78 hover:bg-background/16" href="/">
-            <ArrowLeft className="h-4 w-4" />
-            Назад к приложению
-          </Link>
-          <p className="mt-10 text-sm font-bold uppercase tracking-[0.32em] text-background/48">Secure session</p>
-          <h1 className="mt-4 max-w-xl text-5xl font-black tracking-tight">Вход без трения, но с жестким boot-контролем.</h1>
-          <p className="mt-5 max-w-lg text-lg leading-8 text-background/68">
-            Auth слой стартует после runtime config, поддерживает redirect persistence и деградирует без блокировки текстовой части приложения.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          {authStates.map((state) => (
-            <div className="rounded-3xl border border-background/10 bg-background/8 p-4" key={state}>
-              <ShieldCheck className="h-5 w-5 text-emerald-300" />
-              <p className="mt-3 text-sm font-bold text-background/82">{state}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
+    <main className="grid min-h-screen place-items-center px-4 py-4 sm:px-6 lg:p-6">
       <section className="mx-auto flex w-full max-w-md flex-col justify-center py-2 sm:py-4">
-        <Link className="mb-5 inline-flex w-fit items-center gap-2 rounded-full border border-border bg-surface px-4 py-2 text-sm font-bold text-foreground/70 lg:hidden" href="/">
+        <Link className="mb-5 inline-flex w-fit items-center gap-2 rounded-full border border-border bg-surface px-4 py-2 text-sm font-bold text-foreground/70" href="/">
           <ArrowLeft className="h-4 w-4" />
           Назад
         </Link>
@@ -108,6 +157,15 @@ export function LoginShell() {
             <span className="mr-2 flex h-5 w-5 items-center justify-center rounded-full bg-background text-xs font-black text-foreground">G</span>
             Войти через Google
           </Button>
+          <Button className="mt-3 h-12 w-full rounded-2xl" disabled={pending} onClick={() => setGuestDialogOpen(true)} type="button" variant="secondary">
+            <UserRound className="mr-2 h-5 w-5" />
+            Войти как гость
+          </Button>
+          {!runtimeConfig?.googleClientId ? (
+            <p className="mt-3 rounded-2xl border border-border bg-surface-strong p-3 text-xs leading-5 text-foreground/58">
+              Google One Tap включится после добавления `NEXT_PUBLIC_GOOGLE_CLIENT_ID` в переменные окружения.
+            </p>
+          ) : null}
 
           <div className="my-6 flex items-center gap-3 text-xs font-bold uppercase tracking-[0.2em] text-foreground/34">
             <span className="h-px flex-1 bg-border" />
@@ -143,6 +201,32 @@ export function LoginShell() {
           </form>
         </div>
       </section>
+      {guestDialogOpen ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/55 px-4 backdrop-blur-md">
+          <section className="w-full max-w-md rounded-[2rem] border border-border bg-surface p-5 shadow-2xl shadow-violet-950/20 sm:p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-accent">Гостевой режим</p>
+                <h2 className="mt-2 text-2xl font-black">Гостевой аккаунт удалится через 10 минут</h2>
+              </div>
+              <button className="rounded-full bg-surface-strong p-2 text-foreground/62 hover:text-foreground" onClick={() => setGuestDialogOpen(false)} type="button">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="mt-4 text-sm leading-6 text-foreground/64">
+              Все заметки, папки и настройки гостя будут автоматически удалены. Вы уверены, что хотите продолжить?
+            </p>
+            <div className="mt-5 grid gap-2 sm:grid-cols-2">
+              <Button className="rounded-2xl" disabled={pending} onClick={() => void loginAsGuest()} type="button">
+                Продолжить
+              </Button>
+              <Button className="rounded-2xl" disabled={pending} onClick={() => { setMode("register"); setGuestDialogOpen(false); }} type="button" variant="secondary">
+                Нет, зарегистрировать аккаунт
+              </Button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </main>
   );
 }

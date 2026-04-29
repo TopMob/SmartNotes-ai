@@ -3,9 +3,12 @@
 import {
   ArrowLeft,
   Database,
+  Download,
+  FileJson,
   Palette,
   Plus,
   RotateCcw,
+  Upload,
   SlidersHorizontal,
   Type,
 } from "lucide-react";
@@ -13,8 +16,15 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import type { CustomThemePreset, EditorToolKey } from "@/entities/settings";
+import { useAuthStore } from "@/features/auth/model/auth-store";
+import { useFoldersQuery } from "@/features/folders/hooks/use-folders-query";
+import { useNoteActions } from "@/features/notes/hooks/use-note-mutations";
+import { useNotesQuery } from "@/features/notes/hooks/use-notes-query";
+import { parseImportedNotesFile } from "@/features/notes/lib/note-import";
 import { useSettingsActions } from "@/features/settings/hooks/use-settings-mutations";
 import { useSettingsQuery } from "@/features/settings/hooks/use-settings-query";
+import { publish } from "@/services/event-bus";
+import { downloadTextFile, safeFileName } from "@/features/app-shell/ui/components/shared";
 import { getUiCopy } from "@/shared/lib/i18n";
 
 import { Panel } from "./components/Panel";
@@ -33,6 +43,10 @@ export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState<(typeof sections)[number]["id"]>("appearance");
   const [presetName, setPresetName] = useState("");
   const { data: settings, isLoading, error } = useSettingsQuery();
+  const { data: folders = [] } = useFoldersQuery();
+  const { data: notes = [] } = useNotesQuery();
+  const userId = useAuthStore((state) => state.user?.id ?? "local-user");
+  const { createNote } = useNoteActions();
   const { patchSettings, resetSettings } = useSettingsActions();
 
   if (isLoading) {
@@ -165,6 +179,80 @@ export default function SettingsPage() {
       void patchSettings({ [target]: dataUrl });
     };
     picker.click();
+  }
+
+  async function handleImportNotes() {
+    const picker = document.createElement("input");
+    picker.type = "file";
+    picker.accept = ".json,application/json";
+    picker.onchange = async () => {
+      const file = picker.files?.[0];
+
+      if (!file) {
+        return;
+      }
+
+      try {
+        const text = await file.text();
+        const importedNotes = parseImportedNotesFile(text, userId);
+
+        for (const importedNote of importedNotes) {
+          await createNote(
+            {
+              title: importedNote.title,
+              content: importedNote.content,
+              folderId: importedNote.folderId,
+              userTags: importedNote.userTags,
+            },
+            userId,
+            importedNote,
+          );
+          publish("noteImported", { noteId: importedNote.id, title: importedNote.title });
+        }
+
+        window.alert(`Импортировано заметок: ${importedNotes.length}`);
+      } catch (importError) {
+        window.alert(importError instanceof Error ? importError.message : "Не удалось импортировать заметки.");
+      }
+    };
+    picker.click();
+  }
+
+  function exportAllNotes() {
+    const exportable = notes.filter((note) => !note.lock?.hidden);
+
+    downloadTextFile(
+      `smartnotes-all-${new Date().toISOString().slice(0, 10)}.json`,
+      JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), notes: exportable }, null, 2),
+      "application/json;charset=utf-8",
+    );
+  }
+
+  function exportFolderNotes() {
+    const visibleFolders = folders.filter((folder) => !folder.trashedAt);
+    const folderName = window.prompt(
+      visibleFolders.length ? `Название папки для экспорта:\n${visibleFolders.map((folder) => `• ${folder.name}`).join("\n")}` : "Пока нет папок для экспорта.",
+    )?.trim();
+
+    if (!folderName) {
+      return;
+    }
+
+    const folder = visibleFolders.find((item) => item.name.toLocaleLowerCase() === folderName.toLocaleLowerCase());
+
+    if (!folder) {
+      window.alert("Папка не найдена. Введите название папки из списка.");
+      return;
+    }
+
+    const folderId = folder.id;
+    const exportable = notes.filter((note) => note.folderId === folderId && !note.lock?.hidden);
+
+    downloadTextFile(
+      `${safeFileName(`smartnotes-folder-${folder.name}`)}.json`,
+      JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), folderId, folderName: folder.name, notes: exportable }, null, 2),
+      "application/json;charset=utf-8",
+    );
   }
 
   return (
@@ -346,11 +434,23 @@ export default function SettingsPage() {
             <div className="space-y-4">
               <SectionIntro title={copy.settings.data.title} text={copy.settings.data.subtitle} />
               <Panel title={copy.settings.data.maintenance}>
-                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                  <button className="w-full min-h-9 rounded-2xl border border-border bg-background px-3 py-1.5 text-xs font-bold sm:min-h-11 sm:w-auto sm:px-3 sm:py-2 sm:text-sm" onClick={() => window.location.reload()} type="button">
+                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                  <button className="flex w-full min-h-11 items-center justify-center gap-2 rounded-2xl border border-border bg-background px-3 py-2 text-xs font-bold sm:text-sm" onClick={() => void handleImportNotes()} type="button">
+                    <Upload className="h-4 w-4" />
+                    {copy.settings.data.importJson}
+                  </button>
+                  <button className="flex w-full min-h-11 items-center justify-center gap-2 rounded-2xl border border-border bg-background px-3 py-2 text-xs font-bold sm:text-sm" onClick={exportAllNotes} type="button">
+                    <Download className="h-4 w-4" />
+                    {copy.settings.data.exportAll}
+                  </button>
+                  <button className="flex w-full min-h-11 items-center justify-center gap-2 rounded-2xl border border-border bg-background px-3 py-2 text-xs font-bold sm:text-sm" onClick={exportFolderNotes} type="button">
+                    <FileJson className="h-4 w-4" />
+                    {copy.settings.data.exportFolder}
+                  </button>
+                  <button className="w-full min-h-11 rounded-2xl border border-border bg-background px-3 py-2 text-xs font-bold sm:text-sm" onClick={() => window.location.reload()} type="button">
                     {copy.settings.data.resetCache}
                   </button>
-                  <button className="w-full min-h-9 rounded-2xl bg-accent px-3 py-1.5 text-xs font-bold text-accent-foreground sm:min-h-11 sm:w-auto sm:px-3 sm:py-2 sm:text-sm" onClick={() => void resetSettings()} type="button">
+                  <button className="w-full min-h-11 rounded-2xl bg-accent px-3 py-2 text-xs font-bold text-accent-foreground sm:text-sm" onClick={() => void resetSettings()} type="button">
                     {copy.settings.data.resetSettings}
                   </button>
                 </div>

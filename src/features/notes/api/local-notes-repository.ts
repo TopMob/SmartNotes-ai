@@ -1,14 +1,27 @@
 import type { Note } from "@/entities/note";
+import { getLocalUserScope } from "@/features/auth/lib/local-user-scope";
 import { readJsonFromLocalStorage, writeJsonToLocalStorage } from "@/shared/lib/local-storage";
 
-const LOCAL_NOTES_KEY = "smartnotes:local:notes";
+function getLocalNotesKey() {
+  return `smartnotes:local:notes:${getLocalUserScope()}`;
+}
 
 function readNotes() {
-  return readJsonFromLocalStorage<Note[]>(LOCAL_NOTES_KEY, []);
+  const scopedNotes = readJsonFromLocalStorage<Note[]>(getLocalNotesKey(), []);
+
+  if (scopedNotes.length) {
+    return scopedNotes;
+  }
+
+  if (getLocalUserScope() === "local-user") {
+    return readJsonFromLocalStorage<Note[]>("smartnotes:local:notes", []);
+  }
+
+  return scopedNotes;
 }
 
 function writeNotes(notes: Note[]) {
-  writeJsonToLocalStorage(LOCAL_NOTES_KEY, notes);
+  writeJsonToLocalStorage(getLocalNotesKey(), notes);
 }
 
 export const localNotesRepository = {
