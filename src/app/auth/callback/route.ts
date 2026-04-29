@@ -1,5 +1,8 @@
-import { createSupabaseServerClient } from "@/shared/api/supabase/server";
+import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
+
+import { getSupabasePublishableKey, getSupabaseUrl } from "@/shared/api/supabase/env";
+import type { Database } from "@/shared/api/supabase/types";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -11,7 +14,31 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/login?error=missing_code", request.url));
   }
 
-  const supabase = await createSupabaseServerClient();
+  const url = getSupabaseUrl();
+  const publishableKey = getSupabasePublishableKey();
+
+  if (!url || !publishableKey) {
+    return NextResponse.redirect(new URL("/login?error=missing_config", request.url));
+  }
+
+  // Create the response first so that cookies set during exchangeCodeForSession
+  // are written onto the redirect response and reach the browser.
+  const response = NextResponse.redirect(new URL(safeNext, request.url));
+
+  const supabase = createServerClient<Database>(url, publishableKey, {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll();
+      },
+      setAll(cookiesToSet) {
+        for (const cookie of cookiesToSet) {
+          request.cookies.set(cookie.name, cookie.value);
+          response.cookies.set(cookie.name, cookie.value, cookie.options);
+        }
+      },
+    },
+  });
+
   const { error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
@@ -19,6 +46,5 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(error.message)}`, request.url));
   }
 
-  const response = NextResponse.redirect(new URL(safeNext, request.url));
   return response;
 }
