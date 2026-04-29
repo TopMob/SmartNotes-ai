@@ -10,7 +10,7 @@ import { useFolderActions } from "@/features/folders/hooks/use-folder-mutations"
 import { useFoldersQuery } from "@/features/folders/hooks/use-folders-query";
 import { createNoteLock, verifyNoteLock } from "@/features/lock-center/lib/lock-service";
 import { useNoteActions } from "@/features/notes/hooks/use-note-mutations";
-import { useNotesQuery } from "@/features/notes/hooks/use-notes-query";
+import { useNotesFlat } from "@/features/notes/hooks/use-notes-query";
 import { parseImportedNotesFile } from "@/features/notes/lib/note-import";
 import { useNoteUiStore } from "@/features/notes/model/note-ui-store";
 import { useSettingsQuery } from "@/features/settings/hooks/use-settings-query";
@@ -132,7 +132,7 @@ async function copyNoteText(note: Note) {
 }
 
 function NoteActionSheet() {
-  const { data: notes = [] } = useNotesQuery();
+  const { data: notes = [] } = useNotesFlat();
   const { data: folders = [] } = useFoldersQuery();
   const { moveNoteToFolder, patchNote, restoreNote, permanentlyDeleteNote, setArchived, setReminder, trashNote } = useNoteActions();
   const currentNoteId = useNoteUiStore((state) => state.currentNoteId);
@@ -351,7 +351,7 @@ function PagesContent() {
 }
 
 function LockContent({ onClose }: { onClose: () => void }) {
-  const { data: notes = [] } = useNotesQuery();
+  const { data: notes = [] } = useNotesFlat();
   const { patchNote } = useNoteActions();
   const currentNoteId = useNoteUiStore((state) => state.currentNoteId);
   const [password, setPassword] = useState("");
@@ -387,7 +387,7 @@ function LockContent({ onClose }: { onClose: () => void }) {
 
 function AboutContent() {
   const { createNote } = useNoteActions();
-  const { data: notes = [] } = useNotesQuery();
+  const { data: notes = [] } = useNotesFlat();
   const { data: settings } = useSettingsQuery();
   const lang = settings?.lang ?? "ru";
   const copy = getUiCopy(lang);
@@ -533,7 +533,7 @@ function CreateFolderContent({ onClose }: { onClose: () => void }) {
 }
 
 function ReminderContent({ onClose }: { onClose: () => void }) {
-  const { data: notes = [] } = useNotesQuery();
+  const { data: notes = [] } = useNotesFlat();
   const { setReminder } = useNoteActions();
   const currentNoteId = useNoteUiStore((state) => state.currentNoteId);
   const note = notes.find((item) => item.id === currentNoteId) ?? null;

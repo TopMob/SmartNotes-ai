@@ -4,8 +4,22 @@ import { createSupabaseBrowserClient } from "@/shared/api/supabase/client";
 
 import { mapNoteDraftToInsert, mapNotePatchToUpdate, mapNoteRow } from "./note-mappers";
 
+export type PaginationCursor = {
+  /** Number of items to fetch per page */
+  limit: number;
+  /** Cursor: fetch notes updated before this ISO timestamp */
+  cursor?: string;
+};
+
+export type PaginatedResult<T> = {
+  data: T[];
+  nextCursor: string | null;
+  hasMore: boolean;
+};
+
 export type NotesRepository = {
-  list: () => Promise<Note[]>;
+  list: (cursor?: PaginationCursor) => Promise<PaginatedResult<Note>>;
+  listAll: () => Promise<Note[]>;
   create: (note: Note) => Promise<Note>;
   patch: (noteId: string, patch: Partial<Note>) => Promise<Note>;
   batchCreate: (notes: Note[]) => Promise<Note[]>;
@@ -16,7 +30,54 @@ export type NotesRepository = {
 };
 
 export const notesRepository: NotesRepository = {
-  async list() {
+  async list(cursor?: PaginationCursor) {
+    const supabase = createSupabaseBrowserClient();
+
+    if (!supabase) {
+      const allNotes = await localNotesRepository.list();
+      // Apply client-side pagination for local mode
+      const limit = cursor?.limit ?? 50;
+      const startIndex = cursor?.cursor
+        ? allNotes.findIndex((n) => n.updatedAt < cursor.cursor!)
+        : 0;
+      const slice = allNotes.slice(startIndex >= 0 ? startIndex : 0, (startIndex >= 0 ? startIndex : 0) + limit + 1);
+      const hasMore = slice.length > limit;
+      const data = hasMore ? slice.slice(0, limit) : slice;
+      return {
+        data,
+        nextCursor: data.length > 0 ? data[data.length - 1].updatedAt : null,
+        hasMore,
+      };
+    }
+
+    const limit = cursor?.limit ?? 50;
+    let query = supabase
+      .from("notes")
+      .select("*")
+      .order("updated_at", { ascending: false })
+      .limit(limit + 1); // fetch one extra to detect hasMore
+
+    if (cursor?.cursor) {
+      query = query.lt("updated_at", cursor.cursor);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      throw error;
+    }
+
+    const hasMore = data.length > limit;
+    const rows = hasMore ? data.slice(0, limit) : data;
+    const notes = rows.map(mapNoteRow);
+
+    return {
+      data: notes,
+      nextCursor: notes.length > 0 ? notes[notes.length - 1].updatedAt : null,
+      hasMore,
+    };
+  },
+  async listAll() {
     const supabase = createSupabaseBrowserClient();
 
     if (!supabase) {

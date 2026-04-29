@@ -7,7 +7,7 @@ import { useFolderActions } from "@/features/folders/hooks/use-folder-mutations"
 import { useFoldersQuery } from "@/features/folders/hooks/use-folders-query";
 import { useNoteActions } from "@/features/notes/hooks/use-note-mutations";
 import { selectPinnedGroups } from "@/features/notes/model/note-selectors";
-import { useNotesQuery } from "@/features/notes/hooks/use-notes-query";
+import { useNotesFlat } from "@/features/notes/hooks/use-notes-query";
 import { listPendingAiAnalysis } from "@/services/ai/ai-queue";
 import { listCollabDiagnostics, getMediaDiagnostic } from "@/services/diagnostics/runtime-diagnostics";
 import { listSyncQueue } from "@/services/sync/sync-queue";
@@ -80,7 +80,7 @@ export function MainSurface({ copy, view, folders, hiddenFolders, trashedFolders
 }
 
 function FoldersGrid({ folders, mode, emptyText, folderViewMode, onOpenFolder }: { folders: FolderEntity[]; mode: "active" | "hidden"; emptyText: string; folderViewMode: "compact" | "full"; onOpenFolder: (folder: FolderEntity) => void }) {
-  const { data: notes = [] } = useNotesQuery();
+  const { data: notes = [] } = useNotesFlat();
   const { unhideFolder } = useFolderActions();
 
   if (!folders.length) {

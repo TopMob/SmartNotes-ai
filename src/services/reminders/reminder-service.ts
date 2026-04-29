@@ -61,6 +61,43 @@ export function scheduleReminder(noteId: string, reminderAt: string | null) {
   );
 }
 
+/**
+ * Sync reminders with a full note list. Only updates timers for notes
+ * whose reminderAt has changed or been added/removed.
+ */
+export function syncReminders(notes: Array<{ id: string; reminderAt: string | null }>) {
+  const registry = readReminderRegistry();
+  const noteMap = new Map(notes.map((note) => [note.id, note.reminderAt]));
+
+  // Cancel timers for notes that no longer exist or have no reminder
+  for (const [noteId, cachedAt] of Object.entries(registry)) {
+    const currentReminderAt = noteMap.get(noteId);
+
+    if (currentReminderAt === undefined || currentReminderAt === null) {
+      // Note removed or reminder cleared
+      const existing = timers.get(noteId);
+      if (existing) {
+        clearTimeout(existing);
+        timers.delete(noteId);
+      }
+      delete registry[noteId];
+    } else if (currentReminderAt !== cachedAt) {
+      // Reminder time changed — reschedule
+      scheduleReminder(noteId, currentReminderAt);
+    }
+    // else: unchanged, skip
+  }
+
+  // Schedule new reminders for notes not in registry
+  for (const [noteId, reminderAt] of noteMap.entries()) {
+    if (reminderAt !== null && !(noteId in registry)) {
+      scheduleReminder(noteId, reminderAt);
+    }
+  }
+
+  writeReminderRegistry(registry);
+}
+
 export function listScheduledReminders() {
   return readReminderRegistry();
 }
