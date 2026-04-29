@@ -59,27 +59,38 @@ export async function signInWithGoogle() {
     throw new Error("Supabase runtime config не задан. Google-вход недоступен в локальном режиме.");
   }
 
-  const popup = typeof window === "undefined" ? null : window.open("about:blank", "smartnotes-google-auth", "width=520,height=720");
-
-  if (popup) {
-    popup.document.write("<p style=\"font-family:sans-serif;padding:24px\">Preparing Google sign-in…</p>");
-  }
-
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
       redirectTo: getAuthRedirectTo(),
-      skipBrowserRedirect: Boolean(popup),
+      queryParams: {
+        access_type: "offline",
+        prompt: "select_account",
+      },
     },
   });
 
   if (error) {
-    popup?.close();
     throw error;
   }
 
-  if (popup && data.url) {
-    popup.location.href = data.url;
+  return data;
+}
+
+export async function signInWithGoogleIdToken(credential: string) {
+  const supabase = createSupabaseBrowserClient();
+
+  if (!supabase) {
+    throw new Error("Supabase runtime config не задан. Google One Tap недоступен в локальном режиме.");
+  }
+
+  const { data, error } = await supabase.auth.signInWithIdToken({
+    provider: "google",
+    token: credential,
+  });
+
+  if (error) {
+    throw error;
   }
 
   return data;
