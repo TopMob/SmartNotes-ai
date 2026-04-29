@@ -8,8 +8,8 @@ import { mapNoteDraftToInsert, mapNotePatchToUpdate, mapNoteRow } from "./note-m
 
 /** Guest and unauthenticated users must use local storage — they have no Supabase session. */
 function shouldUseLocal(): boolean {
-  const user = useAuthStore.getState().user;
-  return !user || isGuestUser(user);
+  const { status, user } = useAuthStore.getState();
+  return status === "degraded" || !user || user.id === "local-user" || isGuestUser(user);
 }
 
 export type PaginationCursor = {

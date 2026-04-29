@@ -40,7 +40,7 @@ import { Button } from "@/shared/ui/button";
 import { getSheetAnchor, plainTextToEditorContent, serializeEditorSnapshot, shareNote, type SheetAnchor, type SheetName } from "./shared";
 
 const EDITOR_EXTENSIONS = [
-  StarterKit.configure({ bulletList: { keepMarks: true, keepAttributes: false } }),
+  StarterKit.configure({ bulletList: { keepMarks: true, keepAttributes: false }, link: false }),
   LinkExtension.configure({ openOnClick: false, autolink: true, linkOnPaste: true, defaultProtocol: "https" }),
   TextAlign.configure({ types: ["heading", "paragraph"] }),
 ];

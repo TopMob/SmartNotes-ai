@@ -6,6 +6,7 @@ import type { Folder as FolderEntity } from "@/entities/folder";
 import { getUiCopy } from "@/shared/lib/i18n";
 import type { AppView } from "@/shared/store/ui-store";
 import { Button } from "@/shared/ui/button";
+import { LogoMark } from "@/shared/ui/logo-mark";
 
 import { getSheetAnchor, type SheetAnchor, type SheetName } from "./shared";
 
@@ -40,7 +41,10 @@ export function Sidebar({ copy, currentView, folders, folderViewMode, activeFold
   return (
     <aside className="sidebar-glass panel-card flex h-full flex-col overflow-hidden p-4 shadow-2xl shadow-violet-950/10">
       <div className="mb-1 flex shrink-0 items-center justify-between gap-2">
-        <div>
+        <div className="flex items-center gap-3">
+          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-accent/12 text-accent">
+            <LogoMark className="h-7 w-7" />
+          </span>
           <p className="text-sm font-black uppercase tracking-[0.22em] text-accent">SmartNotes</p>
         </div>
         {!isDesktop ? (

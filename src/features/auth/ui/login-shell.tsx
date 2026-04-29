@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import { useAuthActions } from "@/features/auth/hooks/use-auth-actions";
 import { useAuthStore } from "@/features/auth/model/auth-store";
+import { LogoMark } from "@/shared/ui/logo-mark";
 import { Button } from "@/shared/ui/button";
 
 /**
@@ -44,6 +45,14 @@ type GoogleOneTapWindow = typeof window & {
 
 const googleScriptId = "smartnotes-google-one-tap";
 
+function supportsGoogleOneTap() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  return !window.navigator.userAgent.includes("Firefox");
+}
+
 export function LoginShell() {
   const [splash, setSplash] = useState(true);
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -66,7 +75,7 @@ export function LoginShell() {
   useEffect(() => {
     const googleClientId = runtimeConfig?.googleClientId;
 
-    if (!googleClientId) {
+    if (!googleClientId || !supportsGoogleOneTap()) {
       return;
     }
 
@@ -140,7 +149,7 @@ export function LoginShell() {
       <main className="grid min-h-screen place-items-center px-6">
         <section className="text-center">
           <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[1.7rem] bg-accent text-accent-foreground shadow-2xl shadow-violet-950/18">
-            <Sparkles className="h-10 w-10" />
+            <LogoMark className="h-10 w-10" />
           </div>
           <h1 className="mt-6 text-4xl font-black tracking-tight">SmartNotes</h1>
           <p className="mt-2 text-sm font-bold uppercase tracking-[0.3em] text-foreground/48">AI-organized thinking</p>
@@ -156,7 +165,7 @@ export function LoginShell() {
         <div className="rounded-[2rem] border border-border bg-surface/90 p-5 shadow-2xl shadow-violet-950/10 backdrop-blur-2xl sm:p-7">
           <div className="flex items-center gap-3">
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent text-accent-foreground">
-              <Sparkles className="h-6 w-6" />
+              <LogoMark className="h-6 w-6" />
             </span>
             <div>
               <p className="text-xs font-black uppercase tracking-[0.24em] text-accent">SmartNotes</p>
@@ -180,6 +189,10 @@ export function LoginShell() {
           {!runtimeConfig?.googleClientId ? (
             <p className="mt-3 rounded-2xl border border-border bg-surface-strong p-3 text-xs leading-5 text-foreground/58">
               Google One Tap включится после добавления `NEXT_PUBLIC_GOOGLE_CLIENT_ID` в переменные окружения.
+            </p>
+          ) : !supportsGoogleOneTap() ? (
+            <p className="mt-3 rounded-2xl border border-border bg-surface-strong p-3 text-xs leading-5 text-foreground/58">
+              Google One Tap отключен в Firefox, чтобы не засорять консоль служебными `gsi/status` ошибками. Обычный вход через Google выше работает.
             </p>
           ) : null}
 
