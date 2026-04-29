@@ -1,10 +1,5 @@
-import { SmartNotesShell } from "@/features/app-shell/ui/smart-notes-shell";
-import { ShellErrorBoundary } from "@/shared/ui/error-boundary";
+import { AppEntry } from "@/features/app-shell/ui/app-entry";
 
 export default function HomePage() {
-  return (
-    <ShellErrorBoundary>
-      <SmartNotesShell />
-    </ShellErrorBoundary>
-  );
+  return <AppEntry />;
 }

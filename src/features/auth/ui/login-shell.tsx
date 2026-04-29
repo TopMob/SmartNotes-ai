@@ -1,7 +1,6 @@
 "use client";
 
-import { ArrowLeft, Eye, EyeOff, KeyRound, Loader2, Mail, Sparkles, UserRound, X } from "lucide-react";
-import Link from "next/link";
+import { Eye, EyeOff, KeyRound, Loader2, Mail, Sparkles, UserRound, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { useAuthActions } from "@/features/auth/hooks/use-auth-actions";
@@ -132,11 +131,6 @@ export function LoginShell() {
   return (
     <main className="grid min-h-screen place-items-center px-4 py-4 sm:px-6 lg:p-6">
       <section className="mx-auto flex w-full max-w-md flex-col justify-center py-2 sm:py-4">
-        <Link className="mb-5 inline-flex w-fit items-center gap-2 rounded-full border border-border bg-surface px-4 py-2 text-sm font-bold text-foreground/70" href="/">
-          <ArrowLeft className="h-4 w-4" />
-          Назад
-        </Link>
-
         <div className="rounded-[2rem] border border-border bg-surface/90 p-5 shadow-2xl shadow-violet-950/10 backdrop-blur-2xl sm:p-7">
           <div className="flex items-center gap-3">
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent text-accent-foreground">

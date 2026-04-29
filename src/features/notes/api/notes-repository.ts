@@ -1,8 +1,16 @@
 import type { Note, NoteDraft } from "@/entities/note";
+import { isGuestUser } from "@/features/auth/lib/guest-session";
+import { useAuthStore } from "@/features/auth/model/auth-store";
 import { localNotesRepository } from "@/features/notes/api/local-notes-repository";
 import { createSupabaseBrowserClient } from "@/shared/api/supabase/client";
 
 import { mapNoteDraftToInsert, mapNotePatchToUpdate, mapNoteRow } from "./note-mappers";
+
+/** Guest and unauthenticated users must use local storage — they have no Supabase session. */
+function shouldUseLocal(): boolean {
+  const user = useAuthStore.getState().user;
+  return !user || isGuestUser(user);
+}
 
 export type PaginationCursor = {
   /** Number of items to fetch per page */
@@ -31,9 +39,7 @@ export type NotesRepository = {
 
 export const notesRepository: NotesRepository = {
   async list(cursor?: PaginationCursor) {
-    const supabase = createSupabaseBrowserClient();
-
-    if (!supabase) {
+    if (shouldUseLocal()) {
       const allNotes = await localNotesRepository.list();
       // Apply client-side pagination for local mode
       const limit = cursor?.limit ?? 50;
@@ -48,6 +54,12 @@ export const notesRepository: NotesRepository = {
         nextCursor: data.length > 0 ? data[data.length - 1].updatedAt : null,
         hasMore,
       };
+    }
+
+    const supabase = createSupabaseBrowserClient();
+
+    if (!supabase) {
+      return localNotesRepository.list().then((n) => ({ data: n, nextCursor: null, hasMore: false }));
     }
 
     const limit = cursor?.limit ?? 50;
@@ -78,6 +90,10 @@ export const notesRepository: NotesRepository = {
     };
   },
   async listAll() {
+    if (shouldUseLocal()) {
+      return localNotesRepository.list();
+    }
+
     const supabase = createSupabaseBrowserClient();
 
     if (!supabase) {
@@ -93,6 +109,10 @@ export const notesRepository: NotesRepository = {
     return data.map(mapNoteRow);
   },
   async create(note) {
+    if (shouldUseLocal()) {
+      return localNotesRepository.create(note);
+    }
+
     const supabase = createSupabaseBrowserClient();
 
     if (!supabase) {
@@ -108,6 +128,10 @@ export const notesRepository: NotesRepository = {
     return mapNoteRow(data);
   },
   async patch(noteId, patch) {
+    if (shouldUseLocal()) {
+      return localNotesRepository.patch(noteId, patch);
+    }
+
     const supabase = createSupabaseBrowserClient();
 
     if (!supabase) {
@@ -123,9 +147,17 @@ export const notesRepository: NotesRepository = {
     return mapNoteRow(data);
   },
   async batchCreate(notes) {
+    if (!notes.length) {
+      return [];
+    }
+
+    if (shouldUseLocal()) {
+      return localNotesRepository.batchCreate(notes);
+    }
+
     const supabase = createSupabaseBrowserClient();
 
-    if (!notes.length) {
+    if (!supabase) {
       return [];
     }
 
@@ -156,6 +188,10 @@ export const notesRepository: NotesRepository = {
     await this.patch(noteId, { trashedAt: null });
   },
   async clearTrash() {
+    if (shouldUseLocal()) {
+      return localNotesRepository.clearTrash();
+    }
+
     const supabase = createSupabaseBrowserClient();
 
     if (!supabase) {
@@ -169,6 +205,10 @@ export const notesRepository: NotesRepository = {
     }
   },
   async remove(noteId) {
+    if (shouldUseLocal()) {
+      return localNotesRepository.remove(noteId);
+    }
+
     const supabase = createSupabaseBrowserClient();
 
     if (!supabase) {

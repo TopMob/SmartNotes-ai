@@ -1,5 +1,3 @@
-import type { Session } from "@supabase/supabase-js";
-
 import { createSupabaseBrowserClient } from "@/shared/api/supabase/client";
 
 type EmailAuthPayload = {
@@ -147,18 +145,3 @@ export async function signOut() {
   }
 }
 
-export async function exchangeCodeForSession(code: string): Promise<Session | null> {
-  const supabase = createSupabaseBrowserClient();
-
-  if (!supabase) {
-    return null;
-  }
-
-  const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-
-  if (error) {
-    throw error;
-  }
-
-  return data.session;
-}
