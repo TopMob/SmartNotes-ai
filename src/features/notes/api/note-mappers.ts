@@ -1,24 +1,21 @@
 import type { MediaDescriptor, Note, NoteAccess, NoteDraft, NoteLock, NotePage } from "@/entities/note";
-import type { Database, Json } from "@/shared/api/supabase/types";
+import type { Database } from "@/shared/api/supabase/types";
 
 type NoteRow = Database["public"]["Tables"]["notes"]["Row"];
 type NoteInsert = Database["public"]["Tables"]["notes"]["Insert"];
 type NoteUpdate = Database["public"]["Tables"]["notes"]["Update"];
 
-function asPages(value: Json): NotePage[] {
-  return Array.isArray(value) ? (value as NotePage[]) : [];
-}
+function asLock(row: NoteRow): NoteLock | null {
+  if (row.lock_version === null || row.lock_hash === null) {
+    return null;
+  }
 
-function asMedia(value: Json): MediaDescriptor[] {
-  return Array.isArray(value) ? (value as MediaDescriptor[]) : [];
-}
-
-function asAccess(value: Json): NoteAccess[] {
-  return Array.isArray(value) ? (value as NoteAccess[]) : [];
-}
-
-function asLock(value: Json | null): NoteLock | null {
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as NoteLock) : null;
+  return {
+    v: row.lock_version,
+    hash: row.lock_hash,
+    salt: row.lock_salt ?? undefined,
+    hidden: row.lock_hidden,
+  };
 }
 
 export function mapNoteRow(row: NoteRow): Note {
@@ -28,16 +25,16 @@ export function mapNoteRow(row: NoteRow): Note {
     folderId: row.folder_id,
     title: row.title,
     content: row.content,
-    pages: asPages(row.pages),
+    pages: [],
     userTags: row.user_tags,
     hiddenTags: row.hidden_tags,
-    media: asMedia(row.media),
+    media: [],
     pinned: row.pinned,
     favorite: row.favorite,
     isArchived: row.is_archived,
     reminderAt: row.reminder_at,
-    lock: asLock(row.lock),
-    access: asAccess(row.access),
+    lock: asLock(row),
+    access: [],
     order: row.manual_order,
     folderOrder: row.folder_order,
     aiStatus: row.ai_status,
@@ -59,16 +56,16 @@ export function mapNoteDraftToInsert(note: Note): NoteInsert {
     folder_id: note.folderId,
     title: note.title,
     content: note.content,
-    pages: note.pages as Json,
     user_tags: note.userTags,
     hidden_tags: note.hiddenTags,
-    media: note.media as Json,
     pinned: note.pinned,
     favorite: note.favorite,
     is_archived: note.isArchived,
     reminder_at: note.reminderAt,
-    lock: note.lock as Json | null,
-    access: note.access as Json,
+    lock_version: note.lock?.v ?? null,
+    lock_hash: note.lock?.hash ?? null,
+    lock_salt: note.lock?.salt ?? null,
+    lock_hidden: note.lock?.hidden ?? false,
     manual_order: note.order,
     folder_order: note.folderOrder,
     ai_status: note.aiStatus,
@@ -84,21 +81,28 @@ export function mapNoteDraftToInsert(note: Note): NoteInsert {
 }
 
 export function mapNotePatchToUpdate(patch: Partial<Note>): NoteUpdate {
+  const lockFields =
+    patch.lock === undefined
+      ? {}
+      : {
+          lock_version: patch.lock?.v ?? null,
+          lock_hash: patch.lock?.hash ?? null,
+          lock_salt: patch.lock?.salt ?? null,
+          lock_hidden: patch.lock?.hidden ?? false,
+        };
+
   return {
     owner_id: patch.ownerId,
     folder_id: patch.folderId,
     title: patch.title,
     content: patch.content,
-    pages: patch.pages as Json | undefined,
     user_tags: patch.userTags,
     hidden_tags: patch.hiddenTags,
-    media: patch.media as Json | undefined,
     pinned: patch.pinned,
     favorite: patch.favorite,
     is_archived: patch.isArchived,
     reminder_at: patch.reminderAt,
-    lock: patch.lock as Json | null | undefined,
-    access: patch.access as Json | undefined,
+    ...lockFields,
     manual_order: patch.order,
     folder_order: patch.folderOrder,
     ai_status: patch.aiStatus,
