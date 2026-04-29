@@ -7,6 +7,7 @@ export type DrawingTool = "pen" | "marker" | "eraser";
 export type NoteLock = {
   v: number;
   hash: string;
+  salt?: string;
   hidden: boolean;
 };
 

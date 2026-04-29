@@ -39,6 +39,12 @@ import { Button } from "@/shared/ui/button";
 
 import { getSheetAnchor, plainTextToEditorContent, serializeEditorSnapshot, shareNote, type SheetAnchor, type SheetName } from "./shared";
 
+const EDITOR_EXTENSIONS = [
+  StarterKit.configure({ bulletList: { keepMarks: true, keepAttributes: false } }),
+  LinkExtension.configure({ openOnClick: false, autolink: true, linkOnPaste: true, defaultProtocol: "https" }),
+  TextAlign.configure({ types: ["heading", "paragraph"] }),
+];
+
 type EditorOverlayProps = {
   note: Note;
   onClose: () => void;
@@ -61,11 +67,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
   useDurableNoteSave();
 
   const editor = useEditor({
-    extensions: [
-      StarterKit.configure({ bulletList: { keepMarks: true, keepAttributes: false } }),
-      LinkExtension.configure({ openOnClick: false, autolink: true, linkOnPaste: true, defaultProtocol: "https" }),
-      TextAlign.configure({ types: ["heading", "paragraph"] }),
-    ],
+    extensions: EDITOR_EXTENSIONS,
     content: plainTextToEditorContent(currentPage.content),
     immediatelyRender: false,
     onUpdate: ({ editor: tiptapEditor }) => {

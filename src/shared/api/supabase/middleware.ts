@@ -9,7 +9,7 @@ export function updateSupabaseSession(request: NextRequest, response: NextRespon
   const publishableKey = getSupabasePublishableKey();
 
   if (!url || !publishableKey) {
-    return Promise.resolve(null);
+    return null;
   }
 
   const supabase = createServerClient<Database>(url, publishableKey, {

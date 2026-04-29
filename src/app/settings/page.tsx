@@ -19,7 +19,7 @@ import type { CustomThemePreset, EditorToolKey } from "@/entities/settings";
 import { useAuthStore } from "@/features/auth/model/auth-store";
 import { useFoldersQuery } from "@/features/folders/hooks/use-folders-query";
 import { useNoteActions } from "@/features/notes/hooks/use-note-mutations";
-import { useNotesQuery } from "@/features/notes/hooks/use-notes-query";
+import { useNotesFlat } from "@/features/notes/hooks/use-notes-query";
 import { parseImportedNotesFile } from "@/features/notes/lib/note-import";
 import { useSettingsActions } from "@/features/settings/hooks/use-settings-mutations";
 import { useSettingsQuery } from "@/features/settings/hooks/use-settings-query";
@@ -44,7 +44,7 @@ export default function SettingsPage() {
   const [presetName, setPresetName] = useState("");
   const { data: settings, isLoading, error } = useSettingsQuery();
   const { data: folders = [] } = useFoldersQuery();
-  const { data: notes = [] } = useNotesQuery();
+  const { data: notes = [] } = useNotesFlat();
   const userId = useAuthStore((state) => state.user?.id ?? "local-user");
   const { createNote } = useNoteActions();
   const { patchSettings, resetSettings } = useSettingsActions();

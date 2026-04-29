@@ -32,7 +32,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#f7f3ea",
+  themeColor: "#050505",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {

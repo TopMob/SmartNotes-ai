@@ -13,7 +13,6 @@ function readPendingNoteIds() {
     const value = window.localStorage.getItem(AI_QUEUE_KEY);
     return value ? (JSON.parse(value) as string[]).filter((item) => typeof item === "string") : [];
   } catch {
-    return;
     return [];
   }
 }
