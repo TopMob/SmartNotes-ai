@@ -11,9 +11,9 @@ export async function createLocalInlineMediaDescriptor(file: File): Promise<Medi
   });
 
   return {
-    id: createId("media"),
+    id: createId(),
     provider: "local-inline",
-    fileId: createId("local-file"),
+    fileId: createId(),
     url: dataUrl,
     mimeType: file.type || "application/octet-stream",
     name: file.name || "Upload",

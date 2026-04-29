@@ -7,6 +7,25 @@ import { useAuthActions } from "@/features/auth/hooks/use-auth-actions";
 import { useAuthStore } from "@/features/auth/model/auth-store";
 import { Button } from "@/shared/ui/button";
 
+/**
+ * Prevent back-navigation out of the login screen for unauthenticated users.
+ * Replaces the current history entry so pressing "Back" stays on /login.
+ */
+function usePreventBackNavigation() {
+  useEffect(() => {
+    // Push a state so we can intercept the popstate event
+    window.history.pushState(null, "", window.location.href);
+
+    function onPopState() {
+      // Re-push to keep user on the current page
+      window.history.pushState(null, "", window.location.href);
+    }
+
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+}
+
 type GoogleCredentialResponse = {
   credential?: string;
 };
@@ -35,6 +54,9 @@ export function LoginShell() {
   const [repeatPassword, setRepeatPassword] = useState("");
   const runtimeConfig = useAuthStore((state) => state.runtimeConfig);
   const { pending, error, message, loginWithEmail, registerWithEmail, loginWithGoogle, loginWithGoogleOneTap, loginAsGuest, resetPassword } = useAuthActions();
+
+  // Prevent back navigation for unauthenticated users on the login screen
+  usePreventBackNavigation();
 
   useEffect(() => {
     const timer = window.setTimeout(() => setSplash(false), 900);

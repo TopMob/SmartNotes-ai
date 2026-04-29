@@ -7,12 +7,12 @@ export function nowIso() {
   return new Date().toISOString();
 }
 
-export function createId(prefix: string) {
+export function createId(): string {
   if (globalThis.crypto?.randomUUID) {
-    return `${prefix}_${globalThis.crypto.randomUUID()}`;
+    return globalThis.crypto.randomUUID();
   }
 
-  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 export function normalizeFolderName(name: string) {
@@ -37,7 +37,7 @@ export function createLocalFolder(draft: FolderDraft, ownerId: string, folderOrd
   const createdAt = nowIso();
 
   return {
-    id: createId("folder"),
+    id: createId(),
     ownerId,
     name: normalizeFolderName(draft.name),
     description: normalizeFolderDescription(draft.description),

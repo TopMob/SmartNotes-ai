@@ -30,7 +30,7 @@ export function parseImportedNoteFile(text: string, ownerId: string) {
 
   if (Array.isArray(parsed.pages) && parsed.pages.length > 0) {
     note.pages = parsed.pages.map((page, index) => ({
-      id: createId("page"),
+      id: createId(),
       title: trimPageTitle(readString(page.title, `Page ${index + 1}`)) || `Page ${index + 1}`,
       content: readString(page.content),
       drawingDataUrl: typeof page.drawingDataUrl === "string" ? page.drawingDataUrl : null,
@@ -65,9 +65,9 @@ export function parseImportedNotesFile(text: string, ownerId: string) {
 
     return {
       ...note,
-      id: createId("note"),
+      id: createId(),
       title: count === 0 ? baseTitle : `${baseTitle} (${count + 1})`,
-      pages: note.pages.map((page) => ({ ...page, id: createId("page") })),
+      pages: note.pages.map((page) => ({ ...page, id: createId() })),
     };
   });
 }

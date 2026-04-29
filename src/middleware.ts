@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 
 import { updateSupabaseSession } from "@/shared/api/supabase/middleware";
 
+const PUBLIC_PATHS = new Set(["/login", "/auth/callback"]);
+
 export async function middleware(request: NextRequest) {
   const response = NextResponse.next({
     request: {
@@ -10,7 +12,25 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  await updateSupabaseSession(request, response);
+  const getUserResult = await updateSupabaseSession(request, response);
+
+  const { pathname } = request.nextUrl;
+  const isPublic = PUBLIC_PATHS.has(pathname) || pathname.startsWith("/api/") || pathname.startsWith("/auth/");
+  const isAuthenticated = getUserResult?.data?.user != null;
+
+  // Authenticated users on /login should be redirected to home
+  if (isAuthenticated && pathname === "/login") {
+    const homeUrl = request.nextUrl.clone();
+    homeUrl.pathname = "/";
+    return NextResponse.redirect(homeUrl);
+  }
+
+  // Unauthenticated users on protected routes should be redirected to login
+  if (!isAuthenticated && !isPublic) {
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = "/login";
+    return NextResponse.redirect(loginUrl);
+  }
 
   return response;
 }

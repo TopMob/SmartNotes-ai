@@ -16,12 +16,18 @@ export function nowIso() {
   return new Date().toISOString();
 }
 
-export function createId(prefix: string) {
+/**
+ * Generate a plain UUID v4 suitable for database primary keys.
+ * The database expects native UUIDs — string prefixes like "note_" cause
+ * type mismatches when the column is uuid or when referencing across tables.
+ */
+export function createId(): string {
   if (globalThis.crypto?.randomUUID) {
-    return `${prefix}_${globalThis.crypto.randomUUID()}`;
+    return globalThis.crypto.randomUUID();
   }
 
-  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+  // Fallback for insecure contexts: timestamp + random
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 export function trimPageTitle(title: string) {
@@ -46,7 +52,7 @@ export function mergeContentFromPages(pages: NotePage[]) {
 
 export function createInitialPage(content: string): NotePage {
   return {
-    id: createId("page"),
+    id: createId(),
     title: "Page 1",
     content,
     drawingDataUrl: null,
@@ -59,7 +65,7 @@ export function createLocalNote(draft: NoteDraft, ownerId: string): Note {
   const firstPage = createInitialPage(draft.content);
 
   return {
-    id: createId("note"),
+    id: createId(),
     ownerId,
     folderId: draft.folderId,
     title: deriveTitle(draft),
@@ -112,7 +118,7 @@ export function normalizeNotePatch(patch: Partial<Note>, options: NotePatchOptio
 
 export function buildPageAddPatch(note: Note, title?: string) {
   const page: NotePage = {
-    id: createId("page"),
+    id: createId(),
     title: trimPageTitle(title ?? `Page ${note.pages.length + 1}`),
     content: "",
     drawingDataUrl: null,
