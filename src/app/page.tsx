@@ -1,5 +1,5 @@
-import { SmartNotesShell } from "@/features/app-shell/ui/smart-notes-shell";
+import { AppEntry } from "@/features/app-shell/ui/app-entry";
 
 export default function HomePage() {
-  return <SmartNotesShell />;
+  return <AppEntry />;
 }

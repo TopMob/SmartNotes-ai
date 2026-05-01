@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // ---------------------------------------------------------------------------
 // AI Analysis Queue — debounced dispatch to /api/ai/analyze
 // Spec: SmartNotes_Features.txt §10 AI ENGINE
@@ -23,6 +24,43 @@ function loadPersistedIds(): void {
   } catch {
     // ignore
   }
+=======
+const AI_QUEUE_KEY = "smartnotes:ai:pending";
+
+function canUseLocalStorage() {
+  return typeof window !== "undefined" && Boolean(window.localStorage);
+}
+
+function readPendingNoteIds() {
+  if (!canUseLocalStorage()) {
+    return [];
+  }
+
+  try {
+    const value = window.localStorage.getItem(AI_QUEUE_KEY);
+    return value ? (JSON.parse(value) as string[]).filter((item) => typeof item === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistPendingNoteIds(noteIds: Set<string>) {
+  if (!canUseLocalStorage()) {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(AI_QUEUE_KEY, JSON.stringify([...noteIds]));
+  } catch {
+  }
+}
+
+const pendingNoteIds = new Set<string>(readPendingNoteIds());
+
+export function scheduleAiAnalysis(noteId: string) {
+  pendingNoteIds.add(noteId);
+  persistPendingNoteIds(pendingNoteIds);
+>>>>>>> 35adc060ddb138744e22c3579e7077d5fc484a24
 }
 
 function persistIds(): void {
@@ -90,5 +128,14 @@ export function listPendingAiAnalysis(): string[] {
 
 export function markAiAnalysisDone(noteId: string): void {
   pendingNoteIds.delete(noteId);
+<<<<<<< HEAD
   persistIds();
+=======
+  persistPendingNoteIds(pendingNoteIds);
+}
+
+export function clearAiAnalysisQueue() {
+  pendingNoteIds.clear();
+  persistPendingNoteIds(pendingNoteIds);
+>>>>>>> 35adc060ddb138744e22c3579e7077d5fc484a24
 }

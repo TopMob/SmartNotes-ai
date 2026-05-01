@@ -1,19 +1,31 @@
 import type { Folder, FolderDraft } from "@/entities/folder";
+import { isGuestUser } from "@/features/auth/lib/guest-session";
+import { useAuthStore } from "@/features/auth/model/auth-store";
 import { localFoldersRepository } from "@/features/folders/api/local-folders-repository";
 import { createSupabaseBrowserClient } from "@/shared/api/supabase/client";
 import { createLocalFolder } from "@/features/folders/lib/folder-utils";
 
 import { mapFolderDraftToInsert, mapFolderPatchToUpdate, mapFolderRow } from "./folder-mappers";
 
+function shouldUseLocal(): boolean {
+  const user = useAuthStore.getState().user;
+  return !user || isGuestUser(user);
+}
+
 export type FoldersRepository = {
   list: () => Promise<Folder[]>;
   create: (draft: FolderDraft, ownerId: string, folderOrder: number) => Promise<Folder>;
   patch: (folderId: string, patch: Partial<Folder>) => Promise<Folder>;
+  reorder: (orderedFolderIds: string[]) => Promise<Folder[]>;
   remove: (folderId: string) => Promise<void>;
 };
 
 export const foldersRepository: FoldersRepository = {
   async list() {
+    if (shouldUseLocal()) {
+      return localFoldersRepository.list();
+    }
+
     const supabase = createSupabaseBrowserClient();
 
     if (!supabase) {
@@ -29,6 +41,10 @@ export const foldersRepository: FoldersRepository = {
     return data.map(mapFolderRow);
   },
   async create(draft, ownerId, folderOrder) {
+    if (shouldUseLocal()) {
+      return localFoldersRepository.create(createLocalFolder(draft, ownerId, folderOrder));
+    }
+
     const supabase = createSupabaseBrowserClient();
 
     if (!supabase) {
@@ -48,6 +64,10 @@ export const foldersRepository: FoldersRepository = {
     return mapFolderRow(data);
   },
   async patch(folderId, patch) {
+    if (shouldUseLocal()) {
+      return localFoldersRepository.patch(folderId, patch);
+    }
+
     const supabase = createSupabaseBrowserClient();
 
     if (!supabase) {
@@ -67,7 +87,28 @@ export const foldersRepository: FoldersRepository = {
 
     return mapFolderRow(data);
   },
+  async reorder(orderedFolderIds) {
+    const updates = orderedFolderIds.map((folderId, folderOrder) => ({ folderId, folderOrder }));
+
+    if (shouldUseLocal()) {
+      return localFoldersRepository.reorder(updates);
+    }
+
+    const supabase = createSupabaseBrowserClient();
+
+    if (!supabase) {
+      return localFoldersRepository.reorder(updates);
+    }
+
+    const folders = await Promise.all(updates.map(({ folderId, folderOrder }) => this.patch(folderId, { folderOrder })));
+
+    return folders.sort((left, right) => left.folderOrder - right.folderOrder);
+  },
   async remove(folderId) {
+    if (shouldUseLocal()) {
+      return localFoldersRepository.remove(folderId);
+    }
+
     const supabase = createSupabaseBrowserClient();
 
     if (!supabase) {

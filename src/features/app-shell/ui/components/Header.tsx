@@ -29,7 +29,7 @@ type HeaderProps = {
 
 export function Header({ copy, view, activeFolder, searchQuery, filtersOpen, filtersRef, onOpenDrawer, onOpenFilters, onOpenFolderMenu, profileOpen, profileRef, setProfileOpen, setSearchQuery }: HeaderProps) {
   const user = useAuthStore((state) => state.user);
-  const { logout, pending } = useAuthActions();
+  const { logout, pending, updateProfile } = useAuthActions();
   const title =
     view === "folder" && activeFolder
       ? activeFolder.name
@@ -53,6 +53,28 @@ export function Header({ copy, view, activeFolder, searchQuery, filtersOpen, fil
 
   const userName = user?.displayName?.trim() || user?.email || "Guest";
   const userUid = user?.uid ?? "anonymous";
+
+  async function editDisplayName() {
+    const nextName = window.prompt("Новое имя профиля", userName)?.trim();
+
+    if (!nextName) {
+      return;
+    }
+
+    await updateProfile({ displayName: nextName.slice(0, 80) });
+  }
+
+  async function changeAvatar() {
+    const nextValue = window.prompt("URL аватара", user?.photoURL ?? "");
+
+    if (nextValue === null) {
+      return;
+    }
+
+    const nextUrl = nextValue.trim();
+
+    await updateProfile({ photoURL: nextUrl || null });
+  }
 
   return (
     <header className="top-bar sticky top-0 z-20 px-3 py-3 pb-[3.5rem] shadow-lg shadow-violet-950/5 sm:px-4 md:pb-3 md:py-3">
@@ -89,10 +111,13 @@ export function Header({ copy, view, activeFolder, searchQuery, filtersOpen, fil
                 <div className="rounded-2xl bg-surface-strong p-3">
                   <div className="flex items-center gap-2">
                     <p className="flex-1 text-sm font-black">{userName}</p>
-                    <button className="rounded-full p-2 text-foreground/48 hover:bg-background" type="button">
+                    <button className="rounded-full p-2 text-foreground/48 hover:bg-background" onClick={() => void editDisplayName()} type="button">
                       <Pencil className="h-4 w-4" />
                     </button>
                   </div>
+                  <button className="mt-2 w-full rounded-xl bg-background/70 px-3 py-2 text-left text-xs font-bold text-foreground/56" onClick={() => void changeAvatar()} type="button">
+                    Сменить аватар
+                  </button>
                   <button className="mt-2 flex w-full items-center justify-between rounded-xl bg-background/70 px-3 py-2 text-left text-xs font-bold text-foreground/56" onClick={() => void navigator.clipboard.writeText(userUid)} type="button">
                     UID: {userUid}
                     <Copy className="h-3.5 w-3.5" />

@@ -1,8 +1,15 @@
 import type { UserSettings, UserSettingsPatch } from "@/entities/settings";
+import { isGuestUser } from "@/features/auth/lib/guest-session";
+import { useAuthStore } from "@/features/auth/model/auth-store";
 import { localSettingsRepository } from "@/features/settings/api/local-settings-repository";
 import { createSupabaseBrowserClient } from "@/shared/api/supabase/client";
 
 import { mapSettingsInsert, mapSettingsPatchToUpdate, mapSettingsRow } from "./settings-mappers";
+
+function shouldUseLocal(): boolean {
+  const user = useAuthStore.getState().user;
+  return !user || isGuestUser(user);
+}
 
 export type SettingsRepository = {
   get: (userId: string) => Promise<UserSettings>;
@@ -11,6 +18,10 @@ export type SettingsRepository = {
 
 export const settingsRepository: SettingsRepository = {
   async get(userId) {
+    if (shouldUseLocal()) {
+      return localSettingsRepository.get(userId);
+    }
+
     const supabase = createSupabaseBrowserClient();
 
     if (!supabase) {
@@ -36,6 +47,10 @@ export const settingsRepository: SettingsRepository = {
     return mapSettingsRow(inserted);
   },
   async patch(userId, patch) {
+    if (shouldUseLocal()) {
+      return localSettingsRepository.patch(userId, patch);
+    }
+
     const supabase = createSupabaseBrowserClient();
 
     if (!supabase) {

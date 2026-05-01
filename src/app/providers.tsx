@@ -9,6 +9,7 @@ import { useSettingsQuery } from "@/features/settings/hooks/use-settings-query";
 import { createAppQueryClient } from "@/shared/lib/react-query/query-client";
 import { PwaRegister } from "./pwa-register";
 import { AuthProvider } from "@/features/auth/ui/auth-provider";
+import { RootErrorBoundary } from "@/shared/ui/error-boundary";
 
 function ThemeBridge() {
   const { data: settings } = useSettingsQuery();
@@ -38,13 +39,15 @@ export function AppProviders({ children }: Readonly<{ children: ReactNode }>) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <DataBootstrap>
-          <PwaRegister />
-          <ThemeBridge />
-          {children}
-        </DataBootstrap>
-      </AuthProvider>
+      <RootErrorBoundary>
+        <AuthProvider>
+          <DataBootstrap>
+            <PwaRegister />
+            <ThemeBridge />
+            {children}
+          </DataBootstrap>
+        </AuthProvider>
+      </RootErrorBoundary>
     </QueryClientProvider>
   );
 }

@@ -5,8 +5,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { MediaDescriptor, Note, NoteDraft } from "@/entities/note";
 import { useAuthStore } from "@/features/auth/model/auth-store";
 import { notesRepository } from "@/features/notes/api/notes-repository";
-import { useNotesQuery } from "@/features/notes/hooks/use-notes-query";
 import {
+  ANALYSIS_FIELD_KEYS,
   buildMediaPatch,
   buildPageAddPatch,
   buildPageDeletePatch,
@@ -19,12 +19,30 @@ import {
 import { scheduleAiAnalysis } from "@/services/ai/ai-queue";
 import { enqueueSyncItem } from "@/services/sync/sync-queue";
 import { publish } from "@/services/event-bus";
+import { scheduleAiAnalysis } from "@/services/ai/ai-queue";
 import { queryKeys } from "@/shared/lib/react-query/query-keys";
+
+type InfiniteNotesData = {
+  pages: Array<{ data: Note[]; nextCursor: string | null; hasMore: boolean }>;
+  pageParams: unknown[];
+};
 
 type NotesSnapshot = { previousNotes: Note[] | undefined };
 
 function sortNotes(notes: Note[]) {
   return [...notes].sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime());
+}
+
+function getFlatNotes(data: InfiniteNotesData | undefined): Note[] {
+  return data?.pages.flatMap((page) => page.data) ?? [];
+}
+
+function updateFirstPageNotes(data: InfiniteNotesData | undefined, updater: (notes: Note[]) => Note[]): InfiniteNotesData | undefined {
+  if (!data) return data;
+  return {
+    ...data,
+    pages: data.pages.map((page, i) => (i === 0 ? { ...page, data: updater(page.data) } : page)),
+  };
 }
 
 export function useCreateNoteMutation() {
@@ -43,23 +61,26 @@ export function useCreateNoteMutation() {
 
       const queryKey = queryKeys.notes(userId);
       await queryClient.cancelQueries({ queryKey });
-      const previousNotes = queryClient.getQueryData<Note[]>(queryKey);
+      const previousData = queryClient.getQueryData<InfiniteNotesData>(queryKey);
+      const previousNotes = getFlatNotes(previousData);
       const localNote = optimisticNote ?? createLocalNote(draft, userId);
 
-      queryClient.setQueryData<Note[]>(queryKey, sortNotes([localNote, ...(previousNotes ?? [])]));
+      queryClient.setQueryData<InfiniteNotesData>(queryKey, updateFirstPageNotes(previousData, (notes) =>
+        sortNotes([localNote, ...notes])
+      ));
 
       return { previousNotes } satisfies NotesSnapshot;
     },
-    onError: (_error, _variables, context) => {
-      if (!userId || !context) {
-        return;
-      }
-
-      queryClient.setQueryData(queryKeys.notes(userId), context.previousNotes);
+    onError: () => {
+      if (!userId) return;
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notes(userId) });
     },
     onSuccess: (note) => {
       enqueueSyncItem({ id: note.id, entity: "note", operation: "create", payload: { noteId: note.id } });
+<<<<<<< HEAD
       // Queue AI analysis for new notes
+=======
+>>>>>>> 35adc060ddb138744e22c3579e7077d5fc484a24
       scheduleAiAnalysis(note.id);
     },
     onSettled: () => {
@@ -85,28 +106,33 @@ export function useUpdateNoteMutation() {
 
       const queryKey = queryKeys.notes(userId);
       await queryClient.cancelQueries({ queryKey });
-      const previousNotes = queryClient.getQueryData<Note[]>(queryKey);
+      const previousData = queryClient.getQueryData<InfiniteNotesData>(queryKey);
+      const previousNotes = getFlatNotes(previousData);
 
-      queryClient.setQueryData<Note[]>(queryKey, (current = []) =>
-        sortNotes(current.map((note) => (note.id === noteId ? { ...note, ...patch } : note))),
-      );
+      queryClient.setQueryData<InfiniteNotesData>(queryKey, updateFirstPageNotes(previousData, (notes) =>
+        sortNotes(notes.map((note) => (note.id === noteId ? { ...note, ...patch } : note)))
+      ));
 
       return { previousNotes } satisfies NotesSnapshot;
     },
-    onError: (error, _variables, context) => {
-      if (!userId || !context) {
-        return;
-      }
-
+    onError: (error) => {
+      if (!userId) return;
       publish("syncFailed", { message: error instanceof Error ? error.message : "Failed to update note." });
-      queryClient.setQueryData(queryKeys.notes(userId), context.previousNotes);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notes(userId) });
     },
     onSuccess: (_note, { noteId, patch }) => {
       enqueueSyncItem({ id: noteId, entity: "note", operation: "patch", payload: patch });
+<<<<<<< HEAD
       // Queue AI analysis if content-related fields changed
       const analysisFields = new Set(["title", "content", "pages", "userTags"]);
       const needsAnalysis = Object.keys(patch).some((k) => analysisFields.has(k));
       if (needsAnalysis) scheduleAiAnalysis(noteId);
+=======
+
+      if (patch.aiStatus === "pending" || patch.aiProcessed === false || patch.analyzed === false || ANALYSIS_FIELD_KEYS.some((field) => field in patch)) {
+        scheduleAiAnalysis(noteId);
+      }
+>>>>>>> 35adc060ddb138744e22c3579e7077d5fc484a24
     },
     onSettled: () => {
       if (!userId) {
@@ -131,18 +157,18 @@ export function useDeleteNoteMutation() {
 
       const queryKey = queryKeys.notes(userId);
       await queryClient.cancelQueries({ queryKey });
-      const previousNotes = queryClient.getQueryData<Note[]>(queryKey);
+      const previousData = queryClient.getQueryData<InfiniteNotesData>(queryKey);
+      const previousNotes = getFlatNotes(previousData);
 
-      queryClient.setQueryData<Note[]>(queryKey, (current = []) => current.filter((note) => note.id !== noteId));
+      queryClient.setQueryData<InfiniteNotesData>(queryKey, updateFirstPageNotes(previousData, (notes) =>
+        notes.filter((note) => note.id !== noteId)
+      ));
 
       return { previousNotes } satisfies NotesSnapshot;
     },
-    onError: (_error, _variables, context) => {
-      if (!userId || !context) {
-        return;
-      }
-
-      queryClient.setQueryData(queryKeys.notes(userId), context.previousNotes);
+    onError: () => {
+      if (!userId) return;
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notes(userId) });
     },
     onSettled: () => {
       if (!userId) {
@@ -157,13 +183,56 @@ export function useDeleteNoteMutation() {
   });
 }
 
+export function useClearTrashMutation() {
+  const queryClient = useQueryClient();
+  const userId = useAuthStore((state) => state.user?.id ?? null);
+
+  return useMutation({
+    mutationFn: async () => notesRepository.clearTrash(),
+    onMutate: async () => {
+      if (!userId) {
+        return { previousNotes: undefined } satisfies NotesSnapshot;
+      }
+
+      const queryKey = queryKeys.notes(userId);
+      await queryClient.cancelQueries({ queryKey });
+      const previousData = queryClient.getQueryData<InfiniteNotesData>(queryKey);
+      const previousNotes = getFlatNotes(previousData);
+
+      queryClient.setQueryData<InfiniteNotesData>(queryKey, updateFirstPageNotes(previousData, (notes) =>
+        notes.filter((note) => !note.trashedAt)
+      ));
+
+      return { previousNotes } satisfies NotesSnapshot;
+    },
+    onError: () => {
+      if (!userId) return;
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notes(userId) });
+    },
+    onSuccess: () => {
+      enqueueSyncItem({ id: "trash", entity: "note", operation: "delete", payload: { scope: "trash" } });
+    },
+    onSettled: () => {
+      if (!userId) {
+        return;
+      }
+
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notes(userId) });
+    },
+  });
+}
+
 export function useNoteActions() {
+  const queryClient = useQueryClient();
   const createMutation = useCreateNoteMutation();
   const updateMutation = useUpdateNoteMutation();
   const deleteMutation = useDeleteNoteMutation();
-  const notes = useNotesQuery().data ?? [];
+  const clearTrashMutation = useClearTrashMutation();
+  const userId = useAuthStore((state) => state.user?.id ?? null);
 
   function findNote(noteId: string) {
+    const queryData = queryClient.getQueryData<{ pages: Array<{ data: Note[] }> }>(queryKeys.notes(userId ?? "local-user"));
+    const notes = queryData?.pages.flatMap((page) => page.data) ?? [];
     return notes.find((item) => item.id === noteId) ?? null;
   }
 
@@ -183,6 +252,7 @@ export function useNoteActions() {
     trashNote: (noteId: string) => updateMutation.mutateAsync({ noteId, patch: normalizeNotePatch({ trashedAt: nowIso() }, { scheduleAnalysis: false }) }),
     restoreNote: (noteId: string) => updateMutation.mutateAsync({ noteId, patch: normalizeNotePatch({ trashedAt: null }, { scheduleAnalysis: false }) }),
     permanentlyDeleteNote: (noteId: string) => deleteMutation.mutateAsync(noteId),
+    clearTrash: () => clearTrashMutation.mutateAsync(),
     togglePinned: (noteId: string) => {
       const note = findNote(noteId);
       return note ? updateMutation.mutateAsync({ noteId, patch: normalizeNotePatch({ pinned: !note.pinned }, { scheduleAnalysis: false }) }) : Promise.resolve();
@@ -195,8 +265,21 @@ export function useNoteActions() {
       updateMutation.mutateAsync({ noteId, patch: normalizeNotePatch({ isArchived }, { scheduleAnalysis: false }) }),
     setReminder: (noteId: string, reminderAt: string | null) =>
       updateMutation.mutateAsync({ noteId, patch: normalizeNotePatch({ reminderAt }, { scheduleAnalysis: false }) }),
-    moveNoteToFolder: (noteId: string, folderId: string | null) =>
-      updateMutation.mutateAsync({ noteId, patch: normalizeNotePatch({ folderId }, { scheduleAnalysis: false }) }),
+    moveNoteToFolder: (noteId: string, folderId: string | null) => {
+      const note = findNote(noteId);
+
+      return updateMutation.mutateAsync({
+        noteId,
+        patch: normalizeNotePatch(
+          {
+            folderId,
+            folderOrder: folderId ? Date.now() : null,
+            hiddenTags: note ? Array.from(new Set([...note.hiddenTags, "manual-folder-signal"])) : undefined,
+          },
+          { scheduleAnalysis: true },
+        ),
+      });
+    },
     addPage: (noteId: string, title?: string) => {
       const note = findNote(noteId);
 

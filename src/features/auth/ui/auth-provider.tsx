@@ -6,8 +6,12 @@ import { useEffect, useState } from "react";
 
 import { bootstrapProfile } from "@/features/auth/api/profile-bootstrap";
 import { fetchAuthRuntimeConfig } from "@/features/auth/api/runtime-config";
+<<<<<<< HEAD
 import { signInWithGoogleOneTap } from "@/features/auth/api/auth-client";
 import { initGoogleOneTap } from "@/features/auth/lib/google-one-tap";
+=======
+import { clearGuestSession, readGuestSession } from "@/features/auth/lib/guest-session";
+>>>>>>> 35adc060ddb138744e22c3579e7077d5fc484a24
 import { mapAuthUser } from "@/features/auth/lib/map-auth-user";
 import { useAuthStore } from "@/features/auth/model/auth-store";
 import { createSupabaseBrowserClient } from "@/shared/api/supabase/client";
@@ -22,6 +26,23 @@ function createLocalModeUser() {
     displayName: "Local User",
     photoURL: null,
   };
+}
+
+function activateGuestSession(runtimeConfig: Awaited<ReturnType<typeof fetchAuthRuntimeConfig>>) {
+  const session = readGuestSession();
+
+  if (!session) {
+    return false;
+  }
+
+  useAuthStore.getState().setAuthState({
+    status: "authenticated",
+    user: session.user,
+    degraded: true,
+    error: "Гостевой режим: данные будут удалены через 10 минут.",
+  });
+  useAuthStore.getState().setRuntimeConfig(runtimeConfig);
+  return true;
 }
 
 async function syncSession(session: Session | null) {
@@ -48,6 +69,7 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
 
   useEffect(() => {
     const controller = new AbortController();
+    let guestExpiryId: number | undefined;
     const timeoutId = window.setTimeout(() => {
       useAuthStore.getState().setAuthState({
         status: "degraded",
@@ -65,6 +87,7 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
         const runtimeConfig = await fetchAuthRuntimeConfig(controller.signal);
         useAuthStore.getState().setRuntimeConfig(runtimeConfig);
 
+<<<<<<< HEAD
         // Inject google-client-id meta tag for One Tap login-shell access
         if (runtimeConfig.googleClientId) {
           let meta = document.querySelector<HTMLMetaElement>("meta[name=google-client-id]");
@@ -74,6 +97,20 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
             document.head.appendChild(meta);
           }
           meta.content = runtimeConfig.googleClientId;
+=======
+        if (activateGuestSession(runtimeConfig)) {
+          const session = readGuestSession();
+
+          if (session) {
+            guestExpiryId = window.setTimeout(() => {
+              clearGuestSession(session.user.id);
+              useAuthStore.getState().setAuthState({ status: "anonymous", user: null });
+            }, Math.max(0, session.expiresAt - Date.now()));
+          }
+
+          setReady(true);
+          return;
+>>>>>>> 35adc060ddb138744e22c3579e7077d5fc484a24
         }
 
         if (!runtimeConfig.url || !runtimeConfig.publishableKey) {
@@ -152,6 +189,9 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
       unsubscribed = true;
       controller.abort();
       window.clearTimeout(timeoutId);
+      if (guestExpiryId !== undefined) {
+        window.clearTimeout(guestExpiryId);
+      }
       cleanup?.();
     };
   }, []);

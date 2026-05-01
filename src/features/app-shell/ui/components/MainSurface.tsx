@@ -5,8 +5,9 @@ import type { Folder as FolderEntity } from "@/entities/folder";
 import type { Note } from "@/entities/note";
 import { useFolderActions } from "@/features/folders/hooks/use-folder-mutations";
 import { useFoldersQuery } from "@/features/folders/hooks/use-folders-query";
+import { useNoteActions } from "@/features/notes/hooks/use-note-mutations";
 import { selectPinnedGroups } from "@/features/notes/model/note-selectors";
-import { useNotesQuery } from "@/features/notes/hooks/use-notes-query";
+import { useNotesFlat } from "@/features/notes/hooks/use-notes-query";
 import { listPendingAiAnalysis } from "@/services/ai/ai-queue";
 import { listCollabDiagnostics, getMediaDiagnostic } from "@/services/diagnostics/runtime-diagnostics";
 import { listSyncQueue } from "@/services/sync/sync-queue";
@@ -33,7 +34,7 @@ type MainSurfaceProps = {
 
 export function MainSurface({ copy, view, folders, hiddenFolders, trashedFolders, notes, activeFolder, folderViewMode, notesPerPage, onOpenFolder, onOpenNote, onOpenSheet }: MainSurfaceProps) {
   if (view === "admin_tools") {
-    return <section className="panel-card min-h-[calc(100vh-4.8rem)] border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><AdminToolsView notes={notes} /></section>;
+    return <section className="panel-card min-h-[calc(100vh-4.8rem)] border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><AdminToolsView notes={notes} onOpenSheet={onOpenSheet} /></section>;
   }
 
   if (view === "hidden_folders") {
@@ -79,7 +80,7 @@ export function MainSurface({ copy, view, folders, hiddenFolders, trashedFolders
 }
 
 function FoldersGrid({ folders, mode, emptyText, folderViewMode, onOpenFolder }: { folders: FolderEntity[]; mode: "active" | "hidden"; emptyText: string; folderViewMode: "compact" | "full"; onOpenFolder: (folder: FolderEntity) => void }) {
-  const { data: notes = [] } = useNotesQuery();
+  const { data: notes = [] } = useNotesFlat();
   const { unhideFolder } = useFolderActions();
 
   if (!folders.length) {
@@ -118,9 +119,13 @@ function FoldersGrid({ folders, mode, emptyText, folderViewMode, onOpenFolder }:
 
 function TrashView({ copy, notes, notesPerPage, trashedFolders, onOpenNote, onOpenSheet }: { copy: ReturnType<typeof getUiCopy>; notes: Note[]; notesPerPage: 5 | 10 | 20 | 50; trashedFolders: FolderEntity[]; onOpenNote: (noteId: string) => void; onOpenSheet: (sheet: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void }) {
   const { permanentlyDeleteFolder, restoreFolder } = useFolderActions();
+  const { clearTrash } = useNoteActions();
 
   return (
     <div className="content-scrollable space-y-6 p-4 sm:p-5">
+      <div className="flex justify-end">
+        <button className="rounded-2xl border border-border bg-surface-strong px-4 py-2 text-sm font-black text-rose-500" onClick={() => void clearTrash()} type="button">{copy.shell.actions.clear}</button>
+      </div>
       {trashedFolders.length ? (
         <section>
           <div className="mb-3 text-sm font-black uppercase tracking-[0.2em] text-foreground/42">{copy.shell.sections.deletedFolders}</div>
@@ -192,7 +197,7 @@ function NotesView({ copy, title: _title, notes, notesPerPage, emptyText, onOpen
   );
 }
 
-function AdminToolsView({ notes }: { notes: Note[] }) {
+function AdminToolsView({ notes, onOpenSheet }: { notes: Note[]; onOpenSheet: (sheet: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void }) {
   const pending = notes.filter((note) => note.aiStatus === "pending").length;
   const failed = notes.filter((note) => note.aiStatus === "error").length;
   const analyzing = notes.filter((note) => note.aiStatus === "analyzing").length;
@@ -213,11 +218,11 @@ function AdminToolsView({ notes }: { notes: Note[] }) {
         const Icon = card.icon;
 
         return (
-          <div className="rounded-[1.6rem] border border-border bg-surface-strong p-5 shadow-lg shadow-violet-950/4" key={card.title}>
+          <button className="rounded-[1.6rem] border border-border bg-surface-strong p-5 text-left shadow-lg shadow-violet-950/4" key={card.title} onClick={() => onOpenSheet("admin-tools")} type="button">
             <div className="flex items-center gap-2 text-accent"><Icon className="h-5 w-5" /><span className="text-xs font-black uppercase tracking-[0.2em]">Admin</span></div>
             <h2 className="mt-4 text-3xl font-black tracking-tight">{card.value}</h2>
             <p className="mt-2 text-sm text-foreground/56">{card.title}</p>
-          </div>
+          </button>
         );
       })}
     </div>

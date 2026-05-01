@@ -95,7 +95,7 @@ export function useNoteCollabPage(pageIndex: number) {
     const pages = getPages(doc);
     const pageNumber = pages.length + 1;
     const nextPage: NotePage = {
-      id: createId("page"),
+      id: createId(),
       title: trimPageTitle(title ?? `Page ${pageNumber}`) || `Page ${pageNumber}`,
       content: "",
       drawingDataUrl: null,

@@ -1,14 +1,27 @@
 import type { Note } from "@/entities/note";
+import { getLocalUserScope } from "@/features/auth/lib/local-user-scope";
 import { readJsonFromLocalStorage, writeJsonToLocalStorage } from "@/shared/lib/local-storage";
 
-const LOCAL_NOTES_KEY = "smartnotes:local:notes";
+function getLocalNotesKey() {
+  return `smartnotes:local:notes:${getLocalUserScope()}`;
+}
 
 function readNotes() {
-  return readJsonFromLocalStorage<Note[]>(LOCAL_NOTES_KEY, []);
+  const scopedNotes = readJsonFromLocalStorage<Note[]>(getLocalNotesKey(), []);
+
+  if (scopedNotes.length) {
+    return scopedNotes;
+  }
+
+  if (getLocalUserScope() === "local-user") {
+    return readJsonFromLocalStorage<Note[]>("smartnotes:local:notes", []);
+  }
+
+  return scopedNotes;
 }
 
 function writeNotes(notes: Note[]) {
-  writeJsonToLocalStorage(LOCAL_NOTES_KEY, notes);
+  writeJsonToLocalStorage(getLocalNotesKey(), notes);
 }
 
 export const localNotesRepository = {
@@ -19,6 +32,12 @@ export const localNotesRepository = {
     const notes = readNotes();
     writeNotes([note, ...notes.filter((item) => item.id !== note.id)]);
     return note;
+  },
+  async batchCreate(notesToCreate: Note[]) {
+    const notes = readNotes();
+    const createIds = new Set(notesToCreate.map((note) => note.id));
+    writeNotes([...notesToCreate, ...notes.filter((item) => !createIds.has(item.id))]);
+    return notesToCreate;
   },
   async patch(noteId: string, patch: Partial<Note>) {
     const notes = readNotes();
@@ -34,5 +53,8 @@ export const localNotesRepository = {
   },
   async remove(noteId: string) {
     writeNotes(readNotes().filter((item) => item.id !== noteId));
+  },
+  async clearTrash() {
+    writeNotes(readNotes().filter((item) => !item.trashedAt));
   },
 };

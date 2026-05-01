@@ -12,6 +12,7 @@ import { applyNoteToYDoc, buildDurableNotePatchFromYDoc, createEmptyYNoteDoc, re
 import type { IndexeddbPersistence } from "y-indexeddb";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { clearCollabDiagnostic, setCollabDiagnostic } from "@/services/diagnostics/runtime-diagnostics";
+import { decodeYjsUpdate, encodeYjsUpdate } from "@/features/editor-collab/lib/yjs-update-encoding";
 
 type NoteCollabStatus = "hydrating" | "ready" | "error";
 
@@ -33,7 +34,26 @@ type NoteCollabSessionValue = {
   setDurableState: React.Dispatch<React.SetStateAction<DurableState>>;
 };
 
+const LOCAL_UPDATE_PREFIX = "smartnotes:collab:update:";
+
 const NoteCollabSessionContext = createContext<NoteCollabSessionValue | null>(null);
+
+function saveLocalUpdate(noteId: string, value: Uint8Array) {
+  try {
+    window.localStorage.setItem(LOCAL_UPDATE_PREFIX + noteId, encodeYjsUpdate(value));
+  } catch {
+    return;
+  }
+}
+
+function loadLocalUpdate(noteId: string) {
+  try {
+    const value = window.localStorage.getItem(LOCAL_UPDATE_PREFIX + noteId);
+    return value ? decodeYjsUpdate(value) : null;
+  } catch {
+    return null;
+  }
+}
 
 type NoteCollabProviderProps = {
   note: Pick<Note, "id" | "title" | "folderId" | "userTags" | "content" | "pages">;
@@ -88,6 +108,12 @@ export function NoteCollabSessionProvider({ note, children }: NoteCollabProvider
         durable: "idle",
         message: channel ? "Started local persistence and realtime transport." : "Started local persistence without Supabase realtime transport.",
       });
+
+      const localUpdate = loadLocalUpdate(note.id);
+
+      if (localUpdate) {
+        Y.applyUpdate(session.doc, localUpdate);
+      }
     } catch (cause) {
       setStatus("error");
       setError(cause instanceof Error ? cause : new Error("Failed to initialize collaborative note session."));
@@ -103,6 +129,11 @@ export function NoteCollabSessionProvider({ note, children }: NoteCollabProvider
     }
 
     let cancelled = false;
+    const handleUpdate = () => {
+      saveLocalUpdate(note.id, Y.encodeStateAsUpdate(session.doc));
+    };
+
+    session.doc.on("update", handleUpdate);
 
     // Fast-path for brand-new empty notes: no need to wait for IndexedDB
     const isNewEmptyNote = !note.content && note.pages.every((p) => !p.content);
@@ -183,6 +214,7 @@ export function NoteCollabSessionProvider({ note, children }: NoteCollabProvider
 
     return () => {
       cancelled = true;
+      session.doc.off("update", handleUpdate);
       transportRef.current?.destroy();
       transportRef.current = null;
       channelRef.current = null;

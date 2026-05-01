@@ -19,6 +19,11 @@ export const metadata: Metadata = {
   title: "SmartNotes",
   description: "Создал и забыл — SmartNotes напомнит, найдет и разложит заметки по смыслу.",
   applicationName: "SmartNotes",
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/apple-icon.svg", type: "image/svg+xml" }],
+    shortcut: [{ url: "/icon.svg", type: "image/svg+xml" }],
+  },
   appleWebApp: {
     capable: true,
     title: "SmartNotes",
@@ -32,7 +37,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#f7f3ea",
+  themeColor: "#050505",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {

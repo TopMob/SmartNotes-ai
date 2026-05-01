@@ -1,5 +1,3 @@
-import type { Session } from "@supabase/supabase-js";
-
 import { createSupabaseBrowserClient } from "@/shared/api/supabase/client";
 
 type EmailAuthPayload = {
@@ -19,7 +17,7 @@ export async function signInWithEmail(payload: EmailAuthPayload) {
   const supabase = createSupabaseBrowserClient();
 
   if (!supabase) {
-    throw new Error("Supabase auth is unavailable in local mode.");
+    throw new Error("Supabase runtime config не задан. Email-вход недоступен в локальном режиме.");
   }
 
   const { data, error } = await supabase.auth.signInWithPassword(payload);
@@ -35,7 +33,7 @@ export async function signUpWithEmail(payload: EmailAuthPayload) {
   const supabase = createSupabaseBrowserClient();
 
   if (!supabase) {
-    throw new Error("Supabase auth is unavailable in local mode.");
+    throw new Error("Supabase runtime config не задан. Регистрация недоступна в локальном режиме.");
   }
 
   const { data, error } = await supabase.auth.signUp({
@@ -56,13 +54,17 @@ export async function signInWithGoogle() {
   const supabase = createSupabaseBrowserClient();
 
   if (!supabase) {
-    throw new Error("Google sign-in is unavailable in local mode.");
+    throw new Error("Supabase runtime config не задан. Google-вход недоступен в локальном режиме.");
   }
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
       redirectTo: getAuthRedirectTo(),
+      queryParams: {
+        access_type: "offline",
+        prompt: "select_account",
+      },
     },
   });
 
@@ -73,11 +75,51 @@ export async function signInWithGoogle() {
   return data;
 }
 
+export async function signInWithGoogleIdToken(credential: string) {
+  const supabase = createSupabaseBrowserClient();
+
+  if (!supabase) {
+    throw new Error("Supabase runtime config не задан. Google One Tap недоступен в локальном режиме.");
+  }
+
+  const { data, error } = await supabase.auth.signInWithIdToken({
+    provider: "google",
+    token: credential,
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  return data;
+}
+
+export async function updateCurrentProfile(payload: { displayName?: string; photoURL?: string | null }) {
+  const supabase = createSupabaseBrowserClient();
+
+  if (!supabase) {
+    return false;
+  }
+
+  const data = {
+    ...(payload.displayName === undefined ? null : { name: payload.displayName.slice(0, 80) }),
+    ...(payload.photoURL === undefined ? null : { avatar_url: payload.photoURL }),
+  };
+
+  const { error } = await supabase.auth.updateUser({ data });
+
+  if (error) {
+    throw error;
+  }
+
+  return true;
+}
+
 export async function sendPasswordReset(email: string) {
   const supabase = createSupabaseBrowserClient();
 
   if (!supabase) {
-    throw new Error("Password reset is unavailable in local mode.");
+    throw new Error("Supabase runtime config не задан. Сброс пароля недоступен в локальном режиме.");
   }
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -103,6 +145,7 @@ export async function signOut() {
   }
 }
 
+<<<<<<< HEAD
 export async function exchangeCodeForSession(code: string): Promise<Session | null> {
   const supabase = createSupabaseBrowserClient();
 
@@ -139,3 +182,5 @@ export async function signInWithGoogleOneTap(credential: string): Promise<void> 
     throw error;
   }
 }
+=======
+>>>>>>> 35adc060ddb138744e22c3579e7077d5fc484a24

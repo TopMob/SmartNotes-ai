@@ -1,9 +1,11 @@
 type EventMap = {
   reminderTriggered: { noteId: string };
   syncQueued: { entity: "note" | "folder" | "settings"; id: string };
+  syncCompleted: { processedCount: number; failedCount: number };
   syncFailed: { message: string };
-  feedbackSubmitted: { rating: number };
+  feedbackSubmitted: { rating: number; feedback: string; diagnostics: unknown[]; systemLanguage: string; userAgent: string };
   noteImported: { noteId: string; title: string };
+  toast: { id?: string; message: string; tone?: "info" | "success" | "warning" | "error" };
 };
 
 type EventName = keyof EventMap;
