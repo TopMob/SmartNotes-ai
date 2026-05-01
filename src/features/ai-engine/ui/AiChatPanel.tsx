@@ -1,13 +1,29 @@
 "use client";
 
 // ---------------------------------------------------------------------------
-// AI Notes Chat Panel — RAG chat over user's notes
-// ✨ New feature: ask questions, get answers with note citations
+// AI Notes Chat Panel — Gmail-style slide-in panel (right side)
+// RAG: answers questions using the user's notes as context
+// ✨ Streaming support, citation chips, quick prompts, markdown render
 // ---------------------------------------------------------------------------
 
-import { Bot, ChevronDown, Loader2, MessageCircle, Send, Sparkles, X } from "lucide-react";
+import {
+  Bot,
+  ChevronRight,
+  Copy,
+  Loader2,
+  MessageCircle,
+  RotateCcw,
+  Send,
+  Sparkles,
+  X,
+} from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useUiStore } from "@/shared/store/ui-store";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
 type Citation = { id: string; title: string };
 
@@ -17,154 +33,291 @@ type Message = {
   text: string;
   citations?: Citation[];
   error?: boolean;
+  streaming?: boolean;
 };
 
 type AiChatPanelProps = {
   onOpenNote?: (noteId: string) => void;
 };
 
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
 function generateId() {
   return Math.random().toString(36).slice(2);
 }
 
+/** Lightweight markdown → HTML (bold, italic, lists, links) */
+function renderMarkdown(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*(.+?)\*/g, "<em>$1</em>")
+    .replace(/`(.+?)`/g, "<code class=\"rounded bg-foreground/8 px-1 py-0.5 text-[0.85em] font-mono\">$1</code>")
+    .replace(/\[Note: "(.+?)"\]/g, (_, t) => `<span class="font-bold text-violet-600">[${t}]</span>`)
+    .replace(/\n\n/g, "</p><p class=\"mt-2\">")
+    .replace(/\n/g, "<br/>");
+}
+
+const QUICK_PROMPTS = [
+  "Что я знаю о React?",
+  "Мои задачи на эту неделю",
+  "Идеи для проектов",
+  "Заметки по дизайну",
+];
+
+// ---------------------------------------------------------------------------
+// Main component
+// ---------------------------------------------------------------------------
+
 export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
-  const [open, setOpen] = useState(false);
+  const open = useUiStore((s) => s.aiChatOpen);
+  const setAiChatOpen = useUiStore((s) => s.setAiChatOpen);
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
-  async function handleSend() {
-    const question = input.trim();
+  // Auto-scroll on new messages
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // Focus input when panel opens
+  useEffect(() => {
+    if (open) {
+      setTimeout(() => inputRef.current?.focus(), 150);
+    }
+  }, [open]);
+
+  // Close on Escape
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape" && open) setAiChatOpen(false);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, setAiChatOpen]);
+
+  const handleSend = useCallback(async (questionOverride?: string) => {
+    const question = (questionOverride ?? input).trim();
     if (!question || loading) return;
 
+    // Cancel previous request if any
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
+
     const userMsg: Message = { id: generateId(), role: "user", text: question };
-    setMessages((prev) => [...prev, userMsg]);
+    const assistantId = generateId();
+    const assistantMsg: Message = {
+      id: assistantId,
+      role: "assistant",
+      text: "",
+      streaming: true,
+    };
+
+    setMessages((prev) => [...prev, userMsg, assistantMsg]);
     setInput("");
     setLoading(true);
-
-    setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
 
     try {
       const response = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question }),
+        signal: abortRef.current.signal,
       });
 
       if (!response.ok) {
-        throw new Error("Ошибка запроса к AI.");
+        throw new Error(`Ошибка сервера: ${response.status}`);
       }
 
       const data = (await response.json()) as { answer: string; citations: Citation[] };
-      const assistantMsg: Message = {
-        id: generateId(),
-        role: "assistant",
-        text: data.answer,
-        citations: data.citations,
-      };
 
-      setMessages((prev) => [...prev, assistantMsg]);
+      // Simulate token-by-token streaming for UX (since backend is non-streaming JSON)
+      const fullText = data.answer;
+      const citations = data.citations ?? [];
+      const chunkSize = 4;
+      let accumulated = "";
+
+      for (let i = 0; i < fullText.length; i += chunkSize) {
+        if (abortRef.current?.signal.aborted) break;
+        accumulated += fullText.slice(i, i + chunkSize);
+        const snap = accumulated;
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId ? { ...m, text: snap, streaming: true } : m,
+          ),
+        );
+        await new Promise((resolve) => setTimeout(resolve, 12));
+      }
+
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === assistantId
+            ? { ...m, text: fullText, citations, streaming: false }
+            : m,
+        ),
+      );
     } catch (error) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: generateId(),
-          role: "assistant",
-          text: error instanceof Error ? error.message : "Что-то пошло не так. Попробуй ещё раз.",
-          error: true,
-        },
-      ]);
+      if ((error as Error).name === "AbortError") return;
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === assistantId
+            ? {
+                ...m,
+                text:
+                  error instanceof Error
+                    ? error.message
+                    : "Что-то пошло не так. Попробуй ещё раз.",
+                error: true,
+                streaming: false,
+              }
+            : m,
+        ),
+      );
     } finally {
       setLoading(false);
-      setTimeout(() => {
-        bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-        inputRef.current?.focus();
-      }, 50);
+      setTimeout(() => inputRef.current?.focus(), 50);
     }
-  }
+  }, [input, loading]);
 
-  function handleKeyDown(event: React.KeyboardEvent) {
-    if (event.key === "Enter" && !event.shiftKey) {
-      event.preventDefault();
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
       void handleSend();
     }
   }
 
+  function handleClear() {
+    abortRef.current?.abort();
+    setMessages([]);
+    setLoading(false);
+  }
+
+  function handleCopy(text: string) {
+    void navigator.clipboard?.writeText(text);
+  }
+
+  const isEmpty = messages.length === 0;
+
   return (
     <>
-      {/* FAB trigger button */}
+      {/* FAB trigger — shown when panel is closed */}
       <AnimatePresence>
         {!open && (
           <motion.button
             animate={{ scale: 1, opacity: 1 }}
-            className="fixed bottom-24 right-5 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-violet-600 text-white shadow-2xl shadow-violet-950/40 hover:bg-violet-500"
+            aria-label="Открыть AI чат"
+            className="fixed bottom-24 right-5 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-violet-600 text-white shadow-2xl shadow-violet-950/40 hover:bg-violet-500 active:scale-95"
             exit={{ scale: 0.8, opacity: 0 }}
+            id="ai-chat-fab"
             initial={{ scale: 0.8, opacity: 0 }}
-            title="Спроси свои заметки"
+            title="AI гид по заметкам"
             transition={{ type: "spring", stiffness: 400, damping: 25 }}
             type="button"
-            onClick={() => setOpen(true)}
+            onClick={() => setAiChatOpen(true)}
           >
             <MessageCircle className="h-5 w-5" />
           </motion.button>
         )}
       </AnimatePresence>
 
-      {/* Chat panel */}
+      {/* Backdrop (mobile only) */}
       <AnimatePresence>
         {open && (
           <motion.div
-            animate={{ y: 0, opacity: 1, scale: 1 }}
-            className="fixed bottom-5 right-5 z-50 flex w-[min(96vw,400px)] flex-col overflow-hidden rounded-[2rem] border border-border bg-surface shadow-2xl shadow-violet-950/24 backdrop-blur-2xl"
-            exit={{ y: 20, opacity: 0, scale: 0.96 }}
-            initial={{ y: 20, opacity: 0, scale: 0.96 }}
-            style={{ maxHeight: "min(85vh, 600px)" }}
-            transition={{ type: "spring", stiffness: 380, damping: 30 }}
+            animate={{ opacity: 1 }}
+            className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm lg:hidden"
+            exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }}
+            onClick={() => setAiChatOpen(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Slide-in panel — right side, Gmail-style */}
+      <AnimatePresence>
+        {open && (
+          <motion.aside
+            animate={{ x: 0, opacity: 1 }}
+            aria-label="AI чат по заметкам"
+            className="fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l border-border bg-surface shadow-2xl shadow-violet-950/20 backdrop-blur-2xl sm:w-[420px]"
+            exit={{ x: "100%", opacity: 0 }}
+            id="ai-chat-panel"
+            initial={{ x: "100%", opacity: 0 }}
+            role="complementary"
+            transition={{ type: "spring", stiffness: 360, damping: 38 }}
           >
-            {/* Header */}
-            <div className="flex items-center gap-3 border-b border-border bg-surface-strong px-4 py-3">
-              <span className="flex h-8 w-8 items-center justify-center rounded-2xl bg-violet-600 text-white">
+            {/* ── Header ── */}
+            <header className="flex shrink-0 items-center gap-3 border-b border-border bg-surface-strong px-4 py-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-violet-600 text-white shadow-lg shadow-violet-600/30">
                 <Sparkles className="h-4 w-4" />
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-black">AI по заметкам</p>
-                <p className="truncate text-xs text-foreground/48">Отвечает только по твоим заметкам</p>
+                <p className="truncate text-xs text-foreground/48">
+                  Отвечает только по твоим заметкам
+                </p>
               </div>
-              <button
-                className="flex h-8 w-8 items-center justify-center rounded-xl hover:bg-background"
-                type="button"
-                onClick={() => setOpen(false)}
-              >
-                <ChevronDown className="h-4 w-4" />
-              </button>
-              <button
-                className="flex h-8 w-8 items-center justify-center rounded-xl hover:bg-background"
-                type="button"
-                onClick={() => { setOpen(false); setMessages([]); }}
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
+              <div className="flex items-center gap-1">
+                {messages.length > 0 && (
+                  <button
+                    className="flex h-8 w-8 items-center justify-center rounded-xl text-foreground/56 hover:bg-background"
+                    title="Очистить историю"
+                    type="button"
+                    onClick={handleClear}
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                  </button>
+                )}
+                <button
+                  className="flex h-8 w-8 items-center justify-center rounded-xl text-foreground/56 hover:bg-background"
+                  title="Закрыть"
+                  type="button"
+                  onClick={() => setAiChatOpen(false)}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+                <button
+                  className="flex h-8 w-8 items-center justify-center rounded-xl text-foreground/56 hover:bg-background"
+                  title="Закрыть и очистить"
+                  type="button"
+                  onClick={() => { handleClear(); setAiChatOpen(false); }}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </header>
 
-            {/* Messages */}
+            {/* ── Messages ── */}
             <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
-              {messages.length === 0 && (
-                <div className="flex flex-1 flex-col items-center justify-center gap-3 py-8 text-center">
-                  <span className="flex h-14 w-14 items-center justify-center rounded-[1.3rem] bg-violet-600/10 text-violet-600">
-                    <Bot className="h-7 w-7" />
+
+              {/* Empty state */}
+              {isEmpty && (
+                <div className="flex flex-1 flex-col items-center justify-center gap-4 py-8 text-center">
+                  <span className="flex h-16 w-16 items-center justify-center rounded-[1.4rem] bg-violet-600/10 text-violet-600">
+                    <Bot className="h-8 w-8" />
                   </span>
-                  <p className="text-sm font-bold text-foreground/60">
-                    Задай вопрос — отвечу по твоим заметкам
-                  </p>
-                  <div className="grid gap-2">
-                    {["Что я знаю о React?", "Мои задачи на эту неделю", "Идеи для проектов"].map((hint) => (
+                  <div>
+                    <p className="text-sm font-black">Твой AI-гид по заметкам</p>
+                    <p className="mt-1 text-xs text-foreground/54">
+                      Задай вопрос — найду ответ в твоих заметках
+                    </p>
+                  </div>
+                  <div className="grid w-full gap-2">
+                    {QUICK_PROMPTS.map((hint) => (
                       <button
-                        className="rounded-2xl border border-border bg-surface-strong px-3 py-2 text-xs font-bold text-foreground/70 hover:bg-background"
+                        className="rounded-2xl border border-border bg-surface-strong px-3 py-2.5 text-left text-sm font-semibold text-foreground/70 transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
                         key={hint}
                         type="button"
-                        onClick={() => { setInput(hint); inputRef.current?.focus(); }}
+                        onClick={() => void handleSend(hint)}
                       >
                         {hint}
                       </button>
@@ -173,13 +326,15 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
                 </div>
               )}
 
+              {/* Message list */}
               {messages.map((msg) => (
                 <div
-                  className={`flex flex-col gap-1.5 ${msg.role === "user" ? "items-end" : "items-start"}`}
+                  className={`group flex flex-col gap-1.5 ${msg.role === "user" ? "items-end" : "items-start"}`}
                   key={msg.id}
                 >
+                  {/* Bubble */}
                   <div
-                    className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-6 ${
+                    className={`relative max-w-[88%] rounded-2xl px-3.5 py-2.5 text-sm leading-6 ${
                       msg.role === "user"
                         ? "bg-violet-600 text-white"
                         : msg.error
@@ -187,14 +342,41 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
                           : "border border-border bg-surface-strong text-foreground"
                     }`}
                   >
-                    {msg.text}
+                    {msg.role === "assistant" && !msg.error ? (
+                      <span
+                        dangerouslySetInnerHTML={{
+                          __html: `<p>${renderMarkdown(msg.text)}</p>`,
+                        }}
+                      />
+                    ) : (
+                      <span>{msg.text}</span>
+                    )}
+
+                    {/* Streaming cursor */}
+                    {msg.streaming && (
+                      <span className="ml-0.5 inline-block h-[1em] w-0.5 animate-pulse bg-current opacity-70" />
+                    )}
+
+                    {/* Copy button */}
+                    {msg.role === "assistant" && !msg.streaming && !msg.error && (
+                      <button
+                        className="absolute -right-8 top-2 hidden h-6 w-6 items-center justify-center rounded-lg text-foreground/40 hover:text-foreground/70 group-hover:flex"
+                        title="Скопировать"
+                        type="button"
+                        onClick={() => handleCopy(msg.text)}
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </div>
 
+                  {/* Citation chips */}
                   {msg.citations && msg.citations.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-wrap gap-1.5 pr-8">
+                      <span className="text-xs text-foreground/40">Источники:</span>
                       {msg.citations.map((c) => (
                         <button
-                          className="rounded-xl border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-bold text-violet-700 hover:bg-violet-100"
+                          className="rounded-xl border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-bold text-violet-700 transition hover:bg-violet-100 hover:shadow-sm"
                           key={c.id}
                           type="button"
                           onClick={() => onOpenNote?.(c.id)}
@@ -207,7 +389,8 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
                 </div>
               ))}
 
-              {loading && (
+              {/* Loading indicator */}
+              {loading && !messages.some((m) => m.streaming) && (
                 <div className="flex items-start">
                   <div className="flex items-center gap-2 rounded-2xl border border-border bg-surface-strong px-3.5 py-2.5 text-sm text-foreground/54">
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -219,20 +402,28 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
               <div ref={bottomRef} />
             </div>
 
-            {/* Input */}
-            <div className="border-t border-border bg-surface-strong p-3">
-              <div className="flex items-center gap-2 rounded-2xl border border-border bg-background px-3 py-2">
-                <input
+            {/* ── Input area ── */}
+            <div className="shrink-0 border-t border-border bg-surface-strong p-3">
+              <div className="flex items-end gap-2 rounded-2xl border border-border bg-background px-3 py-2 focus-within:border-violet-400 focus-within:ring-2 focus-within:ring-violet-400/20 transition">
+                <textarea
                   ref={inputRef}
-                  className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-foreground/38"
+                  className="max-h-32 min-h-[2.25rem] flex-1 resize-none bg-transparent text-sm outline-none placeholder:text-foreground/38"
                   disabled={loading}
-                  placeholder="Спроси что-нибудь…"
+                  id="ai-chat-input"
+                  placeholder="Спроси что-нибудь о своих заметках…"
+                  rows={1}
                   value={input}
-                  onChange={(e) => setInput(e.target.value)}
+                  onChange={(e) => {
+                    setInput(e.target.value);
+                    // Auto-grow textarea
+                    e.target.style.height = "auto";
+                    e.target.style.height = `${Math.min(e.target.scrollHeight, 128)}px`;
+                  }}
                   onKeyDown={handleKeyDown}
                 />
                 <button
-                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-violet-600 text-white disabled:opacity-40"
+                  aria-label="Отправить"
+                  className="mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-violet-600 text-white transition disabled:opacity-40 hover:bg-violet-500 active:scale-95"
                   disabled={!input.trim() || loading}
                   type="button"
                   onClick={() => void handleSend()}
@@ -240,8 +431,11 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
                   <Send className="h-3.5 w-3.5" />
                 </button>
               </div>
+              <p className="mt-1.5 text-center text-[10px] text-foreground/32">
+                Enter — отправить · Shift+Enter — новая строка
+              </p>
             </div>
-          </motion.div>
+          </motion.aside>
         )}
       </AnimatePresence>
     </>

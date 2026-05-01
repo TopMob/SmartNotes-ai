@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, EyeOff, KeyRound, Loader2, Mail, Sparkles, UserRound, X } from "lucide-react";
+import { Eye, EyeOff, KeyRound, Loader2, Mail, Sparkles, UserRound, X, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { useAuthActions } from "@/features/auth/hooks/use-auth-actions";

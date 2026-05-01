@@ -1,13 +1,13 @@
 "use client";
 
-import { Copy, LogOut, MoreHorizontal, Pencil, Search, SlidersHorizontal, UserRound } from "lucide-react";
+import { Copy, LogOut, MoreHorizontal, Pencil, Search, SlidersHorizontal, Sparkles, UserRound } from "lucide-react";
 import type React from "react";
 
 import type { Folder as FolderEntity } from "@/entities/folder";
 import { useAuthActions } from "@/features/auth/hooks/use-auth-actions";
 import { useAuthStore } from "@/features/auth/model/auth-store";
 import { getUiCopy } from "@/shared/lib/i18n";
-import type { AppView } from "@/shared/store/ui-store";
+import { useUiStore, type AppView } from "@/shared/store/ui-store";
 
 import { getSheetAnchor, type SheetAnchor } from "./shared";
 
@@ -30,6 +30,8 @@ type HeaderProps = {
 export function Header({ copy, view, activeFolder, searchQuery, filtersOpen, filtersRef, onOpenDrawer, onOpenFilters, onOpenFolderMenu, profileOpen, profileRef, setProfileOpen, setSearchQuery }: HeaderProps) {
   const user = useAuthStore((state) => state.user);
   const { logout, pending, updateProfile } = useAuthActions();
+  const aiChatOpen = useUiStore((s) => s.aiChatOpen);
+  const toggleAiChat = useUiStore((s) => s.toggleAiChat);
   const title =
     view === "folder" && activeFolder
       ? activeFolder.name
@@ -94,6 +96,22 @@ export function Header({ copy, view, activeFolder, searchQuery, filtersOpen, fil
         </label>
 
         <div className="flex shrink-0 items-center gap-2">
+          {/* AI Chat toggle */}
+          <button
+            aria-label="AI по заметкам"
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border transition ${
+              aiChatOpen
+                ? "border-violet-400 bg-violet-600 text-white shadow-lg shadow-violet-600/30"
+                : "border-border bg-surface-strong text-foreground/72 hover:border-violet-300 hover:text-violet-600"
+            }`}
+            id="ai-chat-toggle"
+            title="AI гид по заметкам"
+            type="button"
+            onClick={toggleAiChat}
+          >
+            <Sparkles className="h-4 w-4" />
+          </button>
+
           <div className="relative shrink-0" ref={filtersRef}>
             <button className={`flex h-10 shrink-0 items-center gap-2 rounded-2xl border border-border px-4 text-sm font-bold ${filtersOpen ? "bg-foreground text-background" : "bg-surface-strong text-foreground/72"}`} onClick={onOpenFilters} type="button">
               <SlidersHorizontal className="h-4 w-4" />
