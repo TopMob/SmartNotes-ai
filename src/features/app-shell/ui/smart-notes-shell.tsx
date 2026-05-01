@@ -26,6 +26,7 @@ import { useAppShellState } from "./hooks/use-app-shell-state";
 import { useNoteInteractions } from "./hooks/use-note-interactions";
 import { useReminderEffects } from "./hooks/use-reminder-effects";
 import { AiChatPanel } from "@/features/ai-engine/ui/AiChatPanel";
+import { CommandPalette } from "./components/CommandPalette";
 
 export function SmartNotesShell() {
   // Data queries
@@ -248,6 +249,12 @@ export function SmartNotesShell() {
 
       {/* AI Notes Chat Panel — Gmail-style slide-in from right ✨ */}
       <AiChatPanel onOpenNote={(id) => openNote(id, notes)} />
+
+      {/* Command Palette — Cmd+K */}
+      <CommandPalette
+        onOpenNote={(id) => openNote(id, notes)}
+        onCreateNote={createNoteDraft}
+      />
 
       {shellState.editorOpen && currentNote ? (
         <EditorErrorBoundary>
