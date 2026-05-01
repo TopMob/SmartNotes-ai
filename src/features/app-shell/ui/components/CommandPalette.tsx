@@ -437,7 +437,7 @@ export function CommandPalette({ onOpenNote, onCreateNote }: CommandPaletteProps
                         ) : (
                           <ActionRow
                             key={action.id}
-                            action={action}
+                            item={action}
                             active={actionOffset + i === activeIndex}
                           />
                         )
