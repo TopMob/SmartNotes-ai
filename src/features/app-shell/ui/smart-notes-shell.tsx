@@ -21,14 +21,11 @@ import { Header } from "./components/Header";
 import { MainSurface } from "./components/MainSurface";
 import { Sidebar } from "./components/Sidebar";
 import { TopFiltersPopup } from "./components/TopFiltersPopup";
-<<<<<<< HEAD
 import type { SheetAnchor, SheetName, SheetState } from "./components/shared";
-import { AiChatPanel } from "@/features/ai-engine/ui/AiChatPanel";
-=======
 import { useAppShellState } from "./hooks/use-app-shell-state";
 import { useNoteInteractions } from "./hooks/use-note-interactions";
 import { useReminderEffects } from "./hooks/use-reminder-effects";
->>>>>>> 35adc060ddb138744e22c3579e7077d5fc484a24
+import { AiChatPanel } from "@/features/ai-engine/ui/AiChatPanel";
 
 export function SmartNotesShell() {
   // Data queries
@@ -199,16 +196,9 @@ export function SmartNotesShell() {
         <Plus className="h-6 w-6" />
       </button>
 
-<<<<<<< HEAD
       {/* AI Notes Chat — ✨ ask questions about your notes */}
-      <AiChatPanel onOpenNote={openNote} />
+      <AiChatPanel onOpenNote={(id) => openNote(id, notes)} />
 
-      {editorOpen && currentNote ? (
-        <NoteCollabSessionProvider key={currentNote.id} note={currentNote}>
-          <EditorOverlay note={currentNote} onClose={closeEditor} onOpenSheet={openSheet} toolbarVisible={toolbarVisible} setToolbarVisible={setToolbarVisible} />
-          <BottomSheet activeFolder={activeFolder} editorDirty={editorDirty} isDesktop={isDesktop} sheet={sheet} onClose={() => setSheet(null)} />
-        </NoteCollabSessionProvider>
-=======
       {shellState.editorOpen && currentNote ? (
         <EditorErrorBoundary>
           <NoteCollabSessionProvider key={currentNote.id} note={currentNote}>
@@ -216,7 +206,6 @@ export function SmartNotesShell() {
             <BottomSheet activeFolder={activeFolder} editorDirty={editorDirty} isDesktop={shellState.isDesktop} sheet={shellState.sheet} onClose={() => shellState.setSheet(null)} />
           </NoteCollabSessionProvider>
         </EditorErrorBoundary>
->>>>>>> 35adc060ddb138744e22c3579e7077d5fc484a24
       ) : null}
       {!shellState.editorOpen || !currentNote ? <BottomSheet activeFolder={activeFolder} editorDirty={editorDirty} isDesktop={shellState.isDesktop} sheet={shellState.sheet} onClose={() => shellState.setSheet(null)} /> : null}
     </main>

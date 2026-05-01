@@ -1,15 +1,8 @@
 "use client";
 
-<<<<<<< HEAD
-import { ArrowLeft, Eye, EyeOff, KeyRound, Loader2, Mail, ShieldCheck, Sparkles, Zap } from "lucide-react";
-import Link from "next/link";
-=======
 import { Eye, EyeOff, KeyRound, Loader2, Mail, Sparkles, UserRound, X } from "lucide-react";
->>>>>>> 35adc060ddb138744e22c3579e7077d5fc484a24
 import { useEffect, useState } from "react";
 
-import { signInWithGoogleOneTap } from "@/features/auth/api/auth-client";
-import { initGoogleOneTap } from "@/features/auth/lib/google-one-tap";
 import { useAuthActions } from "@/features/auth/hooks/use-auth-actions";
 import { useAuthStore } from "@/features/auth/model/auth-store";
 import { LogoMark } from "@/shared/ui/logo-mark";
@@ -79,24 +72,6 @@ export function LoginShell() {
     return () => window.clearTimeout(timer);
   }, []);
 
-<<<<<<< HEAD
-  // Mount Google One Tap on the login page directly
-  useEffect(() => {
-    let cleanup: (() => void) | undefined;
-
-    // Read clientId from meta tag injected by auth-provider, or skip gracefully
-    const clientIdMeta = document.querySelector<HTMLMetaElement>("meta[name=google-client-id]");
-    const clientId = clientIdMeta?.content ?? "";
-
-    if (clientId) {
-      void initGoogleOneTap(clientId, async (credential) => {
-        await signInWithGoogleOneTap(credential);
-      }).then((fn) => { cleanup = fn; });
-    }
-
-    return () => cleanup?.();
-  }, []);
-=======
   useEffect(() => {
     const googleClientId = runtimeConfig?.googleClientId;
 
@@ -149,7 +124,7 @@ export function LoginShell() {
       (window as GoogleOneTapWindow).google?.accounts?.id?.cancel?.();
     };
   }, [loginWithGoogleOneTap, runtimeConfig?.googleClientId]);
->>>>>>> 35adc060ddb138744e22c3579e7077d5fc484a24
+
 
   async function handleSubmit() {
     const normalizedEmail = email.trim();

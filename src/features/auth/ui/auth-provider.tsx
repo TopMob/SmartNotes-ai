@@ -6,12 +6,9 @@ import { useEffect, useState } from "react";
 
 import { bootstrapProfile } from "@/features/auth/api/profile-bootstrap";
 import { fetchAuthRuntimeConfig } from "@/features/auth/api/runtime-config";
-<<<<<<< HEAD
-import { signInWithGoogleOneTap } from "@/features/auth/api/auth-client";
-import { initGoogleOneTap } from "@/features/auth/lib/google-one-tap";
-=======
 import { clearGuestSession, readGuestSession } from "@/features/auth/lib/guest-session";
->>>>>>> 35adc060ddb138744e22c3579e7077d5fc484a24
+import { initGoogleOneTap } from "@/features/auth/lib/google-one-tap";
+import { signInWithGoogleIdToken } from "@/features/auth/api/auth-client";
 import { mapAuthUser } from "@/features/auth/lib/map-auth-user";
 import { useAuthStore } from "@/features/auth/model/auth-store";
 import { createSupabaseBrowserClient } from "@/shared/api/supabase/client";
@@ -87,7 +84,6 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
         const runtimeConfig = await fetchAuthRuntimeConfig(controller.signal);
         useAuthStore.getState().setRuntimeConfig(runtimeConfig);
 
-<<<<<<< HEAD
         // Inject google-client-id meta tag for One Tap login-shell access
         if (runtimeConfig.googleClientId) {
           let meta = document.querySelector<HTMLMetaElement>("meta[name=google-client-id]");
@@ -97,7 +93,8 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
             document.head.appendChild(meta);
           }
           meta.content = runtimeConfig.googleClientId;
-=======
+        }
+
         if (activateGuestSession(runtimeConfig)) {
           const session = readGuestSession();
 
@@ -110,7 +107,6 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
 
           setReady(true);
           return;
->>>>>>> 35adc060ddb138744e22c3579e7077d5fc484a24
         }
 
         if (!runtimeConfig.url || !runtimeConfig.publishableKey) {
@@ -160,7 +156,7 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
           // Start Google One Tap if user is not signed in
           if (!sessionData.session && runtimeConfig.googleClientId) {
             void initGoogleOneTap(runtimeConfig.googleClientId, async (credential) => {
-              await signInWithGoogleOneTap(credential);
+              await signInWithGoogleIdToken(credential);
             });
           }
         }

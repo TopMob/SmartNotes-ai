@@ -77,10 +77,6 @@ export function useCreateNoteMutation() {
     },
     onSuccess: (note) => {
       enqueueSyncItem({ id: note.id, entity: "note", operation: "create", payload: { noteId: note.id } });
-<<<<<<< HEAD
-      // Queue AI analysis for new notes
-=======
->>>>>>> 35adc060ddb138744e22c3579e7077d5fc484a24
       scheduleAiAnalysis(note.id);
     },
     onSettled: () => {
