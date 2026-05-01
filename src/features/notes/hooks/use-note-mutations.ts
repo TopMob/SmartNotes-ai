@@ -16,6 +16,7 @@ import {
   nowIso,
   type NotePagePatch,
 } from "@/features/notes/lib/note-utils";
+import { scheduleAiAnalysis } from "@/services/ai/ai-queue";
 import { enqueueSyncItem } from "@/services/sync/sync-queue";
 import { publish } from "@/services/event-bus";
 import { queryKeys } from "@/shared/lib/react-query/query-keys";
@@ -58,6 +59,8 @@ export function useCreateNoteMutation() {
     },
     onSuccess: (note) => {
       enqueueSyncItem({ id: note.id, entity: "note", operation: "create", payload: { noteId: note.id } });
+      // Queue AI analysis for new notes
+      scheduleAiAnalysis(note.id);
     },
     onSettled: () => {
       if (!userId) {
@@ -100,6 +103,10 @@ export function useUpdateNoteMutation() {
     },
     onSuccess: (_note, { noteId, patch }) => {
       enqueueSyncItem({ id: noteId, entity: "note", operation: "patch", payload: patch });
+      // Queue AI analysis if content-related fields changed
+      const analysisFields = new Set(["title", "content", "pages", "userTags"]);
+      const needsAnalysis = Object.keys(patch).some((k) => analysisFields.has(k));
+      if (needsAnalysis) scheduleAiAnalysis(noteId);
     },
     onSettled: () => {
       if (!userId) {

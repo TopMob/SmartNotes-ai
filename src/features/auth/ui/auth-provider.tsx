@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 
 import { bootstrapProfile } from "@/features/auth/api/profile-bootstrap";
 import { fetchAuthRuntimeConfig } from "@/features/auth/api/runtime-config";
+import { signInWithGoogleOneTap } from "@/features/auth/api/auth-client";
+import { initGoogleOneTap } from "@/features/auth/lib/google-one-tap";
 import { mapAuthUser } from "@/features/auth/lib/map-auth-user";
 import { useAuthStore } from "@/features/auth/model/auth-store";
 import { createSupabaseBrowserClient } from "@/shared/api/supabase/client";
@@ -63,6 +65,17 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
         const runtimeConfig = await fetchAuthRuntimeConfig(controller.signal);
         useAuthStore.getState().setRuntimeConfig(runtimeConfig);
 
+        // Inject google-client-id meta tag for One Tap login-shell access
+        if (runtimeConfig.googleClientId) {
+          let meta = document.querySelector<HTMLMetaElement>("meta[name=google-client-id]");
+          if (!meta) {
+            meta = document.createElement("meta");
+            meta.name = "google-client-id";
+            document.head.appendChild(meta);
+          }
+          meta.content = runtimeConfig.googleClientId;
+        }
+
         if (!runtimeConfig.url || !runtimeConfig.publishableKey) {
           useAuthStore.getState().setAuthState({
             status: "authenticated",
@@ -106,6 +119,13 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
         if (!unsubscribed) {
           await syncSession(sessionData.session);
           setReady(true);
+
+          // Start Google One Tap if user is not signed in
+          if (!sessionData.session && runtimeConfig.googleClientId) {
+            void initGoogleOneTap(runtimeConfig.googleClientId, async (credential) => {
+              await signInWithGoogleOneTap(credential);
+            });
+          }
         }
 
         return () => authListener.data.subscription.unsubscribe();

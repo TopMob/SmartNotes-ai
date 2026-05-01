@@ -89,63 +89,6 @@ begin
 end;
 $$;
 
-create or replace function public.smartnotes_refresh_note_effective_access(target_note_id uuid)
-returns void
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  note_row public.notes%rowtype;
-begin
-  select *
-  into note_row
-  from public.notes
-  where id = target_note_id;
-
-  if not found then
-    delete from public.note_effective_access where note_id = target_note_id;
-    return;
-  end if;
-
-  delete from public.note_effective_access where note_id = target_note_id;
-
-  insert into public.note_effective_access (note_id, user_id, role, source)
-  values (note_row.id, note_row.owner_id, 'owner', 'owner');
-
-  insert into public.note_effective_access (note_id, user_id, role, source)
-  select
-    note_row.id,
-    (item ->> 'userId')::uuid,
-    coalesce((item ->> 'role')::public.smartnotes_access_role, 'viewer'::public.smartnotes_access_role),
-    'access_json'
-  from jsonb_array_elements(coalesce(note_row.access, '[]'::jsonb)) as item
-  where item ? 'userId'
-    and coalesce(item ->> 'status', 'pending') = 'accepted'
-  on conflict (note_id, user_id) do update
-  set role = excluded.role,
-      source = excluded.source,
-      updated_at = timezone('utc', now());
-end;
-$$;
-
-create or replace function public.smartnotes_sync_note_effective_access_trigger()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  if tg_op = 'DELETE' then
-    perform public.smartnotes_refresh_note_effective_access(old.id);
-    return old;
-  end if;
-
-  perform public.smartnotes_refresh_note_effective_access(new.id);
-  return new;
-end;
-$$;
-
 create or replace function public.smartnotes_sync_profile_from_auth()
 returns trigger
 language plpgsql
@@ -268,6 +211,63 @@ create table if not exists public.user_settings (
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
 );
+
+create or replace function public.smartnotes_refresh_note_effective_access(target_note_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  note_row public.notes%rowtype;
+begin
+  select *
+  into note_row
+  from public.notes
+  where id = target_note_id;
+
+  if not found then
+    delete from public.note_effective_access where note_id = target_note_id;
+    return;
+  end if;
+
+  delete from public.note_effective_access where note_id = target_note_id;
+
+  insert into public.note_effective_access (note_id, user_id, role, source)
+  values (note_row.id, note_row.owner_id, 'owner', 'owner');
+
+  insert into public.note_effective_access (note_id, user_id, role, source)
+  select
+    note_row.id,
+    (item ->> 'userId')::uuid,
+    coalesce((item ->> 'role')::public.smartnotes_access_role, 'viewer'::public.smartnotes_access_role),
+    'access_json'
+  from jsonb_array_elements(coalesce(note_row.access, '[]'::jsonb)) as item
+  where item ? 'userId'
+    and coalesce(item ->> 'status', 'pending') = 'accepted'
+  on conflict (note_id, user_id) do update
+  set role = excluded.role,
+      source = excluded.source,
+      updated_at = timezone('utc', now());
+end;
+$$;
+
+create or replace function public.smartnotes_sync_note_effective_access_trigger()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if tg_op = 'DELETE' then
+    perform public.smartnotes_refresh_note_effective_access(old.id);
+    return old;
+  end if;
+
+  perform public.smartnotes_refresh_note_effective_access(new.id);
+  return new;
+end;
+$$;
 
 create index if not exists idx_profiles_email on public.profiles (email);
 create index if not exists idx_folders_owner_id on public.folders (owner_id);

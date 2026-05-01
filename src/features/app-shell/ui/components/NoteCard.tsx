@@ -1,4 +1,4 @@
-import { Heart, MoreHorizontal } from "lucide-react";
+import { Heart, Loader2, MoreHorizontal } from "lucide-react";
 import { useState } from "react";
 
 import type { Folder as FolderEntity } from "@/entities/folder";
@@ -27,7 +27,9 @@ export function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: NoteC
   const reminderLabel = note.reminderAt
     ? new Date(note.reminderAt).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
     : null;
-  const aiBadgeTone = note.aiStatus === "error" ? "text-rose-500 bg-rose-500/10" : note.aiStatus === "pending" ? "text-amber-600 bg-amber-500/10" : note.aiStatus === "analyzing" ? "text-sky-600 bg-sky-500/10" : "text-emerald-600 bg-emerald-500/10";
+
+  const folder = folders.find((f) => f.id === note.folderId) ?? null;
+
   function openReminderSheet(anchor: SheetAnchor) {
     setCurrentNoteId(note.id);
     onOpenSheet("reminder", anchor);
@@ -58,19 +60,43 @@ export function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: NoteC
       <button className="block w-full text-left" onClick={() => onOpenNote(note.id)} type="button">
         <div className="mt-1 flex min-h-7 flex-wrap items-center gap-2 pr-20 text-[12px] font-black uppercase tracking-[0.18em] text-foreground/42">
           {note.reminderAt ? <span className="rounded-full bg-amber-500/10 px-2 py-1 text-amber-600">{reminderLabel}</span> : null}
-          {note.lock ? <span className="rounded-full bg-foreground/8 px-2 py-1">Locked</span> : null}
+          {note.lock ? <span className="rounded-full bg-foreground/8 px-2 py-1">🔒</span> : null}
           {note.isArchived ? <span className="rounded-full bg-foreground/8 px-2 py-1">Archive</span> : null}
-          <span className={`rounded-full px-2 py-1 ${aiBadgeTone}`}>AI: {note.aiStatus}</span>
+          {folder ? <span className="rounded-full bg-accent/10 px-2 py-1 text-accent">{folder.name}</span> : null}
+          {note.aiStatus === "pending" && (
+            <span className="rounded-full bg-amber-500/10 px-2 py-1 text-amber-600">AI • в очереди</span>
+          )}
+          {note.aiStatus === "analyzing" && (
+            <span className="flex items-center gap-1 rounded-full bg-sky-500/10 px-2 py-1 text-sky-600">
+              <Loader2 className="h-3 w-3 animate-spin" /> AI анализ
+            </span>
+          )}
+          {note.aiStatus === "error" && (
+            <span className="rounded-full bg-rose-500/10 px-2 py-1 text-rose-500">AI ошибка</span>
+          )}
         </div>
         <h3 className="mt-3 pr-20 text-base font-black tracking-tight sm:text-lg">{note.title}</h3>
         <p className={`mt-2 line-clamp-3 text-sm leading-6 text-foreground/60 ${note.lock?.hidden ? "select-none" : ""}`}>{previewText}</p>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {note.userTags.map((tag) => (
-            <span className="rounded-full border border-border px-3.5 py-1 text-xs font-semibold text-foreground/56" key={tag}>
-              #{tag}
-            </span>
-          ))}
-        </div>
+        {note.userTags.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {note.userTags.slice(0, 5).map((tag) => (
+              <span className="rounded-full border border-border px-3.5 py-1 text-xs font-semibold text-foreground/56" key={tag}>
+                #{tag}
+              </span>
+            ))}
+          </div>
+        )}
+        {note.aiStatus === "done" && note.aiRelevance > 0 && (
+          <div className="mt-2 flex items-center gap-2">
+            <div className="h-1 flex-1 rounded-full bg-foreground/8">
+              <div
+                className="h-1 rounded-full bg-emerald-500"
+                style={{ width: `${Math.round(note.aiRelevance * 100)}%` }}
+              />
+            </div>
+            <span className="text-[10px] font-bold text-foreground/36">{Math.round(note.aiRelevance * 100)}% релевантность</span>
+          </div>
+        )}
       </button>
     </article>
   );

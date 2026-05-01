@@ -1,9 +1,11 @@
 "use client";
 
-import { ArrowLeft, Eye, EyeOff, KeyRound, Loader2, Mail, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, KeyRound, Loader2, Mail, ShieldCheck, Sparkles, Zap } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { signInWithGoogleOneTap } from "@/features/auth/api/auth-client";
+import { initGoogleOneTap } from "@/features/auth/lib/google-one-tap";
 import { useAuthActions } from "@/features/auth/hooks/use-auth-actions";
 import { Button } from "@/shared/ui/button";
 
@@ -21,6 +23,23 @@ export function LoginShell() {
   useEffect(() => {
     const timer = window.setTimeout(() => setSplash(false), 900);
     return () => window.clearTimeout(timer);
+  }, []);
+
+  // Mount Google One Tap on the login page directly
+  useEffect(() => {
+    let cleanup: (() => void) | undefined;
+
+    // Read clientId from meta tag injected by auth-provider, or skip gracefully
+    const clientIdMeta = document.querySelector<HTMLMetaElement>("meta[name=google-client-id]");
+    const clientId = clientIdMeta?.content ?? "";
+
+    if (clientId) {
+      void initGoogleOneTap(clientId, async (credential) => {
+        await signInWithGoogleOneTap(credential);
+      }).then((fn) => { cleanup = fn; });
+    }
+
+    return () => cleanup?.();
   }, []);
 
   async function handleSubmit() {
@@ -107,7 +126,13 @@ export function LoginShell() {
           <Button className="mt-5 h-12 w-full rounded-2xl bg-foreground text-background hover:bg-foreground/92" disabled={pending} onClick={() => void loginWithGoogle()}>
             <span className="mr-2 flex h-5 w-5 items-center justify-center rounded-full bg-background text-xs font-black text-foreground">G</span>
             Войти через Google
+            <span className="ml-auto flex items-center gap-1 rounded-full bg-background/15 px-2 py-0.5 text-[10px] font-black">
+              <Zap className="h-3 w-3" /> One Tap
+            </span>
           </Button>
+
+          {/* Google One Tap rendered container */}
+          <div className="mt-2" id="g_id_onload" />
 
           <div className="my-6 flex items-center gap-3 text-xs font-bold uppercase tracking-[0.2em] text-foreground/34">
             <span className="h-px flex-1 bg-border" />

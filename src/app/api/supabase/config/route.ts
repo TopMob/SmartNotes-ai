@@ -8,5 +8,6 @@ export function GET() {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
       process.env.NEXT_PUBLIC_SMARTNOTES_SUPABASE_PUBLISHABLE_KEY ??
       null,
+    googleClientId: process.env.GOOGLE_CLIENT_ID ?? null,
   });
 }

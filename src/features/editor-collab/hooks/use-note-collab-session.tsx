@@ -104,19 +104,13 @@ export function NoteCollabSessionProvider({ note, children }: NoteCollabProvider
 
     let cancelled = false;
 
-    void indexeddb.whenSynced.then(() => {
-      if (cancelled || didHydrateFromQueryRef.current) {
-        return;
-      }
+    // Fast-path for brand-new empty notes: no need to wait for IndexedDB
+    const isNewEmptyNote = !note.content && note.pages.every((p) => !p.content);
 
+    function hydrateFromQuery(reason: string) {
+      if (cancelled || didHydrateFromQueryRef.current || !session) return;
       try {
-        const indexedSnapshot = readNoteSnapshotFromYDoc(session.doc);
-        const hasIndexedPages = indexedSnapshot.pages.some((page) => Boolean(page.content) || page.title !== "Page 1" || page.drawingDataUrl !== null || page.drawingRevision !== 0);
-
-        if (!hasIndexedPages) {
-          applyNoteToYDoc(session.doc, note);
-        }
-
+        applyNoteToYDoc(session.doc, note);
         didHydrateFromQueryRef.current = true;
         setHydratedFromQuery(true);
         setStatus("ready");
@@ -126,22 +120,66 @@ export function NoteCollabSessionProvider({ note, children }: NoteCollabProvider
           hydratedFromQuery: true,
           transport: channel ? "connected" : "idle",
           persistence: "synced",
-          durable: durableState.error ? "error" : durableState.isSaving ? "saving" : durableState.lastSavedAt ? "saved" : "idle",
-          message: hasIndexedPages ? "Restored local IndexedDB snapshot." : "Hydrated note session from durable query snapshot.",
+          durable: "idle",
+          message: reason,
         });
       } catch (cause) {
         setStatus("error");
         setError(cause instanceof Error ? cause : new Error("Failed to hydrate collaborative note session."));
-        setCollabDiagnostic(note.id, {
-          status: "error",
-          hydratedFromQuery: false,
-          transport: channel ? "connected" : "idle",
-          persistence: "error",
-          durable: "error",
-          message: cause instanceof Error ? cause.message : "Failed to hydrate collaborative note session.",
-        });
       }
-    });
+    }
+
+    if (isNewEmptyNote) {
+      hydrateFromQuery("New empty note — skipped IndexedDB wait, applied query snapshot immediately.");
+    } else {
+      // Safety timeout: if IndexedDB doesn't resolve in 600ms, force hydrate from query
+      const hydrationTimeoutId = window.setTimeout(() => {
+        if (!didHydrateFromQueryRef.current) {
+          hydrateFromQuery("IndexedDB hydration timeout — fell back to query snapshot.");
+        }
+      }, 600);
+
+      void indexeddb.whenSynced.then(() => {
+        window.clearTimeout(hydrationTimeoutId);
+
+        if (cancelled || didHydrateFromQueryRef.current) {
+          return;
+        }
+
+        try {
+          const indexedSnapshot = readNoteSnapshotFromYDoc(session.doc);
+          const hasIndexedPages = indexedSnapshot.pages.some((page) => Boolean(page.content) || page.title !== "Page 1" || page.drawingDataUrl !== null || page.drawingRevision !== 0);
+
+          if (!hasIndexedPages) {
+            applyNoteToYDoc(session.doc, note);
+          }
+
+          didHydrateFromQueryRef.current = true;
+          setHydratedFromQuery(true);
+          setStatus("ready");
+          setError(null);
+          setCollabDiagnostic(note.id, {
+            status: "ready",
+            hydratedFromQuery: true,
+            transport: channel ? "connected" : "idle",
+            persistence: "synced",
+            durable: durableState.error ? "error" : durableState.isSaving ? "saving" : durableState.lastSavedAt ? "saved" : "idle",
+            message: hasIndexedPages ? "Restored local IndexedDB snapshot." : "Hydrated note session from durable query snapshot.",
+          });
+        } catch (cause) {
+          setStatus("error");
+          setError(cause instanceof Error ? cause : new Error("Failed to hydrate collaborative note session."));
+          setCollabDiagnostic(note.id, {
+            status: "error",
+            hydratedFromQuery: false,
+            transport: channel ? "connected" : "idle",
+            persistence: "error",
+            durable: "error",
+            message: cause instanceof Error ? cause.message : "Failed to hydrate collaborative note session.",
+          });
+        }
+      });
+    }
 
     return () => {
       cancelled = true;

@@ -27,6 +27,7 @@ import { MainSurface } from "./components/MainSurface";
 import { Sidebar } from "./components/Sidebar";
 import { TopFiltersPopup } from "./components/TopFiltersPopup";
 import type { SheetAnchor, SheetName, SheetState } from "./components/shared";
+import { AiChatPanel } from "@/features/ai-engine/ui/AiChatPanel";
 
 export function SmartNotesShell() {
   const { data: rawFolders = [] } = useFoldersQuery();
@@ -277,6 +278,9 @@ export function SmartNotesShell() {
       <button className="btn-fab fixed bottom-5 right-5 z-30 flex h-14 w-14 items-center justify-center bg-accent text-accent-foreground shadow-2xl shadow-violet-950/24" onClick={createNoteDraft} type="button">
         <Plus className="h-6 w-6" />
       </button>
+
+      {/* AI Notes Chat — ✨ ask questions about your notes */}
+      <AiChatPanel onOpenNote={openNote} />
 
       {editorOpen && currentNote ? (
         <NoteCollabSessionProvider key={currentNote.id} note={currentNote}>

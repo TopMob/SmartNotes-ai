@@ -118,3 +118,24 @@ export async function exchangeCodeForSession(code: string): Promise<Session | nu
 
   return data.session;
 }
+
+/**
+ * Exchange a Google One Tap credential (JWT) for a Supabase session.
+ * Called from the GSI prompt callback after the user accepts One Tap.
+ */
+export async function signInWithGoogleOneTap(credential: string): Promise<void> {
+  const supabase = createSupabaseBrowserClient();
+
+  if (!supabase) {
+    throw new Error("Google One Tap sign-in is unavailable in local mode.");
+  }
+
+  const { error } = await supabase.auth.signInWithIdToken({
+    provider: "google",
+    token: credential,
+  });
+
+  if (error) {
+    throw error;
+  }
+}
