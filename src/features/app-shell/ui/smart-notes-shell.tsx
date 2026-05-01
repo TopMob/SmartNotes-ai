@@ -116,6 +116,37 @@ export function SmartNotesShell() {
     };
   }, [reduceMotion]);
 
+  // Theme preset effect — applies data-theme to <html> for CSS token switching
+  const preset = settings?.preset ?? "paper";
+  useEffect(() => {
+    const root = document.documentElement;
+    if (preset === "paper") {
+      delete root.dataset.theme;
+    } else {
+      root.dataset.theme = preset;
+    }
+    return () => { delete root.dataset.theme; };
+  }, [preset]);
+
+  // Opacity + background CSS vars effect
+  const uiOpacity = settings?.uiOpacity ?? 0.88;
+  const cardsOpacity = settings?.cardsOpacity ?? 0.92;
+  const mainBg = settings?.mainBackgroundUrl ?? null;
+  const sidebarBg = settings?.sidebarBackgroundUrl ?? null;
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty("--ui-opacity", String(uiOpacity));
+    root.style.setProperty("--cards-opacity", String(cardsOpacity));
+    root.style.setProperty(
+      "--main-background-url",
+      mainBg ? `url(${mainBg})` : "none",
+    );
+    root.style.setProperty(
+      "--sidebar-background-url",
+      sidebarBg ? `url(${sidebarBg})` : "none",
+    );
+  }, [uiOpacity, cardsOpacity, mainBg, sidebarBg]);
+
   // Navigation helpers
   function toggleSidebar() {
     if (shellState.isDesktop) {
