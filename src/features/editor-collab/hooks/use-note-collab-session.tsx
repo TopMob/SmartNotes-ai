@@ -8,7 +8,7 @@ import type { Note } from "@/entities/note";
 import { createNoteCollabChannel } from "@/features/editor-collab/api/create-note-collab-channel";
 import { bindYjsSupabaseChannel } from "@/features/editor-collab/lib/bind-yjs-supabase-channel";
 import { createNoteIndexeddbProvider } from "@/features/editor-collab/lib/create-note-indexeddb-provider";
-import { applyNoteToYDoc, buildDurableNotePatchFromYDoc, createEmptyYNoteDoc, readNoteSnapshotFromYDoc, type YNoteDocSnapshot } from "@/features/editor-collab/model/yjs-note-doc";
+import { applyNoteToYDoc, createEmptyYNoteDoc, readNoteSnapshotFromYDoc, type YNoteDocSnapshot } from "@/features/editor-collab/model/yjs-note-doc";
 import type { IndexeddbPersistence } from "y-indexeddb";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { clearCollabDiagnostic, setCollabDiagnostic } from "@/services/diagnostics/runtime-diagnostics";
@@ -79,10 +79,17 @@ export function NoteCollabSessionProvider({ note, children }: NoteCollabProvider
     hasUnsavedChanges: false,
   });
   const querySnapshotSerialized = useMemo(() => {
-    const doc = createEmptyYNoteDoc();
-    applyNoteToYDoc(doc, note);
-    return JSON.stringify(normalizeNotePatch(buildDurableNotePatchFromYDoc(doc), { scheduleAnalysis: false }));
-  }, [note]);
+    // NOTE: pages are managed exclusively in the YDoc / IndexedDB.
+    // mapNoteRow always returns pages:[] from the server, so we intentionally
+    // exclude them from the snapshot comparison to avoid resetting lastSavedRef
+    // to an empty-pages state on every query refetch.
+    return JSON.stringify(normalizeNotePatch({
+      title: note.title,
+      folderId: note.folderId,
+      userTags: note.userTags,
+      content: note.content,
+    }, { scheduleAnalysis: false }));
+  }, [note.title, note.folderId, note.userTags, note.content]);
 
   useEffect(() => {
     const session = sessionRef.current;

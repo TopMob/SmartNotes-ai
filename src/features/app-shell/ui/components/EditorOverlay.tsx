@@ -227,8 +227,8 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
               <ToolButton icon={FileImage} label="Add image" onClick={() => void handleAttachImage()} />
             </div>
           ) : null}
-          <div className="mt-5 flex min-h-[60vh] flex-1 rounded-[1.5rem] border border-border bg-background/36 p-4 text-lg leading-9 outline-none" onMouseDown={() => editor.chain().focus().run()}>
-            <div className="min-h-full flex-1" onMouseDown={() => editor.chain().focus().run()}>
+          <div className="mt-5 flex min-h-[60vh] flex-1 rounded-[1.5rem] border border-border bg-background/36 p-4 text-lg leading-9 outline-none">
+            <div className="min-h-full flex-1">
               <EditorContent editor={editor} />
             </div>
           </div>

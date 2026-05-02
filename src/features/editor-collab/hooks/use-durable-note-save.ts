@@ -11,8 +11,17 @@ import { setCollabDiagnostic } from "@/services/diagnostics/runtime-diagnostics"
 import { NOTE_COLLAB_SAVE_DEBOUNCE_MS } from "../lib/note-collab-constants";
 import { useNoteCollabSession } from "./use-note-collab-session";
 
-function serializeDurablePatch(value: Pick<Note, "title" | "folderId" | "userTags" | "pages" | "content"> | Partial<Note>) {
-  return JSON.stringify(value);
+// Serialize only the fields that are persisted to the server AND returned by the server.
+// `pages` is managed in YDoc/IndexedDB only — mapNoteRow always returns pages:[] so
+// we never include it in the change-detection hash.
+function serializeDurablePatch(patch: Partial<Note>) {
+  return JSON.stringify({
+    title: patch.title,
+    folderId: patch.folderId,
+    userTags: patch.userTags,
+    content: patch.content,
+    updatedAt: patch.updatedAt,
+  });
 }
 
 export function useDurableNoteSave() {
