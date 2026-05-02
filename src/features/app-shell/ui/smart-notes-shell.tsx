@@ -26,6 +26,7 @@ import { useAppShellState } from "./hooks/use-app-shell-state";
 import { useNoteInteractions } from "./hooks/use-note-interactions";
 import { useReminderEffects } from "./hooks/use-reminder-effects";
 import { AiChatPanel } from "@/features/ai-engine/ui/AiChatPanel";
+import { CommandPalette } from "./components/CommandPalette";
 
 export function SmartNotesShell() {
   // Data queries
@@ -41,6 +42,7 @@ export function SmartNotesShell() {
   const mobileSidebarOpen = useUiStore((state) => state.mobileSidebarOpen);
   const desktopSidebarOpen = useUiStore((state) => state.desktopSidebarOpen);
   const desktopSidebarPinned = useUiStore((state) => state.desktopSidebarPinned);
+  const aiChatOpen = useUiStore((state) => state.aiChatOpen);
   const setView = useUiStore((state) => state.setView);
   const setActiveFolderId = useUiStore((state) => state.setActiveFolderId);
   const setSearchQuery = useUiStore((state) => state.setSearchQuery);
@@ -114,6 +116,37 @@ export function SmartNotesShell() {
       delete document.documentElement.dataset.motion;
     };
   }, [reduceMotion]);
+
+  // Theme preset effect — applies data-theme to <html> for CSS token switching
+  const preset = settings?.preset ?? "paper";
+  useEffect(() => {
+    const root = document.documentElement;
+    if (preset === "paper") {
+      delete root.dataset.theme;
+    } else {
+      root.dataset.theme = preset;
+    }
+    return () => { delete root.dataset.theme; };
+  }, [preset]);
+
+  // Opacity + background CSS vars effect
+  const uiOpacity = settings?.uiOpacity ?? 0.88;
+  const cardsOpacity = settings?.cardsOpacity ?? 0.92;
+  const mainBg = settings?.mainBackgroundUrl ?? null;
+  const sidebarBg = settings?.sidebarBackgroundUrl ?? null;
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty("--ui-opacity", String(uiOpacity));
+    root.style.setProperty("--cards-opacity", String(cardsOpacity));
+    root.style.setProperty(
+      "--main-background-url",
+      mainBg ? `url(${mainBg})` : "none",
+    );
+    root.style.setProperty(
+      "--sidebar-background-url",
+      sidebarBg ? `url(${sidebarBg})` : "none",
+    );
+  }, [uiOpacity, cardsOpacity, mainBg, sidebarBg]);
 
   // Navigation helpers
   function toggleSidebar() {
@@ -192,12 +225,36 @@ export function SmartNotesShell() {
         </div>
       ) : null}
 
-      <button className="btn-fab fixed bottom-5 right-5 z-30 flex h-14 w-14 items-center justify-center bg-accent text-accent-foreground shadow-2xl shadow-violet-950/24" onClick={createNoteDraft} type="button">
+      {/* FAB — shifts left on desktop when AI panel is open */}
+      <button
+        className={`btn-fab fixed bottom-5 z-30 flex h-14 w-14 items-center justify-center bg-accent text-accent-foreground shadow-2xl shadow-violet-950/24 transition-[right] duration-300 ${
+          aiChatOpen ? "right-[440px] hidden sm:flex" : "right-5"
+        }`}
+        onClick={createNoteDraft}
+        type="button"
+      >
         <Plus className="h-6 w-6" />
       </button>
 
-      {/* AI Notes Chat — ✨ ask questions about your notes */}
+      {/* Mobile FAB — always bottom-right, hidden when AI panel open on mobile */}
+      <button
+        className={`btn-fab fixed bottom-5 right-5 z-30 flex h-14 w-14 items-center justify-center bg-accent text-accent-foreground shadow-2xl shadow-violet-950/24 sm:hidden ${
+          aiChatOpen ? "hidden" : "flex"
+        }`}
+        onClick={createNoteDraft}
+        type="button"
+      >
+        <Plus className="h-6 w-6" />
+      </button>
+
+      {/* AI Notes Chat Panel — Gmail-style slide-in from right ✨ */}
       <AiChatPanel onOpenNote={(id) => openNote(id, notes)} />
+
+      {/* Command Palette — Cmd+K */}
+      <CommandPalette
+        onOpenNote={(id) => openNote(id, notes)}
+        onCreateNote={createNoteDraft}
+      />
 
       {shellState.editorOpen && currentNote ? (
         <EditorErrorBoundary>

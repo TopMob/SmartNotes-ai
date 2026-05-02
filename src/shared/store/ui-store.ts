@@ -13,6 +13,7 @@ type UiState = {
   mobileSidebarOpen: boolean;
   desktopSidebarOpen: boolean;
   desktopSidebarPinned: boolean;
+  aiChatOpen: boolean;
   setView: (view: AppView) => void;
   setActiveFolderId: (folderId: string | null) => void;
   setSearchQuery: (query: string) => void;
@@ -30,6 +31,8 @@ type UiState = {
   setDesktopSidebarOpen: (open: boolean) => void;
   toggleDesktopSidebar: () => void;
   toggleDesktopSidebarPinned: () => void;
+  setAiChatOpen: (open: boolean) => void;
+  toggleAiChat: () => void;
 };
 
 export const useUiStore = create<UiState>((set) => ({
@@ -41,6 +44,7 @@ export const useUiStore = create<UiState>((set) => ({
   mobileSidebarOpen: false,
   desktopSidebarOpen: false,
   desktopSidebarPinned: false,
+  aiChatOpen: false,
   setView: (view) => set({ view }),
   setActiveFolderId: (activeFolderId) => set({ activeFolderId }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
@@ -100,4 +104,6 @@ export const useUiStore = create<UiState>((set) => ({
       desktopSidebarPinned: !state.desktopSidebarPinned,
       desktopSidebarOpen: !state.desktopSidebarPinned || state.desktopSidebarOpen,
     })),
+  setAiChatOpen: (aiChatOpen) => set({ aiChatOpen }),
+  toggleAiChat: () => set((state) => ({ aiChatOpen: !state.aiChatOpen })),
 }));

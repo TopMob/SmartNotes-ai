@@ -17,7 +17,6 @@ const CORS_HEADERS = {
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ?? "http://localhost:3000").split(",");
 
 export function OPTIONS() {
-<<<<<<< HEAD
   return new Response(null, { status: 204, headers: CORS_HEADERS });
 }
 
@@ -111,14 +110,4 @@ export async function POST(request: Request) {
     const message = error instanceof Error ? error.message : "AI analysis failed";
     return NextResponse.json({ error: message }, { status: 500, headers: CORS_HEADERS });
   }
-=======
-  return new Response(null, {
-    status: 204,
-    headers: {
-      "Access-Control-Allow-Origin": ALLOWED_ORIGINS[0],
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization, x-secret",
-    },
-  });
->>>>>>> 35adc060ddb138744e22c3579e7077d5fc484a24
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { Eye, EyeOff, KeyRound, Loader2, Mail, Sparkles, UserRound, X } from "lucide-react";
+import { Eye, EyeOff, KeyRound, Loader2, Mail, Sparkles, UserRound, X, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { useAuthActions } from "@/features/auth/hooks/use-auth-actions";
@@ -190,13 +190,10 @@ export function LoginShell() {
             <UserRound className="mr-2 h-5 w-5" />
             Войти как гость
           </Button>
+          {/* One Tap info hint — only shown when Google Client ID is not configured at all */}
           {!runtimeConfig?.googleClientId ? (
             <p className="mt-3 rounded-2xl border border-border bg-surface-strong p-3 text-xs leading-5 text-foreground/58">
-              Google One Tap включится после добавления `NEXT_PUBLIC_GOOGLE_CLIENT_ID` в переменные окружения.
-            </p>
-          ) : !supportsGoogleOneTap() ? (
-            <p className="mt-3 rounded-2xl border border-border bg-surface-strong p-3 text-xs leading-5 text-foreground/58">
-              Google One Tap отключен в Firefox, чтобы не засорять консоль служебными `gsi/status` ошибками. Обычный вход через Google выше работает.
+              Добавьте <code className="font-mono">NEXT_PUBLIC_GOOGLE_CLIENT_ID</code> для включения входа через Google.
             </p>
           ) : null}
 

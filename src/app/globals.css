@@ -337,3 +337,32 @@ textarea {
     padding-bottom: var(--safe-bottom);
   }
 }
+
+/* Scrollbar hide utility */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Reduce motion override (via data attribute set by JS) */
+:root[data-motion="reduce"] *,
+:root[data-motion="reduce"] *::before,
+:root[data-motion="reduce"] *::after {
+  scroll-behavior: auto !important;
+  transition-duration: 0.01ms !important;
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+}
+
+/* Paper theme — explicit (same as :root defaults, useful for reset) */
+:root[data-theme="paper"] {
+  --background: #050505;
+  --foreground: #ffffff;
+  --surface: rgba(15, 15, 17, 0.72);
+  --surface-strong: #111113;
+  --border: rgba(255, 255, 255, 0.08);
+  --accent: #00f2ff;
+  --accent-foreground: #031315;
+  --shadow-color: rgba(0, 0, 0, 0.25);
+  --wallpaper:
+    radial-gradient(circle at 50% 18%, rgba(0, 80, 255, 0.08), transparent 32rem),
+    linear-gradient(180deg, #050505 0%, #09090b 100%);
+}

@@ -19,7 +19,6 @@ import {
 import { scheduleAiAnalysis } from "@/services/ai/ai-queue";
 import { enqueueSyncItem } from "@/services/sync/sync-queue";
 import { publish } from "@/services/event-bus";
-import { scheduleAiAnalysis } from "@/services/ai/ai-queue";
 import { queryKeys } from "@/shared/lib/react-query/query-keys";
 
 type InfiniteNotesData = {
@@ -118,17 +117,10 @@ export function useUpdateNoteMutation() {
     },
     onSuccess: (_note, { noteId, patch }) => {
       enqueueSyncItem({ id: noteId, entity: "note", operation: "patch", payload: patch });
-<<<<<<< HEAD
-      // Queue AI analysis if content-related fields changed
-      const analysisFields = new Set(["title", "content", "pages", "userTags"]);
-      const needsAnalysis = Object.keys(patch).some((k) => analysisFields.has(k));
-      if (needsAnalysis) scheduleAiAnalysis(noteId);
-=======
 
       if (patch.aiStatus === "pending" || patch.aiProcessed === false || patch.analyzed === false || ANALYSIS_FIELD_KEYS.some((field) => field in patch)) {
         scheduleAiAnalysis(noteId);
       }
->>>>>>> 35adc060ddb138744e22c3579e7077d5fc484a24
     },
     onSettled: () => {
       if (!userId) {
