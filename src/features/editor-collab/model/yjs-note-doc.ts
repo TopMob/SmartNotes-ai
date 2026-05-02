@@ -2,7 +2,7 @@ import * as Y from "yjs";
 
 import type { Note, NotePage } from "@/entities/note";
 import { NOTE_COLLAB_ROOT_KEY } from "@/features/editor-collab/lib/note-collab-constants";
-import { createInitialPage, mergeContentFromPages, trimPageTitle } from "@/features/notes/lib/note-utils";
+import { createInitialPage, deriveTitle, mergeContentFromPages, trimPageTitle } from "@/features/notes/lib/note-utils";
 
 const USER_TAGS_KEY = "userTags";
 const PAGES_KEY = "pages";
@@ -206,8 +206,15 @@ export function readNoteSnapshotFromYDoc(doc: Y.Doc): YNoteDocSnapshot {
 export function buildDurableNotePatchFromYDoc(doc: Y.Doc) {
   const snapshot = readNoteSnapshotFromYDoc(doc);
 
+  const rawTitle = snapshot.title.trim();
+  const isUntitled = !rawTitle || rawTitle === "Untitled note" || rawTitle === "Untitled Note";
+
+  const title = isUntitled
+    ? deriveTitle({ title: "", content: snapshot.content, folderId: snapshot.folderId, userTags: snapshot.userTags })
+    : rawTitle;
+
   return {
-    title: snapshot.title,
+    title,
     folderId: snapshot.folderId,
     userTags: snapshot.userTags,
     pages: snapshot.pages,

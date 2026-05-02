@@ -119,13 +119,17 @@ export const notesRepository: NotesRepository = {
       return localNotesRepository.create(note);
     }
 
-    const { data, error } = await supabase.from("notes").insert(mapNoteDraftToInsert(note)).select("*").single();
+    // INSERT without .select() to avoid the post-write SELECT hitting RLS
+    // on note_effective_access before the trigger has populated it.
+    const { error } = await supabase.from("notes").insert(mapNoteDraftToInsert(note));
 
     if (error) {
       throw error;
     }
 
-    return mapNoteRow(data);
+    // Return the note we already have locally — the server data is identical
+    // because we sent all fields in the insert payload.
+    return note;
   },
   async patch(noteId, patch) {
     if (shouldUseLocal()) {
@@ -138,13 +142,16 @@ export const notesRepository: NotesRepository = {
       return localNotesRepository.patch(noteId, patch);
     }
 
-    const { data, error } = await supabase.from("notes").update(mapNotePatchToUpdate(patch)).eq("id", noteId).select("*").single();
+    // UPDATE without .select() to avoid the post-write SELECT hitting RLS.
+    const { error } = await supabase.from("notes").update(mapNotePatchToUpdate(patch)).eq("id", noteId);
 
     if (error) {
       throw error;
     }
 
-    return mapNoteRow(data);
+    // Return a synthetic note built from the patch — the query cache holds the
+    // full note and will be invalidated by the mutation's onSettled anyway.
+    return { id: noteId, ...patch } as import("@/entities/note").Note;
   },
   async batchCreate(notes) {
     if (!notes.length) {
