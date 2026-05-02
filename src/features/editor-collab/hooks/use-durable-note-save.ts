@@ -134,6 +134,9 @@ export function useDurableNoteSave() {
       }, NOTE_COLLAB_SAVE_DEBOUNCE_MS);
     };
 
+    // Run once immediately to detect unsaved local changes on mount
+    scheduleSave();
+
     doc.on("update", scheduleSave);
 
     return () => {
@@ -144,6 +147,5 @@ export function useDurableNoteSave() {
         timeoutRef.current = null;
       }
     };
-    scheduleSave();
   }, [doc, hydratedFromQuery, noteId, querySnapshotSerialized, setDurableState, status, updateMutation]);
 }

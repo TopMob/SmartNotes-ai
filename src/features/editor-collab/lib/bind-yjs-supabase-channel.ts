@@ -15,9 +15,28 @@ type BindYjsSupabaseChannelOptions = {
 export function bindYjsSupabaseChannel({ noteId, channel, doc }: BindYjsSupabaseChannelOptions) {
   let disposed = false;
   let subscribed = false;
+  // Buffer updates that arrive before the channel is fully subscribed
+  const pendingUpdates: Uint8Array[] = [];
+
+  function flushPendingUpdates() {
+    if (!pendingUpdates.length) return;
+    const merged = Y.mergeUpdates(pendingUpdates);
+    pendingUpdates.length = 0;
+    void channel.send({
+      type: "broadcast",
+      event: NOTE_COLLAB_UPDATE_EVENT,
+      payload: { noteId, update: encodeYjsUpdate(merged) },
+    });
+  }
 
   const handleUpdate = (update: Uint8Array, origin: unknown) => {
     if (disposed || origin === channel) {
+      return;
+    }
+
+    if (!subscribed) {
+      // Buffer until channel is ready to avoid the REST fallback (403)
+      pendingUpdates.push(update);
       return;
     }
 
@@ -48,6 +67,8 @@ export function bindYjsSupabaseChannel({ noteId, channel, doc }: BindYjsSupabase
 
     subscribed = true;
     void channel.track({ noteId, at: new Date().toISOString(), event: NOTE_COLLAB_PRESENCE_EVENT });
+    // Flush any updates that were buffered during channel setup
+    flushPendingUpdates();
   });
 
   doc.on("update", handleUpdate);
@@ -55,6 +76,7 @@ export function bindYjsSupabaseChannel({ noteId, channel, doc }: BindYjsSupabase
   return {
     destroy() {
       disposed = true;
+      pendingUpdates.length = 0;
       doc.off("update", handleUpdate);
       channel.unsubscribe();
     },

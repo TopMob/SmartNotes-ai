@@ -55,7 +55,7 @@ export function useCreateNoteMutation() {
     },
     onMutate: async ({ draft, optimisticNote }) => {
       if (!userId) {
-        return { previousNotes: undefined } satisfies NotesSnapshot;
+        return { previousNotes: undefined, optimisticNote: undefined };
       }
 
       const queryKey = queryKeys.notes(userId);
@@ -68,11 +68,25 @@ export function useCreateNoteMutation() {
         sortNotes([localNote, ...notes])
       ));
 
-      return { previousNotes } satisfies NotesSnapshot;
+      return { previousNotes, optimisticNote: localNote };
     },
-    onError: () => {
+    onError: (_error, _vars, context) => {
       if (!userId) return;
-      void queryClient.invalidateQueries({ queryKey: queryKeys.notes(userId) });
+      // Keep the optimistic note in cache on failure so the editor doesn't close.
+      // The sync queue will retry the create. Only restore if the note was evicted.
+      const queryKey = queryKeys.notes(userId);
+      const optimistic = (context as { optimisticNote?: Note } | undefined)?.optimisticNote;
+      if (!optimistic) {
+        void queryClient.invalidateQueries({ queryKey });
+        return;
+      }
+      const current = queryClient.getQueryData<InfiniteNotesData>(queryKey);
+      const alreadyPresent = getFlatNotes(current).some((n) => n.id === optimistic.id);
+      if (!alreadyPresent) {
+        queryClient.setQueryData<InfiniteNotesData>(queryKey, updateFirstPageNotes(current, (notes) =>
+          sortNotes([optimistic, ...notes])
+        ));
+      }
     },
     onSuccess: (note) => {
       enqueueSyncItem({ id: note.id, entity: "note", operation: "create", payload: { noteId: note.id } });

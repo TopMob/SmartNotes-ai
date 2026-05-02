@@ -24,6 +24,7 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import LinkExtension from "@tiptap/extension-link";
 import TextAlign from "@tiptap/extension-text-align";
 import StarterKit from "@tiptap/starter-kit";
+import UnderlineExtension from "@tiptap/extension-underline";
 import { useEffect, useRef, type ComponentType } from "react";
 
 import type { Note } from "@/entities/note";
@@ -44,6 +45,7 @@ const EDITOR_EXTENSIONS = [
   StarterKit.configure({ bulletList: { keepMarks: true, keepAttributes: false }, link: false }),
   LinkExtension.configure({ openOnClick: false, autolink: true, linkOnPaste: true, defaultProtocol: "https" }),
   TextAlign.configure({ types: ["heading", "paragraph"] }),
+  UnderlineExtension,
 ];
 
 type EditorOverlayProps = {

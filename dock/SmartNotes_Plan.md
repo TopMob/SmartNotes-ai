@@ -1,6 +1,6 @@
-# SmartNotes AI — План реализации
+# SmartNotes AI — Актуальный план реализации
 
-> Анализ на основе `SmartNotes_Structure.txt`, `SmartNotes_Features.txt` и текущего кода в `/src`.
+> Обновлено: 2026-05-02. Анализ кода + исправление критических багов.
 
 ---
 
@@ -8,10 +8,33 @@
 
 | Статус | Значение |
 |--------|----------|
-| ✅ **Готово** | Реализовано, файлы существуют |
-| 🔶 **Скелет** | Папка/файл есть, но логика пустая или минимальная |
+| ✅ **Готово** | Реализовано, работает |
+| 🔶 **Скелет** | Файл/логика есть, но неполная |
 | ❌ **Не начато** | Полностью отсутствует |
-| 💡 **Новая идея** | Не было в спеке, добавлено как предложение |
+| 🐛 **Баг / исправлен** | Была ошибка, исправлена в этой сессии |
+| 💡 **Новая идея** | Предложение |
+
+---
+
+## 🐛 Исправленные баги (текущая сессия)
+
+| Файл | Баг | Статус |
+|------|-----|--------|
+| `bind-yjs-supabase-channel.ts` | `channel.send()` вызывался до SUBSCRIBED → Realtime падал на REST → `POST /rest/v1/notes?select=* 403` | ✅ Исправлен: буферизация до SUBSCRIBED |
+| `use-durable-note-save.ts` | `scheduleSave()` вызывался **после** `return` (мёртвый код) — сохранение не работало | ✅ Исправлен: перемещён до return |
+| `use-note-mutations.ts` (create) | При ошибке создания заметки `invalidateQueries` удалял оптимистичную заметку → редактор закрывался | ✅ Исправлен: оптимистичная заметка сохраняется при ошибке |
+
+### Причинно-следственная цепочка бага «редактор закрывается»:
+```
+createNoteDraft()
+  → optimisticNote добавлен в кэш
+  → editor открыт (currentNoteId = note.id)
+  → notesRepository.create() → POST /rest/v1/notes?select=* → 403
+    (Supabase Realtime channel.send() REST fallback — ещё до SUBSCRIBED)
+  → onError: invalidateQueries → кэш сброшен → optimisticNote исчез
+  → currentNote = null → editorOpen && !currentNote → editor не рендерится
+  → редактор закрыт
+```
 
 ---
 
@@ -19,18 +42,17 @@
 
 | Задача | Статус | Примечание |
 |--------|--------|------------|
-| Google OAuth / One Tap | ✅ | `login-shell.tsx` — реализовано |
-| Email + пароль вход/регистрация | ✅ | Есть в `login-shell.tsx` |
-| Reset password flow | ✅ | В `login-shell.tsx` |
+| Google OAuth / One Tap | ✅ | `login-shell.tsx` |
+| Email + пароль вход/регистрация | ✅ | `login-shell.tsx` |
+| Reset password flow | ✅ | `login-shell.tsx` |
 | Popup → redirect fallback | ✅ | Реализован |
 | Безопасный logout | ✅ | В auth hooks |
-| Изменение display name | 🔶 | Модель есть (`profiles`), UI — не найдено |
-| Загрузка/обновление аватара | 🔶 | Поле `avatar_url` в БД, UI — отсутствует |
-| Копирование UID | ❌ | Не реализовано |
-| Таймауты auth-операций | 🔶 | Частично через watchdog |
+| Изменение display name | 🔶 | `profiles` в БД, UI нет |
+| Загрузка/обновление аватара | 🔶 | `avatar_url` в БД, UI нет |
 | Bootstrap config endpoint | ✅ | `data-bootstrap.tsx` |
 | Degraded auth mode | 🔶 | Скелет в shell |
-| Cooldown повторного Google prompt | ❌ | Не найдено |
+| Cooldown повторного Google prompt | ❌ | |
+| Копирование UID | ❌ | |
 
 ---
 
@@ -40,17 +62,17 @@
 |--------|--------|------------|
 | CRUD заметок | ✅ | `notes-repository.ts`, `use-note-mutations.ts` |
 | Корзина / восстановление / удаление | ✅ | Мутации реализованы |
-| Многостраничная заметка | 🔶 | `note_pages` в БД, UI управления страницами — не найдено |
-| Перелистывание / добавление / удаление страниц | 🔶 | Логика в мутациях, UI — не найдено |
-| Модальное окно управления страницами | ❌ | Отсутствует |
-| Отдельные заголовки страниц | 🔶 | Поле в БД, UI — нет |
-| Постраничные рисунки | 🔶 | `drawing_data_url` в БД, Canvas UI — нет |
-| Pin / Favorite / Archive | ✅ | В мутациях |
-| Напоминания | ✅ | `reminder-service.ts`, `reminder_at` в БД |
-| Автогенерация заголовка | ✅ | Триггер в БД (из `content`) |
+| Многостраничная заметка | ✅ | `note_pages` в схеме, `buildPageAddPatch` |
+| Перелистывание страниц | ✅ | `EditorOverlay.tsx` — Prev/Next |
+| Добавление страницы | ✅ | `addPage()` в toolbar |
+| Удаление страниц | 🔶 | `buildPageDeletePatch` есть, UI кнопки нет |
+| Pin / Favorite / Archive | ✅ | |
+| Напоминания | ✅ | `reminder-service.ts` |
+| Автогенерация заголовка | ✅ | Trigger БД + `deriveTitle` |
 | Пагинация заметок | ✅ | `use-notes-query.ts` |
-| Сохранение scroll position | ❌ | Не реализовано |
-| Сортировка: pinned отдельно | 🔶 | Индексы есть, логика UI — проверить |
+| Медиа: inline изображения | ✅ | `handleAttachImage` в EditorOverlay |
+| Чтение `note_pages` из БД | ❌ | `mapNoteRow` возвращает `pages: []` |
+| Сохранение scroll position | ❌ | |
 
 ---
 
@@ -58,265 +80,230 @@
 
 | Задача | Статус | Примечание |
 |--------|--------|------------|
-| Tiptap редактор | 🔶 | `editor-types.ts` — только модель, сам редактор не найден |
-| Toolbar (bold/italic/underline/strike) | ❌ | Нет компонента редактора |
-| Структурные блоки (lists, hr) | ❌ | Нет |
-| Выравнивание текста и медиа | ❌ | Нет |
-| Undo / Redo | ❌ | Нет |
-| Внутренние ссылки на заметки | ❌ | Нет |
-| Escape → тихое сохранение | ❌ | Нет |
-| Inline теги в редакторе | ❌ | Нет |
-| Math Resolver | ❌ | Нет |
-| Paste sanitization (Word/HTML) | ❌ | Нет |
-| Canvas рисунки | ❌ | Нет |
-| Feature flags для editor tools | 🔶 | `editor` jsonb в `user_settings`, UI нет |
-| Модульные плагины | ❌ | Нет |
-
-> ⚠️ **Editor — самый незакрытый блок.** Вся папка `/features/editor` содержит только `editor-types.ts`.
+| Tiptap редактор | ✅ | `EditorOverlay.tsx` |
+| Toolbar (bold/italic/strike) | ✅ | |
+| Underline | ⚠️ | Кнопка есть, extension не добавлен! |
+| Структурные блоки (lists, hr) | ✅ | |
+| Выравнивание текста | ✅ | TextAlign extension |
+| Undo / Redo | ✅ | |
+| Ссылки | ✅ | LinkExtension |
+| Escape → закрыть | ✅ | |
+| Вставка изображений | ✅ | |
+| Auto-title из content | ✅ | debounce 3s |
+| Теги footer input | 🔶 | Inline теги нет |
+| Canvas рисунки | 🔶 | Создаёт Sketch страницу, canvas UI нет |
+| Autosave / durable save | 🐛✅ | Баг исправлен |
+| Math Resolver | ❌ | |
+| Paste sanitization | ❌ | |
+| AI Completion (Tab) | ❌ | |
+| Feature flags editor | 🔶 | `user_settings.editor` jsonb |
 
 ---
 
-## 4. FOLDERS
+## 4. COLLAB SESSION (YJS + Supabase Realtime)
 
 | Задача | Статус | Примечание |
 |--------|--------|------------|
-| CRUD папок | ✅ | `folders-repository.ts` |
-| Hidden folders | ✅ | `is_hidden` в БД, API |
-| Ручная сортировка / DnD | 🔶 | `folder_order` в БД, DnD UI — не найдено |
-| Folder overview grid | ❌ | Нет UI |
-| Context menu папки | 🔶 | Частично в `BottomSheet.tsx` |
-| Folder limit UI | ❌ | Нет |
-| Unhide папки | 🔶 | API есть, отдельный экран — нет |
-| Preview описания (развернуть/свернуть) | ❌ | Нет |
-| Корзина папок (restore/permanent delete) | 🔶 | `trashed_at` в БД, UI — нет |
+| YJS Document | ✅ | |
+| IndexedDB persistence | ✅ | `y-indexeddb` |
+| Supabase Realtime transport | 🐛✅ | Баг исправлен: буферизация до SUBSCRIBED |
+| Durable save debounce | 🐛✅ | Баг исправлен: мёртвый scheduleSave() |
+| LocalStorage backup | ✅ | |
+| Hydration fallback (600ms) | ✅ | |
 
 ---
 
-## 5. SEARCH & FILTERS
+## 5. FOLDERS
 
 | Задача | Статус | Примечание |
 |--------|--------|------------|
-| Глобальный текстовый поиск | ✅ | `search.ts`, `search_vector` в БД |
-| Нормализация (ё→е, раскладка, стемминг) | ✅ | `search.ts` — расширенная логика |
-| Fuzzy matching | ✅ | В `search.ts` |
-| Фильтр по папкам / тегам / периоду | 🔶 | Частично в `TopFiltersPopup.tsx` |
-| Сохранённые пресеты фильтров | ❌ | Нет UI, нет хранилища |
-| Сортировка по relevance / алфавиту / длине | 🔶 | Частично |
-| Ручная сортировка заметок + undo | ❌ | `orderHistory` нет в store |
-| Hybrid search (full-text + vector) | 🔶 | `note_embeddings` в БД, API поиска — только full-text |
-| Автоподсказка тегов | ❌ | Нет |
+| CRUD папок | ✅ | |
+| Hidden folders | ✅ | |
+| Ручная сортировка / DnD | 🔶 | Поле в БД, UI нет |
+| Folder overview grid | ❌ | |
+| Context menu | 🔶 | `BottomSheet` |
+| Корзина папок UI | 🔶 | `trashed_at` есть |
 
 ---
 
-## 6. AI ENGINE
+## 6. SEARCH & FILTERS
 
 | Задача | Статус | Примечание |
 |--------|--------|------------|
-| Analyze pipeline (анализ заметки) | ✅ | `analyze-note.ts`, `/api/ai/analyze/route.ts` |
-| AI статусы (pending/analyzing/done/error) | ✅ | Enum в БД, `ai_jobs` |
-| Генерация `userTags` / `hiddenTags` | ✅ | В `analyze-note.ts` |
-| Выбор `folderId` (AI suggestion) | 🔶 | Логика есть, feedback loop — нет |
-| Расчёт `relevance` | ✅ | Поле в БД |
-| `resurfacingClass` | 🔶 | Enum в БД, UI — нет |
-| Prompt versioning | 🔶 | Поле в `ai_jobs` |
-| Batch reindex | 🔶 | `ai-queue.ts` — скелет |
-| Embeddings / Vector search | 🔶 | `note_embeddings` + HNSW index, пайплайн — нет |
-| Vision pipeline (canvas → текст) | ❌ | Нет |
-| Feedback loop (перемещение = сигнал) | ❌ | Нет |
-| UI badges статуса анализа | ❌ | Нет в `NoteCard.tsx` |
-| Кнопка ручного повторного анализа | ❌ | Нет |
-| Chunking + нормализация для retrieval | ❌ | Нет |
-| **🤖 AI Chat Panel (гид по заметкам)** | 🔶 | `AiChatPanel.tsx` + `/api/ai/chat/route.ts` — **есть скелет!** |
+| Глобальный поиск | ✅ | `search.ts` |
+| Нормализация, fuzzy | ✅ | |
+| Фильтры popup | 🔶 | `TopFiltersPopup.tsx` |
+| Сохранённые фильтры | 🔶 | ui-store + UI |
+| Hybrid search (vector) | ❌ | |
+| Автоподсказка тегов | 🔶 | |
 
 ---
 
-## 7. 🤖 AI CHAT PANEL — Подробный план
-
-> Инспирация: Gmail AI (Gemini), справа открывается панель, можно спрашивать про содержимое.
-
-### Что уже есть
-- `src/features/ai-engine/ui/AiChatPanel.tsx` — компонент (~10KB)
-- `src/app/api/ai/chat/route.ts` — API route (~5KB)
-
-### Что нужно реализовать / доделать
-
-| Задача | Приоритет |
-|--------|-----------|
-| Скользящая панель справа (slide-in, как Gmail) | 🔴 Высокий |
-| Кнопка открытия чата в Header / FAB | 🔴 Высокий |
-| Стриминг ответа (SSE / chunked response) | 🔴 Высокий |
-| RAG: поиск по заметкам через embeddings | 🔴 Высокий |
-| Контекст: передача открытой заметки в промпт | 🔴 Высокий |
-| История чата (в памяти сессии) | 🟡 Средний |
-| Предложения вопросов (quick prompts) | 🟡 Средний |
-| Ссылки на заметки в ответе (кликабельные) | 🟡 Средний |
-| Режим "спросить про все заметки" | 🟡 Средний |
-| Режим "спросить про текущую заметку" | 🟡 Средний |
-| Markdown рендер ответа | 🟡 Средний |
-| Кнопка "Вставить в заметку" | 🟢 Низкий |
-| Персистентная история чата (опционально) | 🟢 Низкий |
-
----
-
-## 8. MEDIA / BYOS
+## 7. AI ENGINE
 
 | Задача | Статус | Примечание |
 |--------|--------|------------|
-| Вставка изображений в заметку | ❌ | Нет UI |
-| Google Drive proxy upload | 🔶 | `/api/media` существует, детали — нет |
-| Client-side сжатие изображений | ✅ | `compress-image.ts` |
-| Temporary preview URL | ❌ | Нет |
-| Resize / drag handles для медиа | ❌ | Нет |
-| Degraded режим без Google Drive | ❌ | Нет |
-| IndexedDB thumbnails cache | ❌ | Нет |
-| Token refresh Google Drive | ❌ | Нет |
+| Analyze pipeline | ✅ | |
+| AI статусы | ✅ | |
+| Генерация тегов | ✅ | |
+| Batch reindex | 🔶 | |
+| Embeddings / Vector search | 🔶 | Таблица есть, пайплайн нет |
+| Vision pipeline | ❌ | |
+| Feedback loop | ❌ | |
+| UI badges | ❌ | |
 
 ---
 
-## 9. SECURITY / LOCK CENTER
+## 8. 🤖 AI CHAT PANEL
 
 | Задача | Статус | Примечание |
 |--------|--------|------------|
-| Lock Center UI | ❌ | Папка `/lock-center/lib` — только `lock-service.ts` (скелет) |
-| Пароль на заметку + SHA-256 | 🔶 | `lock-service.ts`, поля в БД |
-| Маскирование контента заблокированной заметки | ❌ | Нет |
-| Unlock flow / Remove lock | ❌ | Нет UI |
-| Запрет экспорта/печати locked notes | ❌ | Нет |
-| Anti-autofill policy | ❌ | Нет |
+| Slide-in панель | ✅ | `AiChatPanel.tsx` |
+| Кнопка в Header | ✅ | |
+| Стриминг ответа | 🔶 | |
+| RAG (embeddings) | ❌ | Сейчас `listAll()` — без vector |
+| Markdown рендер | 🔶 | |
+| Ссылки на заметки | 🔶 | |
+| Персистентная история | ❌ | |
 
 ---
 
-## 10. COLLABORATION / SHARING
+## 9. COMMAND PALETTE
 
 | Задача | Статус | Примечание |
 |--------|--------|------------|
-| Шаринг заметок / папок | ❌ | Схема БД есть, UI нет |
-| Инвайты по email/UID | ❌ | `note_invites` в БД, API нет |
-| Роли owner/editor/viewer | ✅ | В БД |
-| Accept/Reject invite | ❌ | Нет |
-| Collaborator chips / badges | ❌ | Нет |
-| Управление доступами | ❌ | Нет |
-| Realtime sync между пользователями | 🔶 | `realtime-subscriptions.ts` — скелет |
+| Cmd+K Palette | ✅ | `CommandPalette.tsx` (новый) |
+| Поиск заметок / действий | ✅ | |
 
 ---
 
-## 11. EXPORT / IMPORT / PRINT
+## 10. MEDIA
 
 | Задача | Статус | Примечание |
 |--------|--------|------------|
-| Экспорт заметки в JSON / TXT | 🔶 | `note-utils.ts` — частично |
-| Импорт JSON bundle | 🔶 | `note-import.ts` — есть |
-| Массовый экспорт / по папке | ❌ | Нет UI |
-| PDF через print flow | ❌ | Нет |
-| Версионирование bundle | ❌ | Нет |
-| Запрет экспорта locked notes | ❌ | Нет |
+| Inline изображения | ✅ | |
+| Client-side сжатие | ✅ | `compress-image.ts` |
+| Google Drive proxy | 🔶 | Скелет |
+| Resize медиа | ❌ | |
 
 ---
 
-## 12. THEMING & SETTINGS
+## 11. LOCK CENTER
 
 | Задача | Статус | Примечание |
 |--------|--------|------------|
-| Базовые theme presets | 🔶 | Enum в БД (paper, cyber, etc.), UI — не найдено |
-| Кастомные presets | 🔶 | `custom_presets` jsonb в БД |
-| Токенизированная тема | ❌ | Нет CSS-токенов в `globals.css` (минимально) |
-| Background image (URL / файл) | ❌ | Поля в БД, UI — нет |
-| UI opacity / Cards opacity | ❌ | Поля в БД, применение — нет |
-| Язык RU / EN | ✅ | `i18n.ts` — полноценный |
-| Reduce motion | 🔶 | Поле в БД |
-| Settings page с навигацией | 🔶 | `/app/settings` папка существует |
-| Cloud/local merge settings | ❌ | Нет |
-| Reset custom presets | ❌ | Нет |
+| Lock Center UI | ❌ | Только lib скелет |
+| Пароль + SHA-256 | 🔶 | `lock-service.ts`, поля в БД |
+| Unlock flow sheet | ❌ | `openSheet("lock")` есть, содержимое нет |
+| Маскирование контента | ❌ | |
 
 ---
 
-## 13. PWA & SYSTEM
+## 12. EXPORT / IMPORT
 
 | Задача | Статус | Примечание |
 |--------|--------|------------|
-| PWA manifest | ✅ | `manifest.ts` |
-| Service Worker | ❌ | `pwa-register.tsx` есть, SW — нет |
-| Offline shell | ❌ | Нет |
-| Browser notifications | 🔶 | `notification-service.ts` — скелет |
-| Reminder scheduler | ✅ | `reminder-service.ts` |
-| Splash + watchdog (~8s) | 🔶 | Частично в bootstrap |
-| ConsoleLogStore | ✅ | `console-log-store.ts` |
-| Feedback modal + рейтинг | ❌ | `feedback` в БД, UI нет |
+| Экспорт JSON/TXT | 🔶 | |
+| Импорт JSON bundle | 🔶 | `note-import.ts` |
+| Массовый экспорт | ❌ | |
+| PDF | ❌ | |
 
 ---
 
-## 14. OFFLINE / SYNC
+## 13. THEMING & SETTINGS
 
 | Задача | Статус | Примечание |
 |--------|--------|------------|
-| Offline-first IndexedDB | 🔶 | `local-notes-repository.ts`, `local-folders-repository.ts` |
-| sync_queue | ✅ | `sync-queue.ts`, `sync-consumer.ts` |
-| Realtime между устройствами | 🔶 | `realtime-subscriptions.ts` — скелет |
-| SafeStorage fallback | ❌ | Нет |
-| Quota error handling | ❌ | Нет |
-| TTL для pending saves | ❌ | Нет |
+| Theme presets (data-theme) | 🔶 | CSS применяется, UI нет |
+| CSS-токены | 🔶 | `globals.css` частично |
+| Background image | 🔶 | CSS vars есть, UI нет |
+| Opacity settings | 🔶 | CSS vars есть, UI нет |
+| Язык RU / EN | ✅ | |
+| Settings page | 🔶 | `/app/settings` папка |
 
 ---
 
-## 15. 💡 НОВЫЕ ИДЕИ (не было в спеке)
+## 14. PWA & SYSTEM
 
-| Идея | Описание | Приоритет |
-|------|----------|-----------|
-| **AI Daily Digest** | Утренний summary: "У тебя 3 задачи на сегодня, 2 идеи из прошлой недели стоит пересмотреть" | 🟡 |
-| **Smart Resurfacing** | Карточка в топе "Вы писали это 30 дней назад — актуально?" с возможностью подтвердить/архивировать | 🔴 |
-| **Note Connections / Graph View** | Граф связанных заметок через semantic similarity (как Obsidian Canvas) | 🟡 |
-| **AI Auto-Summary в карточке** | Одна строка AI-summary прямо на карточке заметки | 🟡 |
-| **Voice-to-Note** | Запись голоса → транскрипция → заметка через Whisper API | 🟢 |
-| **Mood / Energy tracker** | Быстрый emoji-тег настроения при создании заметки, аналитика по времени | 🟢 |
-| **Template Library** | Шаблоны заметок: Meeting Notes, Daily Journal, Project Brief — открываются одним кликом | 🟡 |
-| **Smart Tags Merge** | AI предлагает объединить похожие теги ("работа" + "рабочее" → "работа") | 🟢 |
-| **Focus Mode** | Полноэкранный редактор без отвлечений, zen-режим с плавным fade sidebar | 🟡 |
-| **Быстрый захват (Quick Capture)** | Глобальный хоткей/FAB → открывается минимальное поле ввода, сохраняет заметку без открытия редактора | 🔴 |
-| **AI Completion в редакторе** | `Tab` → AI допишет текущую мысль (как Notion AI / GitHub Copilot) | 🟡 |
-| **Поиск по рисункам (OCR)** | Vision pipeline для canvas → текстовый индекс → попадает в поиск | 🟡 |
-| **Note Health Score** | AI ставит "здоровье" заметки: актуальность, полнота, дата последнего просмотра | 🟢 |
+| Задача | Статус | Примечание |
+|--------|--------|------------|
+| PWA manifest | ✅ | |
+| Service Worker | ❌ | |
+| Offline shell | ❌ | |
+| Reminder scheduler | ✅ | |
+| ConsoleLogStore | ✅ | |
+| Feedback modal | ❌ | |
 
 ---
 
-## 📊 Общая картина прогресса
+## 15. OFFLINE / SYNC
+
+| Задача | Статус | Примечание |
+|--------|--------|------------|
+| IndexedDB offline | 🔶 | `local-notes-repository.ts` |
+| sync_queue | ✅ | |
+| Realtime | 🐛✅ | Баг исправлен |
+| SafeStorage fallback | ❌ | |
+
+---
+
+## 📊 Прогресс
 
 ```
-AUTH            ████████░░  75%  (UI профиля не закончен)
-NOTES CORE      ██████░░░░  55%  (страницы, рисунки, scroll)
-EDITOR          ██░░░░░░░░  15%  (только типы, Tiptap не подключен)
-FOLDERS         ███████░░░  65%  (DnD, корзина, grid нет)
-SEARCH          ██████░░░░  55%  (hybrid search, пресеты нет)
-AI ENGINE       ██████░░░░  55%  (pipeline есть, embeddings/RAG нет)
-AI CHAT PANEL   ███░░░░░░░  30%  (скелет есть, RAG/stream нет)
-MEDIA BYOS      ███░░░░░░░  25%  (только compress-image)
-LOCK CENTER     ██░░░░░░░░  15%  (только lib скелет)
-COLLABORATION   ██░░░░░░░░  20%  (только БД схема)
-EXPORT/IMPORT   ████░░░░░░  35%  (import есть, export UI нет)
-THEMING         ████░░░░░░  35%  (i18n отличный, темы нет)
-PWA/SYSTEM      ████░░░░░░  40%  (manifest, но SW нет)
-OFFLINE/SYNC    █████░░░░░  45%  (queue есть, SafeStorage нет)
+AUTH            ████████░░  75%
+NOTES CORE      ████████░░  75%  ↑ (editor работает, inline media)
+EDITOR          ███████░░░  65%  ↑ (Tiptap подключён, underline сломан)
+COLLAB/SAVE     ████████░░  75%  ↑↑ (2 бага исправлены)
+FOLDERS         ███████░░░  65%
+SEARCH          ██████░░░░  55%
+AI ENGINE       ██████░░░░  55%
+AI CHAT PANEL   █████░░░░░  50%
+COMMAND PALETTE ████████░░  80%  ↑ (новый компонент)
+MEDIA           ████░░░░░░  40%
+LOCK CENTER     ██░░░░░░░░  15%
+EXPORT/IMPORT   ████░░░░░░  35%
+THEMING         ████░░░░░░  40%
+PWA/SYSTEM      ████░░░░░░  40%
+OFFLINE/SYNC    █████░░░░░  50%
 ```
 
 ---
 
-## 🚀 Рекомендуемый порядок реализации
+## 🚀 Рекомендуемый порядок
 
-### Фаза 1 — Рабочий продукт (MVP)
-1. **Editor** — подключить Tiptap, toolbar, autosave
-2. **Note Pages UI** — страницы, перелистывание, page manager modal
-3. **AI Chat Panel** — RAG + streaming, slide-in панель
-4. **Settings UI** — тема, язык, opacity
+### 🔴 Прямо сейчас
+1. Добавить `@tiptap/extension-underline` в `EditorOverlay.tsx`
+2. **Запустить `dock/smartnotes_schema.sql`** в Supabase SQL Editor
+3. Реализовать загрузку `note_pages` в `notes-repository.ts` (сейчас `pages: []`)
+
+### Фаза 1 — Стабилизация
+4. Lock Center UI — unlock sheet, password input
+5. Settings page — темы, opacity, язык
+6. Canvas sketch UI — базовый `<canvas>` для Sketch страниц
 
 ### Фаза 2 — Полнота
-5. **Lock Center UI** — пароль, unlock, маскировка
-6. **Theming** — CSS-токены, presets, background
-7. **Canvas Drawing** — overlay, pen/eraser, undo
-8. **Folders** — DnD, grid view, корзина UI
-9. **Export** — JSON/TXT/PDF UI
+7. Embeddings pipeline → RAG в AI Chat
+8. Folders DnD + grid view
+9. Export UI (JSON/TXT/PDF)
+10. Collaboration — шаринг, инвайты
 
 ### Фаза 3 — Рост
-10. **Collaboration** — шаринг, инвайты, realtime
-11. **Embeddings pipeline** — chunking, vector search
-12. **Smart Resurfacing** — daily digest, connections graph
-13. **PWA** — Service Worker, offline shell
-14. **Quick Capture** — FAB, global hotkey
+11. Smart Resurfacing + Daily Digest
+12. Service Worker + offline shell
+13. Voice-to-Note (Whisper API)
+14. Note Connections / Graph View
+
+---
+
+## ⚠️ SQL: какую схему запускать
+
+**Использовать: `dock/smartnotes_schema.sql`**
+
+Код (`note-mappers.ts`, `notes-repository.ts`) написан под эту схему:
+- Нормализованные таблицы: `note_pages`, `note_media`, `note_access`, `note_invites`, `note_embeddings`
+- Lock-поля в `notes`: `lock_version`, `lock_hash`, `lock_salt`, `lock_hidden`
+- `profiles` с `plan` enum (`free`, `pro`, `team`)
+- `note_effective_access` с автоматическим обновлением через тригеры
+- Расширение `vector` (для embeddings, можно пропустить если не нужно)
+
+> `smartnotes_supabase_full.sql` — **устаревшая** альтернатива с jsonb колонками. Не использовать.
