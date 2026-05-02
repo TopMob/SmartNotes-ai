@@ -11,22 +11,32 @@ import { setCollabDiagnostic } from "@/services/diagnostics/runtime-diagnostics"
 import { NOTE_COLLAB_SAVE_DEBOUNCE_MS } from "../lib/note-collab-constants";
 import { useNoteCollabSession } from "./use-note-collab-session";
 
-function serializePatch(patch: Partial<Note>) {
+function serializeContentSnapshot(patch: Partial<Note>) {
   return JSON.stringify({
     title: patch.title,
     folderId: patch.folderId,
     userTags: patch.userTags,
     content: patch.content,
-    updatedAt: patch.updatedAt,
   });
 }
 
 export function useDurableNoteSave() {
   const { doc, noteId, hydratedFromQuery, querySnapshotSerialized, status, setDurableState } = useNoteCollabSession();
   const updateMutation = useUpdateNoteMutation();
+  const mutateRef = useRef(updateMutation.mutateAsync);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSavedRef = useRef<string | null>(null);
   const disposedRef = useRef(false);
+  const hydratedRef = useRef(hydratedFromQuery);
+  const statusRef = useRef(status);
+  const noteIdRef = useRef(noteId);
+  const setDurableStateRef = useRef(setDurableState);
+
+  mutateRef.current = updateMutation.mutateAsync;
+  hydratedRef.current = hydratedFromQuery;
+  statusRef.current = status;
+  noteIdRef.current = noteId;
+  setDurableStateRef.current = setDurableState;
 
   useEffect(() => {
     disposedRef.current = false;
@@ -36,11 +46,15 @@ export function useDurableNoteSave() {
   useEffect(() => {
     if (!hydratedFromQuery || status !== "ready") return;
 
-    lastSavedRef.current = querySnapshotSerialized;
+    const baseSnapshot = serializeContentSnapshot(
+      normalizeNotePatch(buildDurableNotePatchFromYDoc(doc), { scheduleAnalysis: false })
+    );
+    const serverSnapshot = serializeContentSnapshot(
+      JSON.parse(querySnapshotSerialized) as Partial<Note>
+    );
+    lastSavedRef.current = serverSnapshot;
 
-    const current = serializePatch(normalizeNotePatch(buildDurableNotePatchFromYDoc(doc), { scheduleAnalysis: false }));
-    const hasUnsavedChanges = current !== querySnapshotSerialized;
-
+    const hasUnsavedChanges = baseSnapshot !== serverSnapshot;
     setDurableState({ isSaving: false, lastSavedAt: null, error: null, hasUnsavedChanges });
     setCollabDiagnostic(noteId, {
       status, hydratedFromQuery,
@@ -54,42 +68,46 @@ export function useDurableNoteSave() {
     if (!hydratedFromQuery || status !== "ready") return;
 
     const scheduleSave = () => {
+      const curHydrated = hydratedRef.current;
+      const curStatus = statusRef.current;
+      const curNoteId = noteIdRef.current;
+
+      if (!curHydrated || curStatus !== "ready") return;
+
       const nextPatch = normalizeNotePatch(buildDurableNotePatchFromYDoc(doc), { scheduleAnalysis: false });
-      const serialized = serializePatch(nextPatch);
+      const serialized = serializeContentSnapshot(nextPatch);
       const hasChanges = serialized !== lastSavedRef.current;
 
-      setDurableState((s) => ({ ...s, error: null, hasUnsavedChanges: hasChanges }));
+      setDurableStateRef.current((s) => ({ ...s, error: null, hasUnsavedChanges: hasChanges }));
 
       if (!hasChanges) return;
 
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
 
       timeoutRef.current = setTimeout(() => {
-        setDurableState((s) => ({ ...s, isSaving: true, error: null }));
-        setCollabDiagnostic(noteId, { status, hydratedFromQuery, transport: "connected", persistence: "synced", durable: "saving", message: "Saving…" });
+        setDurableStateRef.current((s) => ({ ...s, isSaving: true, error: null }));
+        setCollabDiagnostic(curNoteId, { status: curStatus, hydratedFromQuery: curHydrated, transport: "connected", persistence: "synced", durable: "saving", message: "Saving…" });
 
-        void updateMutation
-          .mutateAsync({ noteId, patch: nextPatch })
+        void mutateRef.current({ noteId: curNoteId, patch: nextPatch })
           .then(() => {
             if (disposedRef.current) return;
             lastSavedRef.current = serialized;
-            setDurableState({ isSaving: false, lastSavedAt: Date.now(), error: null, hasUnsavedChanges: false });
-            setCollabDiagnostic(noteId, { status, hydratedFromQuery, transport: "connected", persistence: "synced", durable: "saved", message: "Saved." });
+            setDurableStateRef.current({ isSaving: false, lastSavedAt: Date.now(), error: null, hasUnsavedChanges: false });
+            setCollabDiagnostic(curNoteId, { status: curStatus, hydratedFromQuery: curHydrated, transport: "connected", persistence: "synced", durable: "saved", message: "Saved." });
           })
           .catch((err: unknown) => {
             if (disposedRef.current) return;
-            setDurableState((s) => ({ ...s, isSaving: false, error: err instanceof Error ? err : new Error("Save failed.") }));
-            setCollabDiagnostic(noteId, { status, hydratedFromQuery, transport: "connected", persistence: "synced", durable: "error", message: err instanceof Error ? err.message : "Save failed." });
+            setDurableStateRef.current((s) => ({ ...s, isSaving: false, error: err instanceof Error ? err : new Error("Save failed.") }));
+            setCollabDiagnostic(curNoteId, { status: curStatus, hydratedFromQuery: curHydrated, transport: "connected", persistence: "synced", durable: "error", message: err instanceof Error ? err.message : "Save failed." });
           });
       }, NOTE_COLLAB_SAVE_DEBOUNCE_MS);
     };
 
-    scheduleSave();
     doc.on("update", scheduleSave);
 
     return () => {
       doc.off("update", scheduleSave);
       if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
     };
-  }, [doc, hydratedFromQuery, noteId, querySnapshotSerialized, setDurableState, status, updateMutation]);
+  }, [doc, hydratedFromQuery, status]);
 }

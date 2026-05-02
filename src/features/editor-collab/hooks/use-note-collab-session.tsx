@@ -2,7 +2,7 @@
 
 import * as Y from "yjs";
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { normalizeNotePatch } from "@/features/notes/lib/note-utils";
+
 
 import type { Note } from "@/entities/note";
 import { createNoteCollabChannel } from "@/features/editor-collab/api/create-note-collab-channel";
@@ -78,12 +78,12 @@ export function NoteCollabSessionProvider({ note, children }: NoteCollabProvider
     error: null,
     hasUnsavedChanges: false,
   });
-  const querySnapshotSerialized = useMemo(() => JSON.stringify(normalizeNotePatch({
+  const querySnapshotSerialized = useMemo(() => JSON.stringify({
     title: note.title,
     folderId: note.folderId,
     userTags: note.userTags,
     content: note.content,
-  }, { scheduleAnalysis: false })), [note.title, note.folderId, note.userTags, note.content]);
+  }), [note.title, note.folderId, note.userTags, note.content]);
 
   useEffect(() => {
     const session = sessionRef.current;
