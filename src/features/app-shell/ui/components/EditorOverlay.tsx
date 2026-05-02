@@ -37,7 +37,6 @@ import { createLocalInlineMediaDescriptor } from "@/features/notes/lib/media-imp
 import { useNoteUiStore } from "@/features/notes/model/note-ui-store";
 import { setMediaDiagnostic } from "@/services/diagnostics/runtime-diagnostics";
 import { Button } from "@/shared/ui/button";
-import { deriveTitle } from "@/features/notes/lib/note-utils";
 
 import { getSheetAnchor, plainTextToEditorContent, serializeEditorSnapshot, shareNote, type SheetAnchor, type SheetName } from "./shared";
 
@@ -66,7 +65,6 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
   const snapshotRef = useRef(serializeEditorSnapshot(note));
   const editorDirty = useNoteUiStore((state) => state.editorDirty);
   const markEditorDirty = useNoteUiStore((state) => state.markEditorDirty);
-  const autoTitleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useDurableNoteSave();
 
@@ -75,23 +73,8 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
     content: plainTextToEditorContent(currentPage.content),
     immediatelyRender: false,
     onUpdate: ({ editor: tiptapEditor }) => {
-      const nextContent = tiptapEditor.getHTML();
-      setPageContent(currentPage.id, nextContent);
+      setPageContent(currentPage.id, tiptapEditor.getHTML());
       markEditorDirty(true);
-
-      // Auto-title: if title is empty, derive from content after 3s inactivity
-      if (!title || title === "Untitled note" || title === "Untitled Note") {
-        if (autoTitleTimerRef.current) clearTimeout(autoTitleTimerRef.current);
-        autoTitleTimerRef.current = setTimeout(() => {
-          const plainText = tiptapEditor.getText();
-          if (plainText.trim()) {
-            const generated = deriveTitle({ title: "", content: plainText, folderId: null, userTags: [] });
-            if (generated && generated !== "Untitled note") {
-              setTitle(generated);
-            }
-          }
-        }, 3000);
-      }
     },
   });
 
@@ -107,9 +90,14 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
     setCurrentNotePageIndex(0);
   }, [markEditorDirty, note.id, setCurrentNotePageIndex]);
 
+  // Only update editor content when switching to a different page
+  const lastPageIdRef = useRef(currentPage.id);
   useEffect(() => {
-    editor?.commands.setContent(plainTextToEditorContent(currentPage.content), { emitUpdate: false });
-  }, [currentPage.content, currentPage.id, editor]);
+    if (currentPage.id !== lastPageIdRef.current) {
+      lastPageIdRef.current = currentPage.id;
+      editor?.commands.setContent(plainTextToEditorContent(currentPage.content), { emitUpdate: false });
+    }
+  }, [currentPage.id, currentPage.content, editor]);
 
   useEffect(() => {
     markEditorDirty(durableState.hasUnsavedChanges);
