@@ -6,22 +6,21 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { NOTE_COLLAB_PRESENCE_EVENT, NOTE_COLLAB_UPDATE_EVENT } from "./note-collab-constants";
 import { decodeYjsUpdate, encodeYjsUpdate } from "./yjs-update-encoding";
 
-type BindYjsSupabaseChannelOptions = {
+type Options = {
   noteId: string;
   channel: RealtimeChannel;
   doc: Y.Doc;
 };
 
-export function bindYjsSupabaseChannel({ noteId, channel, doc }: BindYjsSupabaseChannelOptions) {
+export function bindYjsSupabaseChannel({ noteId, channel, doc }: Options) {
   let disposed = false;
   let subscribed = false;
-  // Buffer updates that arrive before the channel is fully subscribed
-  const pendingUpdates: Uint8Array[] = [];
+  const pending: Uint8Array[] = [];
 
-  function flushPendingUpdates() {
-    if (!pendingUpdates.length) return;
-    const merged = Y.mergeUpdates(pendingUpdates);
-    pendingUpdates.length = 0;
+  function flush() {
+    if (!pending.length) return;
+    const merged = Y.mergeUpdates(pending);
+    pending.length = 0;
     void channel.send({
       type: "broadcast",
       event: NOTE_COLLAB_UPDATE_EVENT,
@@ -30,45 +29,27 @@ export function bindYjsSupabaseChannel({ noteId, channel, doc }: BindYjsSupabase
   }
 
   const handleUpdate = (update: Uint8Array, origin: unknown) => {
-    if (disposed || origin === channel) {
-      return;
-    }
-
-    if (!subscribed) {
-      // Buffer until channel is ready to avoid the REST fallback (403)
-      pendingUpdates.push(update);
-      return;
-    }
-
+    if (disposed || origin === channel) return;
+    if (!subscribed) { pending.push(update); return; }
     void channel.send({
       type: "broadcast",
       event: NOTE_COLLAB_UPDATE_EVENT,
-      payload: {
-        noteId,
-        update: encodeYjsUpdate(update),
-      },
+      payload: { noteId, update: encodeYjsUpdate(update) },
     });
   };
 
   const handleBroadcast = ({ payload }: { payload: { noteId?: string; update?: string } }) => {
-    if (disposed || payload.noteId !== noteId || !payload.update) {
-      return;
-    }
-
+    if (disposed || payload.noteId !== noteId || !payload.update) return;
     Y.applyUpdate(doc, decodeYjsUpdate(payload.update), channel);
   };
 
   channel.on("broadcast", { event: NOTE_COLLAB_UPDATE_EVENT }, handleBroadcast);
 
   channel.subscribe((status) => {
-    if (status !== "SUBSCRIBED" || subscribed) {
-      return;
-    }
-
+    if (status !== "SUBSCRIBED" || subscribed) return;
     subscribed = true;
     void channel.track({ noteId, at: new Date().toISOString(), event: NOTE_COLLAB_PRESENCE_EVENT });
-    // Flush any updates that were buffered during channel setup
-    flushPendingUpdates();
+    flush();
   });
 
   doc.on("update", handleUpdate);
@@ -76,7 +57,7 @@ export function bindYjsSupabaseChannel({ noteId, channel, doc }: BindYjsSupabase
   return {
     destroy() {
       disposed = true;
-      pendingUpdates.length = 0;
+      pending.length = 0;
       doc.off("update", handleUpdate);
       channel.unsubscribe();
     },

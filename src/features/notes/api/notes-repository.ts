@@ -6,16 +6,13 @@ import { createSupabaseBrowserClient } from "@/shared/api/supabase/client";
 
 import { mapNoteDraftToInsert, mapNotePatchToUpdate, mapNoteRow } from "./note-mappers";
 
-/** Guest and unauthenticated users must use local storage — they have no Supabase session. */
 function shouldUseLocal(): boolean {
   const { status, user } = useAuthStore.getState();
   return status === "degraded" || !user || user.id === "local-user" || isGuestUser(user);
 }
 
 export type PaginationCursor = {
-  /** Number of items to fetch per page */
   limit: number;
-  /** Cursor: fetch notes updated before this ISO timestamp */
   cursor?: string;
 };
 
@@ -67,7 +64,7 @@ export const notesRepository: NotesRepository = {
       .from("notes")
       .select("*")
       .order("updated_at", { ascending: false })
-      .limit(limit + 1); // fetch one extra to detect hasMore
+      .limit(limit + 1);
 
     if (cursor?.cursor) {
       query = query.lt("updated_at", cursor.cursor);
@@ -119,16 +116,10 @@ export const notesRepository: NotesRepository = {
       return localNotesRepository.create(note);
     }
 
-    // INSERT without .select() to avoid the post-write SELECT hitting RLS
-    // on note_effective_access before the trigger has populated it.
     const { error } = await supabase.from("notes").insert(mapNoteDraftToInsert(note));
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
-    // Return the note we already have locally — the server data is identical
-    // because we sent all fields in the insert payload.
     return note;
   },
   async patch(noteId, patch) {
@@ -142,16 +133,11 @@ export const notesRepository: NotesRepository = {
       return localNotesRepository.patch(noteId, patch);
     }
 
-    // UPDATE without .select() to avoid the post-write SELECT hitting RLS.
     const { error } = await supabase.from("notes").update(mapNotePatchToUpdate(patch)).eq("id", noteId);
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
-    // Return a synthetic note built from the patch — the query cache holds the
-    // full note and will be invalidated by the mutation's onSettled anyway.
-    return { id: noteId, ...patch } as import("@/entities/note").Note;
+    return { id: noteId, ...patch } as Note;
   },
   async batchCreate(notes) {
     if (!notes.length) {
@@ -164,13 +150,7 @@ export const notesRepository: NotesRepository = {
 
     const supabase = createSupabaseBrowserClient();
 
-    if (!supabase) {
-      return [];
-    }
-
-    if (!supabase) {
-      return localNotesRepository.batchCreate(notes);
-    }
+    if (!supabase) return localNotesRepository.batchCreate(notes);
 
     const chunkSize = 50;
     const created: Note[] = [];
@@ -179,9 +159,7 @@ export const notesRepository: NotesRepository = {
       const chunk = notes.slice(index, index + chunkSize);
       const { data, error } = await supabase.from("notes").insert(chunk.map(mapNoteDraftToInsert)).select("*");
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       created.push(...data.map(mapNoteRow));
     }

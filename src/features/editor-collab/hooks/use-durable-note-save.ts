@@ -11,10 +11,7 @@ import { setCollabDiagnostic } from "@/services/diagnostics/runtime-diagnostics"
 import { NOTE_COLLAB_SAVE_DEBOUNCE_MS } from "../lib/note-collab-constants";
 import { useNoteCollabSession } from "./use-note-collab-session";
 
-// Serialize only the fields that are persisted to the server AND returned by the server.
-// `pages` is managed in YDoc/IndexedDB only — mapNoteRow always returns pages:[] so
-// we never include it in the change-detection hash.
-function serializeDurablePatch(patch: Partial<Note>) {
+function serializePatch(patch: Partial<Note>) {
   return JSON.stringify({
     title: patch.title,
     folderId: patch.folderId,
@@ -33,128 +30,66 @@ export function useDurableNoteSave() {
 
   useEffect(() => {
     disposedRef.current = false;
-    return () => {
-      disposedRef.current = true;
-    };
+    return () => { disposedRef.current = true; };
   }, []);
 
   useEffect(() => {
-    if (!hydratedFromQuery || status !== "ready") {
-      return;
-    }
+    if (!hydratedFromQuery || status !== "ready") return;
 
     lastSavedRef.current = querySnapshotSerialized;
 
-    const currentSerialized = serializeDurablePatch(normalizeNotePatch(buildDurableNotePatchFromYDoc(doc), { scheduleAnalysis: false }));
-    const hasUnsavedChanges = currentSerialized !== querySnapshotSerialized;
+    const current = serializePatch(normalizeNotePatch(buildDurableNotePatchFromYDoc(doc), { scheduleAnalysis: false }));
+    const hasUnsavedChanges = current !== querySnapshotSerialized;
 
     setDurableState({ isSaving: false, lastSavedAt: null, error: null, hasUnsavedChanges });
     setCollabDiagnostic(noteId, {
-      status,
-      hydratedFromQuery,
-      transport: "connected",
-      persistence: "synced",
+      status, hydratedFromQuery,
+      transport: "connected", persistence: "synced",
       durable: hasUnsavedChanges ? "idle" : "saved",
-      message: hasUnsavedChanges ? "Local note state diverged from durable snapshot." : "Durable snapshot is synchronized.",
+      message: hasUnsavedChanges ? "Local state diverged from server." : "Synchronized.",
     });
   }, [doc, hydratedFromQuery, querySnapshotSerialized, setDurableState, status, noteId]);
 
   useEffect(() => {
-    if (!hydratedFromQuery || status !== "ready") {
-      return;
-    }
+    if (!hydratedFromQuery || status !== "ready") return;
 
     const scheduleSave = () => {
       const nextPatch = normalizeNotePatch(buildDurableNotePatchFromYDoc(doc), { scheduleAnalysis: false });
-      const serialized = serializeDurablePatch(nextPatch);
+      const serialized = serializePatch(nextPatch);
       const hasChanges = serialized !== lastSavedRef.current;
 
-      setDurableState((current) => ({
-        ...current,
-        error: null,
-        hasUnsavedChanges: hasChanges,
-      }));
+      setDurableState((s) => ({ ...s, error: null, hasUnsavedChanges: hasChanges }));
 
-      if (!hasChanges) {
-        return;
-      }
+      if (!hasChanges) return;
 
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
 
       timeoutRef.current = setTimeout(() => {
-        setDurableState((current) => ({
-          ...current,
-          isSaving: true,
-          error: null,
-        }));
-        setCollabDiagnostic(noteId, {
-          status,
-          hydratedFromQuery,
-          transport: "connected",
-          persistence: "synced",
-          durable: "saving",
-          message: "Persisting debounced durable snapshot.",
-        });
+        setDurableState((s) => ({ ...s, isSaving: true, error: null }));
+        setCollabDiagnostic(noteId, { status, hydratedFromQuery, transport: "connected", persistence: "synced", durable: "saving", message: "Saving…" });
 
         void updateMutation
           .mutateAsync({ noteId, patch: nextPatch })
           .then(() => {
-            if (disposedRef.current) {
-              return;
-            }
-
+            if (disposedRef.current) return;
             lastSavedRef.current = serialized;
-            setDurableState({
-              isSaving: false,
-              lastSavedAt: Date.now(),
-              error: null,
-              hasUnsavedChanges: false,
-            });
-            setCollabDiagnostic(noteId, {
-              status,
-              hydratedFromQuery,
-              transport: "connected",
-              persistence: "synced",
-              durable: "saved",
-              message: "Durable snapshot saved successfully.",
-            });
+            setDurableState({ isSaving: false, lastSavedAt: Date.now(), error: null, hasUnsavedChanges: false });
+            setCollabDiagnostic(noteId, { status, hydratedFromQuery, transport: "connected", persistence: "synced", durable: "saved", message: "Saved." });
           })
-          .catch((error: unknown) => {
-            if (disposedRef.current) {
-              return;
-            }
-
-            setDurableState((current) => ({
-              ...current,
-              isSaving: false,
-              error: error instanceof Error ? error : new Error("Failed to persist collaborative note snapshot."),
-            }));
-            setCollabDiagnostic(noteId, {
-              status,
-              hydratedFromQuery,
-              transport: "connected",
-              persistence: "synced",
-              durable: "error",
-              message: error instanceof Error ? error.message : "Failed to persist collaborative note snapshot.",
-            });
+          .catch((err: unknown) => {
+            if (disposedRef.current) return;
+            setDurableState((s) => ({ ...s, isSaving: false, error: err instanceof Error ? err : new Error("Save failed.") }));
+            setCollabDiagnostic(noteId, { status, hydratedFromQuery, transport: "connected", persistence: "synced", durable: "error", message: err instanceof Error ? err.message : "Save failed." });
           });
       }, NOTE_COLLAB_SAVE_DEBOUNCE_MS);
     };
 
-    // Run once immediately to detect unsaved local changes on mount
     scheduleSave();
-
     doc.on("update", scheduleSave);
 
     return () => {
       doc.off("update", scheduleSave);
-
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
+      if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
     };
   }, [doc, hydratedFromQuery, noteId, querySnapshotSerialized, setDurableState, status, updateMutation]);
 }

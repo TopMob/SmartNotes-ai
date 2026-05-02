@@ -78,18 +78,12 @@ export function NoteCollabSessionProvider({ note, children }: NoteCollabProvider
     error: null,
     hasUnsavedChanges: false,
   });
-  const querySnapshotSerialized = useMemo(() => {
-    // NOTE: pages are managed exclusively in the YDoc / IndexedDB.
-    // mapNoteRow always returns pages:[] from the server, so we intentionally
-    // exclude them from the snapshot comparison to avoid resetting lastSavedRef
-    // to an empty-pages state on every query refetch.
-    return JSON.stringify(normalizeNotePatch({
-      title: note.title,
-      folderId: note.folderId,
-      userTags: note.userTags,
-      content: note.content,
-    }, { scheduleAnalysis: false }));
-  }, [note.title, note.folderId, note.userTags, note.content]);
+  const querySnapshotSerialized = useMemo(() => JSON.stringify(normalizeNotePatch({
+    title: note.title,
+    folderId: note.folderId,
+    userTags: note.userTags,
+    content: note.content,
+  }, { scheduleAnalysis: false })), [note.title, note.folderId, note.userTags, note.content]);
 
   useEffect(() => {
     const session = sessionRef.current;

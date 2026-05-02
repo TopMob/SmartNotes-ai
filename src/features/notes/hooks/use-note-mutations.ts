@@ -72,14 +72,9 @@ export function useCreateNoteMutation() {
     },
     onError: (_error, _vars, context) => {
       if (!userId) return;
-      // Keep the optimistic note in cache on failure so the editor doesn't close.
-      // The sync queue will retry the create. Only restore if the note was evicted.
       const queryKey = queryKeys.notes(userId);
       const optimistic = (context as { optimisticNote?: Note } | undefined)?.optimisticNote;
-      if (!optimistic) {
-        void queryClient.invalidateQueries({ queryKey });
-        return;
-      }
+      if (!optimistic) { void queryClient.invalidateQueries({ queryKey }); return; }
       const current = queryClient.getQueryData<InfiniteNotesData>(queryKey);
       const alreadyPresent = getFlatNotes(current).some((n) => n.id === optimistic.id);
       if (!alreadyPresent) {
@@ -93,10 +88,7 @@ export function useCreateNoteMutation() {
       scheduleAiAnalysis(note.id);
     },
     onSettled: () => {
-      if (!userId) {
-        return;
-      }
-
+      if (!userId) return;
       void queryClient.invalidateQueries({ queryKey: queryKeys.notes(userId) });
     },
   });
