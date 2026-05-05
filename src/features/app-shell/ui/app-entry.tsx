@@ -2,25 +2,17 @@
 
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 import { useAuthStore } from "@/features/auth/model/auth-store";
 import { SmartNotesShell } from "@/features/app-shell/ui/smart-notes-shell";
 import { LogoMark } from "@/shared/ui/logo-mark";
 import { ShellErrorBoundary } from "@/shared/ui/error-boundary";
 
-const SPLASH_MIN_MS = 800;
-
 export function AppEntry() {
   const status = useAuthStore((s) => s.status);
   const initialized = useAuthStore((s) => s.initialized);
   const router = useRouter();
-  const [showSplash, setShowSplash] = useState(true);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setShowSplash(false), SPLASH_MIN_MS);
-    return () => clearTimeout(timer);
-  }, []);
 
   useEffect(() => {
     if (initialized && status === "anonymous") {
@@ -28,8 +20,8 @@ export function AppEntry() {
     }
   }, [initialized, status, router]);
 
-  // Splash screen while booting or during minimum display time
-  if (!initialized || showSplash) {
+  // Splash only while auth is still booting; remove once initialized to render content immediately.
+  if (!initialized) {
     return (
       <main className="grid min-h-screen place-items-center px-6">
         <section className="text-center">

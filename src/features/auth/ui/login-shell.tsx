@@ -1,8 +1,9 @@
 "use client";
 
-import { Eye, EyeOff, KeyRound, Loader2, Mail, Sparkles, UserRound, X, Zap } from "lucide-react";
+import { Eye, EyeOff, KeyRound, Mail, UserRound, X, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { initGoogleOneTap } from "@/features/auth/lib/google-one-tap";
 import { useAuthActions } from "@/features/auth/hooks/use-auth-actions";
 import { useAuthStore } from "@/features/auth/model/auth-store";
 import { LogoMark } from "@/shared/ui/logo-mark";
@@ -27,34 +28,7 @@ function usePreventBackNavigation() {
   }, []);
 }
 
-type GoogleCredentialResponse = {
-  credential?: string;
-};
-
-type GoogleOneTapWindow = typeof window & {
-  google?: {
-    accounts?: {
-      id?: {
-        initialize: (config: { client_id: string; callback: (response: GoogleCredentialResponse) => void; cancel_on_tap_outside?: boolean }) => void;
-        prompt: () => void;
-        cancel?: () => void;
-      };
-    };
-  };
-};
-
-const googleScriptId = "smartnotes-google-one-tap";
-
-function supportsGoogleOneTap() {
-  if (typeof window === "undefined") {
-    return false;
-  }
-
-  return !window.navigator.userAgent.includes("Firefox");
-}
-
 export function LoginShell() {
-  const [splash, setSplash] = useState(true);
   const [mode, setMode] = useState<"login" | "register">("login");
   const [showPassword, setShowPassword] = useState(false);
   const [guestDialogOpen, setGuestDialogOpen] = useState(false);
@@ -68,60 +42,28 @@ export function LoginShell() {
   usePreventBackNavigation();
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setSplash(false), 900);
-    return () => window.clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
     const googleClientId = runtimeConfig?.googleClientId;
 
-    if (!googleClientId || !supportsGoogleOneTap()) {
+    if (!googleClientId) {
       return;
     }
 
-    const clientId = googleClientId;
+    let cleanup: (() => void) | undefined;
+    let cancelled = false;
 
-    function initializeOneTap() {
-      const google = (window as GoogleOneTapWindow).google;
-      const googleId = google?.accounts?.id;
-
-      if (!googleId) {
+    void initGoogleOneTap(googleClientId, async (credential) => {
+      await loginWithGoogleOneTap(credential);
+    }).then((dispose) => {
+      if (cancelled) {
+        dispose();
         return;
       }
-
-      googleId.initialize({
-        client_id: clientId,
-        callback: (response: GoogleCredentialResponse) => {
-          if (response.credential) {
-            void loginWithGoogleOneTap(response.credential);
-          }
-        },
-        cancel_on_tap_outside: true,
-      });
-      googleId.prompt();
-    }
-
-    if ((window as GoogleOneTapWindow).google?.accounts?.id) {
-      initializeOneTap();
-      return;
-    }
-
-    let script = document.getElementById(googleScriptId) as HTMLScriptElement | null;
-
-    if (!script) {
-      script = document.createElement("script");
-      script.id = googleScriptId;
-      script.src = "https://accounts.google.com/gsi/client";
-      script.async = true;
-      script.defer = true;
-      document.head.appendChild(script);
-    }
-
-    script.addEventListener("load", initializeOneTap);
+      cleanup = dispose;
+    });
 
     return () => {
-      script?.removeEventListener("load", initializeOneTap);
-      (window as GoogleOneTapWindow).google?.accounts?.id?.cancel?.();
+      cancelled = true;
+      cleanup?.();
     };
   }, [loginWithGoogleOneTap, runtimeConfig?.googleClientId]);
 
@@ -143,21 +85,6 @@ export function LoginShell() {
     }
 
     await loginWithEmail(normalizedEmail, password);
-  }
-
-  if (splash) {
-    return (
-      <main className="grid min-h-screen place-items-center px-6">
-        <section className="text-center">
-          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-[1.7rem] bg-accent text-accent-foreground shadow-2xl shadow-violet-950/18">
-            <LogoMark className="h-10 w-10" />
-          </div>
-          <h1 className="mt-6 text-4xl font-black tracking-tight">SmartNotes</h1>
-          <p className="mt-2 text-sm font-bold uppercase tracking-[0.3em] text-foreground/48">AI-organized thinking</p>
-          <Loader2 className="mx-auto mt-8 h-8 w-8 animate-spin text-accent" />
-        </section>
-      </main>
-    );
   }
 
   return (
