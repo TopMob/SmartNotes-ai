@@ -43,6 +43,11 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="ru">
+      <head>
+        {/* Warm up the Google Identity Services origin so One Tap / OAuth feel instant. */}
+        <link href="https://accounts.google.com" rel="preconnect" crossOrigin="anonymous" />
+        <link href="https://accounts.google.com/gsi/client" rel="preload" as="script" crossOrigin="anonymous" />
+      </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <AppProviders>{children}</AppProviders>
       </body>
