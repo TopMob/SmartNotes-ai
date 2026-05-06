@@ -17,6 +17,7 @@ import {
   Share2,
   Strikethrough,
   Tag,
+  Trash2,
   Underline,
   Undo2,
 } from "lucide-react";
@@ -56,11 +57,11 @@ type EditorOverlayProps = {
 };
 
 export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setToolbarVisible }: EditorOverlayProps) {
-  const { attachMedia } = useNoteActions();
+  const { attachMedia, deletePage } = useNoteActions();
   const currentNotePageIndex = useNoteUiStore((state) => state.currentNotePageIndex);
   const setCurrentNotePageIndex = useNoteUiStore((state) => state.setCurrentNotePageIndex);
   const { status, durableState } = useNoteCollabSession();
-  const { page: currentPage, pageCount, addPage, setPageContent } = useNoteCollabPage(currentNotePageIndex);
+  const { page: currentPage, pageCount, addPage, removePage, setPageContent } = useNoteCollabPage(currentNotePageIndex);
   const { title, userTags, setTitle, setUserTags } = useNoteTitleTags();
   const snapshotRef = useRef(serializeEditorSnapshot(note));
   const editorDirty = useNoteUiStore((state) => state.editorDirty);
@@ -116,6 +117,24 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
 
   function handleClose() {
     onClose();
+  }
+
+  function handleDeletePage() {
+    if (pageCount <= 1) return;
+    if (!window.confirm("Удалить текущую страницу? Это действие необратимо.")) return;
+
+    const pageId = currentPage.id;
+
+    // Remove from the collaborative Yjs doc first (optimistic, local)
+    removePage(pageId);
+
+    // Persist the deletion via the note mutation
+    deletePage(note.id, pageId);
+
+    // If we were on the last page, step back so the index stays valid
+    if (currentNotePageIndex >= pageCount - 1) {
+      setCurrentNotePageIndex(Math.max(0, currentNotePageIndex - 1));
+    }
   }
 
   function handleTitleChange(value: string) {
@@ -184,6 +203,16 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
             <button className="rounded-lg p-1 hover:bg-background disabled:opacity-35" disabled={currentNotePageIndex === 0} onClick={() => setCurrentNotePageIndex(Math.max(0, currentNotePageIndex - 1))} type="button"><ChevronLeft className="h-4 w-4" /></button>
             {currentNotePageIndex + 1}/{pageCount}
             <button className="rounded-lg p-1 hover:bg-background disabled:opacity-35" disabled={currentNotePageIndex >= pageCount - 1} onClick={() => setCurrentNotePageIndex(Math.min(pageCount - 1, currentNotePageIndex + 1))} type="button"><ChevronRight className="h-4 w-4" /></button>
+            <button
+              aria-label="Удалить страницу"
+              className="rounded-lg p-1 text-destructive hover:bg-background disabled:opacity-35"
+              disabled={pageCount <= 1}
+              onClick={handleDeletePage}
+              title="Удалить страницу"
+              type="button"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
           </div>
           <button className="flex h-9 w-9 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={(event) => onOpenSheet("pages", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><Folder className="h-5 w-5" /></button>
           <div className="ml-auto flex items-center gap-1">
