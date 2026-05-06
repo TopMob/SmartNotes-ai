@@ -11,7 +11,6 @@ import {
   ChevronRight,
   Copy,
   Loader2,
-  MessageCircle,
   RotateCcw,
   Send,
   Sparkles,
@@ -209,25 +208,6 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
 
   return (
     <>
-      {/* FAB trigger — shown when panel is closed */}
-      <AnimatePresence>
-        {!open && (
-          <motion.button
-            animate={{ scale: 1, opacity: 1 }}
-            aria-label="Открыть AI чат"
-            className="fixed bottom-24 right-5 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-violet-600 text-white shadow-2xl shadow-violet-950/40 hover:bg-violet-500 active:scale-95"
-            exit={{ scale: 0.8, opacity: 0 }}
-            id="ai-chat-fab"
-            initial={{ scale: 0.8, opacity: 0 }}
-            title="AI гид по заметкам"
-            transition={{ type: "spring", stiffness: 400, damping: 25 }}
-            type="button"
-            onClick={() => setAiChatOpen(true)}
-          >
-            <MessageCircle className="h-5 w-5" />
-          </motion.button>
-        )}
-      </AnimatePresence>
 
       {/* Backdrop (mobile only) */}
       <AnimatePresence>

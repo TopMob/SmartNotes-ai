@@ -2,6 +2,7 @@
 
 import {
   ArrowLeft,
+  Check,
   Database,
   Download,
   FileJson,
@@ -11,11 +12,13 @@ import {
   Upload,
   SlidersHorizontal,
   Type,
+  UserRound,
 } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { CustomThemePreset, EditorToolKey } from "@/entities/settings";
+import { useAuthActions } from "@/features/auth/hooks/use-auth-actions";
 import { useAuthStore } from "@/features/auth/model/auth-store";
 import { useFoldersQuery } from "@/features/folders/hooks/use-folders-query";
 import { useNoteActions } from "@/features/notes/hooks/use-note-mutations";
@@ -35,6 +38,7 @@ const sections = [
   { id: "editor", icon: Type },
   { id: "filters", icon: SlidersHorizontal },
   { id: "data", icon: Database },
+  { id: "profile", icon: UserRound },
 ] as const;
 
 const themePresets = ["paper", "smarthub", "smartlib", "cyber", "lego", "classic"] as const;
@@ -45,9 +49,23 @@ export default function SettingsPage() {
   const { data: settings, isLoading, error } = useSettingsQuery();
   const { data: folders = [] } = useFoldersQuery();
   const { data: notes = [] } = useNotesFlat();
+  const user = useAuthStore((state) => state.user);
   const userId = useAuthStore((state) => state.user?.id ?? "local-user");
   const { createNote } = useNoteActions();
   const { patchSettings, resetSettings } = useSettingsActions();
+  const { updateProfile, pending: profilePending } = useAuthActions();
+
+  // Profile local state
+  const [displayName, setDisplayName] = useState(user?.displayName ?? "");
+  const [avatarUrl, setAvatarUrl] = useState(user?.photoURL ?? "");
+  const [uidCopied, setUidCopied] = useState(false);
+  const [profileSaved, setProfileSaved] = useState(false);
+
+  // Sync displayName / avatarUrl when user changes
+  useEffect(() => {
+    setDisplayName(user?.displayName ?? "");
+    setAvatarUrl(user?.photoURL ?? "");
+  }, [user?.displayName, user?.photoURL]);
 
   if (isLoading) {
     return (
@@ -255,6 +273,41 @@ export default function SettingsPage() {
     );
   }
 
+  function copyUid() {
+    const uid = user?.id ?? "";
+    void navigator.clipboard.writeText(uid).then(() => {
+      setUidCopied(true);
+      setTimeout(() => setUidCopied(false), 2000);
+    });
+  }
+
+  async function handleSaveProfile() {
+    await updateProfile({
+      displayName: displayName.trim() || undefined,
+      photoURL: avatarUrl.trim() || null,
+    });
+    setProfileSaved(true);
+    setTimeout(() => setProfileSaved(false), 2000);
+  }
+
+  async function uploadAvatar() {
+    const picker = document.createElement("input");
+    picker.type = "file";
+    picker.accept = "image/*";
+    picker.onchange = async () => {
+      const file = picker.files?.[0];
+      if (!file) return;
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(reader.error ?? new Error("Не удалось прочитать файл."));
+        reader.readAsDataURL(file);
+      });
+      setAvatarUrl(dataUrl);
+    };
+    picker.click();
+  }
+
   return (
     <main className="min-h-screen overflow-x-hidden px-4 py-4 sm:px-6 lg:p-6">
       <div className="mx-auto grid max-w-7xl min-w-0 gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
@@ -458,6 +511,123 @@ export default function SettingsPage() {
                   <p className="font-black text-foreground">{copy.settings.data.preset}: {settings.preset}</p>
                   <p>{copy.settings.data.background}: {settings.mainBackgroundUrl ? copy.common.custom : copy.common.default}</p>
                   <p>{copy.settings.data.customPresets}: {settings.customPresets.length}</p>
+                </div>
+              </Panel>
+            </div>
+          ) : null}
+
+          {activeSection === "profile" ? (
+            <div className="space-y-4">
+              <SectionIntro title={copy.settings.profile.title} text={copy.settings.profile.subtitle} />
+
+              {/* Account info */}
+              <Panel title={copy.settings.profile.accountInfo}>
+                <div className="space-y-3">
+                  {/* Email */}
+                  <div>
+                    <p className="mb-1.5 text-xs font-bold text-foreground/60">{copy.settings.profile.email}</p>
+                    <div className="w-full rounded-2xl border border-border bg-background px-3 py-2.5 text-sm text-foreground/70 sm:px-4 sm:py-3">
+                      {user?.email ?? "—"}
+                    </div>
+                  </div>
+
+                  {/* UID */}
+                  <div>
+                    <p className="mb-1.5 text-xs font-bold text-foreground/60">{copy.settings.profile.uid}</p>
+                    <div className="flex items-center gap-2">
+                      <div className="min-w-0 flex-1 truncate rounded-2xl border border-border bg-background px-3 py-2.5 font-mono text-xs text-foreground/60 sm:px-4 sm:py-3">
+                        {user?.id ?? "—"}
+                      </div>
+                      <button
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border transition ${uidCopied ? "border-accent bg-accent/10 text-accent" : "border-border bg-background text-foreground/60 hover:bg-surface-strong"}`}
+                        onClick={copyUid}
+                        title={copy.settings.profile.copy}
+                        type="button"
+                      >
+                        {uidCopied ? <Check className="h-4 w-4" /> : (
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                            <rect height="13" rx="2" width="13" x="9" y="9" />
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                    {uidCopied ? <p className="mt-1 text-xs text-accent">{copy.settings.profile.copied}</p> : null}
+                  </div>
+                </div>
+              </Panel>
+
+              {/* Display name + Avatar */}
+              <Panel title={copy.settings.profile.displayName}>
+                <div className="space-y-4">
+                  {/* Avatar preview */}
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-[1.2rem] border border-border bg-surface-strong text-lg font-black text-foreground/40">
+                      {avatarUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img alt="avatar" className="h-full w-full object-cover" src={avatarUrl} />
+                      ) : (
+                        <span>{(displayName || user?.email || "?").slice(0, 1).toUpperCase()}</span>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <button
+                        className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold hover:bg-surface-strong"
+                        onClick={() => void uploadAvatar()}
+                        type="button"
+                      >
+                        <Upload className="h-3.5 w-3.5" />
+                        {copy.settings.profile.uploadAvatar}
+                      </button>
+                      {avatarUrl ? (
+                        <button
+                          className="text-left text-xs font-bold text-rose-500 hover:underline"
+                          onClick={() => setAvatarUrl("")}
+                          type="button"
+                        >
+                          Удалить аватар
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  {/* Avatar URL input */}
+                  <label className="block text-xs font-bold text-foreground/60">
+                    {copy.settings.profile.avatarUrl}
+                    <input
+                      className="mt-1.5 w-full rounded-2xl border border-border bg-background px-3 py-2.5 text-sm sm:px-4 sm:py-3"
+                      onChange={(e) => setAvatarUrl(e.target.value)}
+                      placeholder={copy.settings.profile.avatarUrlPlaceholder}
+                      type="url"
+                      value={avatarUrl}
+                    />
+                  </label>
+
+                  {/* Display name input + Save */}
+                  <label className="block text-xs font-bold text-foreground/60">
+                    {copy.settings.profile.displayName}
+                    <div className="mt-1.5 flex gap-2">
+                      <input
+                        className="min-w-0 flex-1 rounded-2xl border border-border bg-background px-3 py-2.5 text-sm sm:px-4 sm:py-3"
+                        onChange={(e) => setDisplayName(e.target.value)}
+                        placeholder={copy.settings.profile.displayNamePlaceholder}
+                        type="text"
+                        value={displayName}
+                      />
+                      <button
+                        className={`shrink-0 min-h-11 rounded-2xl px-4 text-sm font-bold transition ${profileSaved ? "bg-accent/10 text-accent" : "bg-accent text-accent-foreground"}`}
+                        disabled={profilePending}
+                        onClick={() => void handleSaveProfile()}
+                        type="button"
+                      >
+                        {profilePending
+                          ? copy.settings.profile.saving
+                          : profileSaved
+                            ? copy.settings.profile.saved
+                            : copy.settings.profile.saveProfile}
+                      </button>
+                    </div>
+                  </label>
                 </div>
               </Panel>
             </div>
