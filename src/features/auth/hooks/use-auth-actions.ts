@@ -36,8 +36,7 @@ export function useAuthActions() {
     loginWithEmail: useCallback(async (email: string, password: string) => {
       await run(async () => {
         await signInWithEmail({ email, password });
-        router.replace("/");
-        router.refresh();
+        window.location.href = '/';
       });
     }, [router]),
     registerWithEmail: useCallback(async (email: string, password: string) => {
@@ -54,8 +53,7 @@ export function useAuthActions() {
     loginWithGoogleOneTap: useCallback(async (credential: string) => {
       await run(async () => {
         await signInWithGoogleIdToken(credential);
-        router.replace("/");
-        router.refresh();
+        window.location.href = '/';
       });
     }, [router]),
     loginAsGuest: useCallback(async () => {
@@ -67,8 +65,7 @@ export function useAuthActions() {
         degraded: true,
         error: "Гостевой режим: данные будут удалены через 10 минут.",
       });
-      router.replace("/");
-      router.refresh();
+      window.location.href = '/';
     }, [router, setAuthState]),
     updateProfile: useCallback(async (payload: { displayName?: string; photoURL?: string | null }) => {
       await run(async () => {

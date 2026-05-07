@@ -5,31 +5,10 @@
 // Spec: SmartNotes_Features.txt §1 AUTH И SESSION
 // ---------------------------------------------------------------------------
 
-const ONE_TAP_COOLDOWN_KEY = "sn_one_tap_last_shown";
-const ONE_TAP_COOLDOWN_MS = 10 * 60 * 1000; // 10 minutes between prompts
 const GSI_SCRIPT_ID = "google-gsi-script";
 const GSI_SCRIPT_SRC = "https://accounts.google.com/gsi/client";
 
 export type OneTapCredentialCallback = (credential: string) => Promise<void>;
-
-/** Returns true if enough time has passed since the last One Tap prompt */
-function isOneTapCooldownExpired(): boolean {
-  try {
-    const last = localStorage.getItem(ONE_TAP_COOLDOWN_KEY);
-    if (!last) return true;
-    return Date.now() - Number(last) > ONE_TAP_COOLDOWN_MS;
-  } catch {
-    return true;
-  }
-}
-
-function markOneTapShown() {
-  try {
-    localStorage.setItem(ONE_TAP_COOLDOWN_KEY, String(Date.now()));
-  } catch {
-    // ignore storage errors
-  }
-}
 
 /** Dynamically load the GSI script if it isn't already present */
 function loadGsiScript(): Promise<void> {
@@ -56,10 +35,6 @@ export async function initGoogleOneTap(
   onCredential: OneTapCredentialCallback,
 ): Promise<() => void> {
   if (!clientId) {
-    return () => undefined;
-  }
-
-  if (!isOneTapCooldownExpired()) {
     return () => undefined;
   }
 
@@ -90,14 +65,7 @@ export async function initGoogleOneTap(
     context: "signin",
   });
 
-  google.accounts.id.prompt((notification) => {
-    if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-      // One Tap was blocked or dismissed — mark cooldown so we don't spam
-      markOneTapShown();
-    } else {
-      markOneTapShown();
-    }
-  });
+  google.accounts.id.prompt();
 
   return () => {
     try {
