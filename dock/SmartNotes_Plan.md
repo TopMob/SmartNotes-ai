@@ -82,7 +82,7 @@ createNoteDraft()
 |--------|--------|------------|
 | Tiptap редактор | ✅ | `EditorOverlay.tsx` |
 | Toolbar (bold/italic/strike) | ✅ | |
-| Underline | ⚠️ | Кнопка есть, extension не добавлен! |
+| Underline | 🔶 | Extension added, toolbar button missing |
 | Структурные блоки (lists, hr) | ✅ | |
 | Выравнивание текста | ✅ | TextAlign extension |
 | Undo / Redo | ✅ | |
@@ -220,6 +220,7 @@ createNoteDraft()
 | Opacity settings | 🔶 | CSS vars есть, UI нет |
 | Язык RU / EN | ✅ | |
 | Settings page | 🔶 | `/app/settings` папка |
+| Custom app icons | 🔶 | `logo-mark.tsx`, `icon.svg`, `apple-icon.svg` replaced – verify UI fit |
 
 ---
 
