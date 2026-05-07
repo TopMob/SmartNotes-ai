@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 
 import { sendPasswordReset, signInWithEmail, signInWithGoogle, signInWithGoogleIdToken, signOut, signUpWithEmail, updateCurrentProfile } from "@/features/auth/api/auth-client";
@@ -8,7 +7,6 @@ import { beginGuestSession, clearGuestSession } from "@/features/auth/lib/guest-
 import { useAuthStore } from "@/features/auth/model/auth-store";
 
 export function useAuthActions() {
-  const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const setAuthState = useAuthStore((state) => state.setAuthState);
   const [pending, setPending] = useState(false);
@@ -33,29 +31,34 @@ export function useAuthActions() {
     error,
     message,
     clearMessage: () => setMessage(null),
+
     loginWithEmail: useCallback(async (email: string, password: string) => {
       await run(async () => {
         await signInWithEmail({ email, password });
-        window.location.href = '/';
+        window.location.assign('/');
       });
-    }, [router]),
+    }, []),
+
     registerWithEmail: useCallback(async (email: string, password: string) => {
       await run(async () => {
         await signUpWithEmail({ email, password });
         setMessage("Проверьте почту для подтверждения регистрации.");
       });
     }, []),
+
     loginWithGoogle: useCallback(async () => {
       await run(async () => {
         await signInWithGoogle();
       });
     }, []),
+
     loginWithGoogleOneTap: useCallback(async (credential: string) => {
       await run(async () => {
         await signInWithGoogleIdToken(credential);
-        window.location.href = '/';
+        window.location.assign('/');
       });
-    }, [router]),
+    }, []),
+
     loginAsGuest: useCallback(async () => {
       clearGuestSession();
       const session = beginGuestSession();
@@ -65,8 +68,9 @@ export function useAuthActions() {
         degraded: true,
         error: "Гостевой режим: данные будут удалены через 10 минут.",
       });
-      window.location.href = '/';
-    }, [router, setAuthState]),
+      window.location.assign('/');
+    }, [setAuthState]),
+
     updateProfile: useCallback(async (payload: { displayName?: string; photoURL?: string | null }) => {
       await run(async () => {
         const remoteUpdated = await updateCurrentProfile(payload);
@@ -85,19 +89,20 @@ export function useAuthActions() {
         }
       });
     }, [setAuthState, user]),
+
     resetPassword: useCallback(async (email: string) => {
       await run(async () => {
         await sendPasswordReset(email);
         setMessage("Ссылка для сброса пароля отправлена.");
       });
     }, []),
+
     logout: useCallback(async () => {
       await run(async () => {
         clearGuestSession(user?.id);
         await signOut();
-        window.location.href = '/login';
-
+        window.location.assign('/login');
       });
-    }, [router, user?.id]),
+    }, [user?.id]),
   };
 }

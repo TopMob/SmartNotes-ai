@@ -11,15 +11,12 @@ import { Button } from "@/shared/ui/button";
 
 /**
  * Prevent back-navigation out of the login screen for unauthenticated users.
- * Replaces the current history entry so pressing "Back" stays on /login.
  */
 function usePreventBackNavigation() {
   useEffect(() => {
-    // Push a state so we can intercept the popstate event
     window.history.pushState(null, "", window.location.href);
 
     function onPopState() {
-      // Re-push to keep user on the current page
       window.history.pushState(null, "", window.location.href);
     }
 
@@ -35,10 +32,10 @@ export function LoginShell() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [repeatPassword, setRepeatPassword] = useState("");
+
   const runtimeConfig = useAuthStore((state) => state.runtimeConfig);
   const { pending, error, message, loginWithEmail, registerWithEmail, loginWithGoogle, loginWithGoogleOneTap, loginAsGuest, resetPassword } = useAuthActions();
 
-  // Prevent back navigation for unauthenticated users on the login screen
   usePreventBackNavigation();
 
   useEffect(() => {
@@ -117,15 +114,12 @@ export function LoginShell() {
             <UserRound className="mr-2 h-5 w-5" />
             Войти как гость
           </Button>
-          {/* One Tap info hint — only shown when Google Client ID is not configured at all */}
+
           {!runtimeConfig?.googleClientId ? (
             <p className="mt-3 rounded-2xl border border-border bg-surface-strong p-3 text-xs leading-5 text-foreground/58">
               Добавьте <code className="font-mono">NEXT_PUBLIC_GOOGLE_CLIENT_ID</code> для включения входа через Google.
             </p>
           ) : null}
-
-          {/* Google One Tap rendered container */}
-
 
           <div className="my-6 flex items-center gap-3 text-xs font-bold uppercase tracking-[0.2em] text-foreground/34">
             <span className="h-px flex-1 bg-border" />
@@ -137,7 +131,7 @@ export function LoginShell() {
             <Field icon={Mail} label="Email" onChange={setEmail} placeholder="you@example.com" type="email" value={email} />
             <label className="block">
               <span className="mb-2 block text-sm font-bold text-foreground/62">Пароль</span>
-                <span className="flex min-h-12 items-center gap-3 rounded-2xl border border-border bg-surface-strong px-4 py-2.5">
+              <span className="flex min-h-12 items-center gap-3 rounded-2xl border border-border bg-surface-strong px-4 py-2.5">
                 <KeyRound className="h-5 w-5 text-foreground/34" />
                 <input className="min-w-0 flex-1 bg-transparent outline-none" onChange={(event) => setPassword(event.target.value)} placeholder="Минимум 8 символов" type={showPassword ? "text" : "password"} value={password} />
                 <button className="text-foreground/38" onClick={() => setShowPassword((value) => !value)} type="button">
@@ -161,6 +155,7 @@ export function LoginShell() {
           </form>
         </div>
       </section>
+
       {guestDialogOpen ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/55 px-4 backdrop-blur-md">
           <section className="w-full max-w-md rounded-[2rem] border border-border bg-surface p-5 shadow-2xl shadow-violet-950/20 sm:p-6">

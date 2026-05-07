@@ -1,16 +1,10 @@
 "use client";
 
-// ---------------------------------------------------------------------------
-// Google One Tap — GSI SDK integration
-// Spec: SmartNotes_Features.txt §1 AUTH И SESSION
-// ---------------------------------------------------------------------------
-
 const GSI_SCRIPT_ID = "google-gsi-script";
 const GSI_SCRIPT_SRC = "https://accounts.google.com/gsi/client";
 
 export type OneTapCredentialCallback = (credential: string) => Promise<void>;
 
-/** Dynamically load the GSI script if it isn't already present */
 function loadGsiScript(): Promise<void> {
   return new Promise((resolve, reject) => {
     if (document.getElementById(GSI_SCRIPT_ID)) {
@@ -29,7 +23,6 @@ function loadGsiScript(): Promise<void> {
   });
 }
 
-/** Initialize Google One Tap. Resolves when the prompt is shown or skipped. */
 export async function initGoogleOneTap(
   clientId: string,
   onCredential: OneTapCredentialCallback,
@@ -41,7 +34,6 @@ export async function initGoogleOneTap(
   try {
     await loadGsiScript();
   } catch {
-    // GSI unavailable (e.g. blocked by browser/extension) — degrade silently
     return () => undefined;
   }
 
@@ -56,9 +48,7 @@ export async function initGoogleOneTap(
     callback: async (response: { credential: string }) => {
       try {
         await onCredential(response.credential);
-      } catch {
-        // credential exchange failed — user can still log in manually
-      }
+      } catch { }
     },
     auto_select: false,
     cancel_on_tap_outside: true,
@@ -70,8 +60,6 @@ export async function initGoogleOneTap(
   return () => {
     try {
       google.accounts.id.cancel();
-    } catch {
-      // ignore cleanup errors
-    }
+    } catch { }
   };
 }
