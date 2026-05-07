@@ -98,8 +98,8 @@ export function useAuthActions() {
       await run(async () => {
         clearGuestSession(user?.id);
         await signOut();
-        router.replace("/login");
-        router.refresh();
+        window.location.href = '/login';
+
       });
     }, [router, user?.id]),
   };

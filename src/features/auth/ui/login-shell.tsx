@@ -125,7 +125,7 @@ export function LoginShell() {
           ) : null}
 
           {/* Google One Tap rendered container */}
-          <div className="mt-2" id="g_id_onload" />
+
 
           <div className="my-6 flex items-center gap-3 text-xs font-bold uppercase tracking-[0.2em] text-foreground/34">
             <span className="h-px flex-1 bg-border" />

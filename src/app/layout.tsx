@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import type { ReactNode } from "react";
+import Script from "next/script";
 
 import { AppProviders } from "./providers";
 import "./globals.css";
@@ -46,7 +47,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
       <head>
         {/* Warm up the Google Identity Services origin so One Tap / OAuth feel instant. */}
         <link href="https://accounts.google.com" rel="preconnect" crossOrigin="anonymous" />
-        <link href="https://accounts.google.com/gsi/client" rel="preload" as="script" crossOrigin="anonymous" />
+        <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <AppProviders>{children}</AppProviders>
