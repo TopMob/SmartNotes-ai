@@ -7,7 +7,6 @@ export default {
         const corsHeaders = {
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD",
-            // ДОБАВЛЕН accept-profile
             "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, prefer, x-supabase-api-version, content-profile, accept-profile, accept, origin, x-requested-with, range",
             "Access-Control-Max-Age": "86400",
         };
@@ -25,19 +24,20 @@ export default {
             const headers = new Headers(request.headers);
             headers.set("Host", targetUrl.hostname);
 
+            const hasBody = request.method !== 'GET' && request.method !== 'HEAD';
+
             const modifiedRequest = new Request(url.toString(), {
                 method: request.method,
                 headers: headers,
-                body: request.body,
+                body: hasBody ? request.body : null,
                 redirect: "manual"
             });
 
-            const response = await fetch(modifiedRequest);
-
-            if (response.status === 101) {
-                return response;
+            if (request.headers.get("Upgrade") === "websocket") {
+                return await fetch(modifiedRequest);
             }
 
+            const response = await fetch(modifiedRequest);
             const newResponse = new Response(response.body, response);
 
             for (const [key, value] of Object.entries(corsHeaders)) {

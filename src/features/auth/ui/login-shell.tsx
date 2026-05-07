@@ -9,17 +9,12 @@ import { useAuthStore } from "@/features/auth/model/auth-store";
 import { LogoMark } from "@/shared/ui/logo-mark";
 import { Button } from "@/shared/ui/button";
 
-/**
- * Prevent back-navigation out of the login screen for unauthenticated users.
- */
 function usePreventBackNavigation() {
   useEffect(() => {
     window.history.pushState(null, "", window.location.href);
-
     function onPopState() {
       window.history.pushState(null, "", window.location.href);
     }
-
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
@@ -33,17 +28,21 @@ export function LoginShell() {
   const [password, setPassword] = useState("");
   const [repeatPassword, setRepeatPassword] = useState("");
 
+  const status = useAuthStore((state) => state.status);
   const runtimeConfig = useAuthStore((state) => state.runtimeConfig);
   const { pending, error, message, loginWithEmail, registerWithEmail, loginWithGoogle, loginWithGoogleOneTap, loginAsGuest, resetPassword } = useAuthActions();
 
   usePreventBackNavigation();
 
   useEffect(() => {
-    const googleClientId = runtimeConfig?.googleClientId;
-
-    if (!googleClientId) {
-      return;
+    if (status === "authenticated") {
+      window.location.assign("/");
     }
+  }, [status]);
+
+  useEffect(() => {
+    const googleClientId = runtimeConfig?.googleClientId;
+    if (!googleClientId || status === "authenticated") return;
 
     let cleanup: (() => void) | undefined;
     let cancelled = false;
@@ -62,25 +61,17 @@ export function LoginShell() {
       cancelled = true;
       cleanup?.();
     };
-  }, [loginWithGoogleOneTap, runtimeConfig?.googleClientId]);
-
+  }, [loginWithGoogleOneTap, runtimeConfig?.googleClientId, status]);
 
   async function handleSubmit() {
     const normalizedEmail = email.trim();
-
-    if (!normalizedEmail || !password) {
-      return;
-    }
+    if (!normalizedEmail || !password) return;
 
     if (mode === "register") {
-      if (password !== repeatPassword) {
-        return;
-      }
-
+      if (password !== repeatPassword) return;
       await registerWithEmail(normalizedEmail, password);
       return;
     }
-
     await loginWithEmail(normalizedEmail, password);
   }
 
@@ -186,7 +177,7 @@ export function LoginShell() {
   );
 }
 
-function Field({ icon: Icon, label, placeholder, type, value, onChange }: { icon: typeof Mail; label: string; placeholder: string; type: string; value: string; onChange: (value: string) => void }) {
+function Field({ icon: Icon, label, placeholder, type, value, onChange }: { icon: any; label: string; placeholder: string; type: string; value: string; onChange: (value: string) => void }) {
   return (
     <label className="block">
       <span className="mb-2 block text-sm font-bold text-foreground/62">{label}</span>
