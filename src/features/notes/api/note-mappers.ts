@@ -1,7 +1,9 @@
 import type { MediaDescriptor, Note, NoteAccess, NoteDraft, NoteLock, NotePage } from "@/entities/note";
 import type { Database } from "@/shared/api/supabase/types";
 
-type NoteRow = Database["public"]["Tables"]["notes"]["Row"];
+type NoteRow = Database["public"]["Tables"]["notes"]["Row"] & {
+  note_pages?: Database["public"]["Tables"]["note_pages"]["Row"][];
+};
 type NoteInsert = Database["public"]["Tables"]["notes"]["Insert"];
 type NoteUpdate = Database["public"]["Tables"]["notes"]["Update"];
 
@@ -25,7 +27,15 @@ export function mapNoteRow(row: NoteRow): Note {
     folderId: row.folder_id,
     title: row.title,
     content: row.content,
-    pages: [],
+    pages: (row.note_pages || [])
+      .sort((a, b) => a.page_index - b.page_index)
+      .map((p) => ({
+        id: p.client_page_id || p.id,
+        title: p.title,
+        content: p.content,
+        drawingDataUrl: p.drawing_data_url,
+        drawingRevision: p.drawing_revision,
+      })),
     userTags: row.user_tags,
     hiddenTags: row.hidden_tags,
     media: [],

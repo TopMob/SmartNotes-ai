@@ -71,7 +71,7 @@ createNoteDraft()
 | Автогенерация заголовка | ✅ | Trigger БД + `deriveTitle` |
 | Пагинация заметок | ✅ | `use-notes-query.ts` |
 | Медиа: inline изображения | ✅ | `handleAttachImage` в EditorOverlay |
-| Чтение `note_pages` из БД | ❌ | `mapNoteRow` возвращает `pages: []` |
+| Чтение `note_pages` из БД | ✅ | Реализовано в `mapNoteRow` |
 | Сохранение scroll position | ❌ | |
 
 ---
@@ -82,7 +82,7 @@ createNoteDraft()
 |--------|--------|------------|
 | Tiptap редактор | ✅ | `EditorOverlay.tsx` |
 | Toolbar (bold/italic/strike) | ✅ | |
-| Underline | 🔶 | Extension added, toolbar button missing |
+| Underline | ✅ | Extension added, toolbar button works |
 | Структурные блоки (lists, hr) | ✅ | |
 | Выравнивание текста | ✅ | TextAlign extension |
 | Undo / Redo | ✅ | |
@@ -192,9 +192,9 @@ createNoteDraft()
 
 | Задача | Статус | Примечание |
 |--------|--------|------------|
-| Lock Center UI | ❌ | Только lib скелет |
-| Пароль + SHA-256 | 🔶 | `lock-service.ts`, поля в БД |
-| Unlock flow sheet | ❌ | `openSheet("lock")` есть, содержимое нет |
+| Lock Center UI | ✅ | `LockContent` в `BottomSheet` |
+| Пароль + SHA-256 | ✅ | `lock-service.ts` |
+| Unlock flow sheet | ✅ | `openSheet("lock")` реализовано |
 | Маскирование контента | ❌ | |
 
 ---
@@ -252,8 +252,8 @@ createNoteDraft()
 
 ```
 AUTH            ████████░░  75%
-NOTES CORE      ████████░░  75%  ↑ (editor работает, inline media)
-EDITOR          ███████░░░  65%  ↑ (Tiptap подключён, underline сломан)
+NOTES CORE      █████████░  85%  ↑ (загрузка note_pages)
+EDITOR          ████████░░  75%  ↑ (underline исправлен)
 COLLAB/SAVE     ████████░░  75%  ↑↑ (2 бага исправлены)
 FOLDERS         ███████░░░  65%
 SEARCH          ██████░░░░  55%
@@ -261,7 +261,7 @@ AI ENGINE       ██████░░░░  55%
 AI CHAT PANEL   █████░░░░░  50%
 COMMAND PALETTE ████████░░  80%  ↑ (новый компонент)
 MEDIA           ████░░░░░░  40%
-LOCK CENTER     ██░░░░░░░░  15%
+LOCK CENTER     ████████░░  75%  ↑ (UI, unlock flow)
 EXPORT/IMPORT   ████░░░░░░  35%
 THEMING         ████░░░░░░  40%
 PWA/SYSTEM      ████░░░░░░  40%
@@ -273,14 +273,11 @@ OFFLINE/SYNC    █████░░░░░  50%
 ## 🚀 Рекомендуемый порядок
 
 ### 🔴 Прямо сейчас
-1. Добавить `@tiptap/extension-underline` в `EditorOverlay.tsx`
-2. **Запустить `dock/smartnotes_schema.sql`** в Supabase SQL Editor
-3. Реализовать загрузку `note_pages` в `notes-repository.ts` (сейчас `pages: []`)
+1. **Запустить `dock/smartnotes_schema.sql`** в Supabase SQL Editor (если еще не сделано)
 
 ### Фаза 1 — Стабилизация
-4. Lock Center UI — unlock sheet, password input
-5. Settings page — темы, opacity, язык
-6. Canvas sketch UI — базовый `<canvas>` для Sketch страниц
+2. Settings page — темы, opacity, язык
+3. Canvas sketch UI — базовый `<canvas>` для Sketch страниц
 
 ### Фаза 2 — Полнота
 7. Embeddings pipeline → RAG в AI Chat

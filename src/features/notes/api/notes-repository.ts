@@ -62,7 +62,7 @@ export const notesRepository: NotesRepository = {
     const limit = cursor?.limit ?? 50;
     let query = supabase
       .from("notes")
-      .select("*")
+      .select("*, note_pages(*)")
       .order("updated_at", { ascending: false })
       .limit(limit + 1);
 
@@ -97,7 +97,7 @@ export const notesRepository: NotesRepository = {
       return localNotesRepository.list();
     }
 
-    const { data, error } = await supabase.from("notes").select("*").order("updated_at", { ascending: false });
+    const { data, error } = await supabase.from("notes").select("*, note_pages(*)").order("updated_at", { ascending: false });
 
     if (error) {
       throw error;
