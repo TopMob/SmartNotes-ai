@@ -1,7 +1,7 @@
-// ---------------------------------------------------------------------------
-// OpenRouter HTTP client
-// Spec: SmartNotes_Structure.txt §4.4, SmartNotes_Features.txt §10
-// ---------------------------------------------------------------------------
+
+
+
+
 
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
 const OPENROUTER_DEFAULT_MODEL = "openai/gpt-4o-mini";
@@ -86,7 +86,7 @@ export async function openRouterChat(request: ChatCompletionRequest): Promise<Ch
       clearTimeout(timeoutId);
       lastError = error instanceof Error ? error : new Error(String(error));
 
-      // Don't retry on abort (timeout is a hard limit)
+
       if (lastError.name === "AbortError") break;
     }
   }

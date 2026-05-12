@@ -9,7 +9,7 @@ let queryClientRef: import("@tanstack/react-query").QueryClient | null = null;
 function handleNoteChange(_payload: ChangePayload) {
   if (!queryClientRef) return;
 
-  // Invalidate all notes queries to refetch fresh data
+
   void queryClientRef.invalidateQueries({
     predicate: (query) => {
       const key = query.queryKey[0];
@@ -47,7 +47,7 @@ export function startRealtimeSubscriptions(queryClient: import("@tanstack/react-
 
   queryClientRef = queryClient;
 
-  // Clean up existing subscriptions
+
   stopRealtimeSubscriptions(supabase);
 
   const notesChannel = supabase
@@ -70,7 +70,7 @@ export function startRealtimeSubscriptions(queryClient: import("@tanstack/react-
 
 export function stopRealtimeSubscriptions(supabase?: ReturnType<typeof createSupabaseBrowserClient>) {
   if (!supabase && channels.length > 0) {
-    // Try to get client for cleanup
+
     supabase = createSupabaseBrowserClient();
   }
 

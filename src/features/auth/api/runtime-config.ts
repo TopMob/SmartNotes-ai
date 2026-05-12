@@ -35,7 +35,7 @@ export async function fetchAuthRuntimeConfig(signal?: AbortSignal): Promise<Auth
     return inline;
   }
 
-  // Fallback: server-side env (no NEXT_PUBLIC_ prefix). Cached at the edge via Cache-Control.
+
   const response = await fetch("/api/supabase/config", {
     method: "GET",
     signal,

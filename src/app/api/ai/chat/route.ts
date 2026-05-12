@@ -1,8 +1,8 @@
-// ---------------------------------------------------------------------------
-// AI Notes Chat — RAG endpoint
-// User asks a question → search notes by content/tags → LLM answers with citations
-// Spec: SmartNotes_Structure.txt §4.4 + new idea ✨
-// ---------------------------------------------------------------------------
+
+
+
+
+
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
@@ -58,14 +58,14 @@ function scoreNote(note: Note, query: string): number {
   let score = 0;
   for (const token of tokens) {
     if (text.includes(token)) score += 1;
-    if (note.title.toLowerCase().includes(token)) score += 2; // title bonus
+    if (note.title.toLowerCase().includes(token)) score += 2;
     if (note.user_tags.some((t) => t.includes(token))) score += 1.5;
   }
   return score;
 }
 
 export async function POST(request: Request) {
-  // --- Auth ---
+
   let userId: string | null = null;
   try {
     const cookieStore = await cookies();
@@ -89,7 +89,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Question is required" }, { status: 400, headers: CORS_HEADERS });
   }
 
-  // --- Fetch user notes ---
+
   const cookieStore = await cookies();
   const supabase = createServerClient(
     requireSupabaseUrl(),
@@ -109,7 +109,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Failed to load notes" }, { status: 500, headers: CORS_HEADERS });
   }
 
-  // --- Score and pick top N relevant notes ---
+
   const scored = (notes as Note[])
     .map((note) => ({ note, score: scoreNote(note, question) }))
     .filter(({ score }) => score > 0)
@@ -125,14 +125,14 @@ export async function POST(request: Request) {
     }, { headers: CORS_HEADERS });
   }
 
-  // --- Build context for LLM ---
+
   const context = citedNotes.map((note, i) =>
     `[Note ${i + 1}: "${note.title || "Без названия"}"]\n${stripHtml(note.content).slice(0, 600)}`
   ).join("\n\n---\n\n");
 
   const userPrompt = `User's notes:\n\n${context}\n\n---\n\nQuestion: ${question}`;
 
-  // --- LLM answer ---
+
   let answer: string;
   try {
     answer = await openRouterComplete(CHAT_SYSTEM_PROMPT, userPrompt, { response_format: { type: "text" }, max_tokens: 1024 });

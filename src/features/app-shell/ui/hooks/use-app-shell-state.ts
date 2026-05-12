@@ -20,7 +20,7 @@ export function useAppShellState() {
   const profileRef = useRef<HTMLDivElement | null>(null);
   const filtersRef = useRef<HTMLDivElement | null>(null);
 
-  // Viewport sync effect
+
   useEffect(() => {
     function syncViewport() {
       const desktop = window.innerWidth >= 1024;
@@ -44,7 +44,7 @@ export function useAppShellState() {
     return () => window.removeEventListener("resize", syncViewport);
   }, [desktopSidebarOpen, desktopSidebarPinned, setDesktopSidebarOpen]);
 
-  // Click-outside effect
+
   useEffect(() => {
     function handlePointerDown(event: MouseEvent) {
       if (!profileRef.current?.contains(event.target as Node)) {

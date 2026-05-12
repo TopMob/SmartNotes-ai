@@ -1,9 +1,9 @@
 "use client";
 
-// ---------------------------------------------------------------------------
-// Command Palette — Cmd+K / Ctrl+K
-// Quick note search + actions, keyboard navigation, animated
-// ---------------------------------------------------------------------------
+
+
+
+
 
 import {
   Archive,
@@ -36,9 +36,9 @@ import { scoreSearchMatch } from "@/shared/lib/search";
 import { useUiStore } from "@/shared/store/ui-store";
 import Link from "next/link";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+
+
+
 
 type ActionItem = {
   id: string;
@@ -69,9 +69,9 @@ type CommandPaletteProps = {
   onCreateNote: () => void;
 };
 
-// ---------------------------------------------------------------------------
-// Score helper
-// ---------------------------------------------------------------------------
+
+
+
 
 function scoreNote(note: Note, query: string): number {
   return scoreSearchMatch(
@@ -84,9 +84,9 @@ function scoreNote(note: Note, query: string): number {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Note row
-// ---------------------------------------------------------------------------
+
+
+
 
 function NoteRow({ note, active, onSelect }: { note: Note; active: boolean; onSelect: () => void }) {
   const ref = useRef<HTMLButtonElement>(null);
@@ -124,9 +124,9 @@ function NoteRow({ note, active, onSelect }: { note: Note; active: boolean; onSe
   );
 }
 
-// ---------------------------------------------------------------------------
-// Action row
-// ---------------------------------------------------------------------------
+
+
+
 
 function ActionRow({ item, active }: { item: ActionItem; active: boolean }) {
   const ref = useRef<HTMLButtonElement>(null);
@@ -161,9 +161,9 @@ function ActionRow({ item, active }: { item: ActionItem; active: boolean }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Main palette
-// ---------------------------------------------------------------------------
+
+
+
 
 export function CommandPalette({ onOpenNote, onCreateNote }: CommandPaletteProps) {
   const [open, setOpen] = useState(false);
@@ -174,7 +174,7 @@ export function CommandPalette({ onOpenNote, onCreateNote }: CommandPaletteProps
   const toggleAiChat = useUiStore((s) => s.toggleAiChat);
   const setView = useUiStore((s) => s.setView);
 
-  // Global keyboard shortcut: Cmd+K / Ctrl+K
+
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
@@ -187,7 +187,7 @@ export function CommandPalette({ onOpenNote, onCreateNote }: CommandPaletteProps
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
-  // Focus input when opened
+
   useEffect(() => {
     if (open) {
       setQuery("");
@@ -196,7 +196,7 @@ export function CommandPalette({ onOpenNote, onCreateNote }: CommandPaletteProps
     }
   }, [open]);
 
-  // Static actions
+
   const actions = useMemo<ActionItem[]>(() => [
     {
       id: "new-note",
@@ -266,7 +266,7 @@ export function CommandPalette({ onOpenNote, onCreateNote }: CommandPaletteProps
       icon: Settings,
       shortcut: ",",
       onSelect: () => { setOpen(false); },
-      // rendered as <Link> below, not button
+
     },
     {
       id: "more",
@@ -277,7 +277,7 @@ export function CommandPalette({ onOpenNote, onCreateNote }: CommandPaletteProps
     },
   ], [onCreateNote, setView, toggleAiChat]);
 
-  // Filtered notes
+
   const matchedNotes = useMemo(() => {
     const q = query.trim();
     if (!q) return allNotes.filter((n) => !n.trashedAt).slice(0, 6);
@@ -287,7 +287,7 @@ export function CommandPalette({ onOpenNote, onCreateNote }: CommandPaletteProps
       .slice(0, 8);
   }, [query, allNotes]);
 
-  // Filtered actions
+
   const matchedActions = useMemo(() => {
     const q = query.toLowerCase().trim();
     if (!q) return actions;
@@ -298,7 +298,7 @@ export function CommandPalette({ onOpenNote, onCreateNote }: CommandPaletteProps
     );
   }, [query, actions]);
 
-  // Build flat selectable list (notes + actions), skipping section headers
+
   const selectables = useMemo<Array<{ kind: "note"; note: Note } | { kind: "action"; action: ActionItem }>>(() => {
     const items: Array<{ kind: "note"; note: Note } | { kind: "action"; action: ActionItem }> = [];
     if (matchedNotes.length) matchedNotes.forEach((n) => items.push({ kind: "note", note: n }));
@@ -306,7 +306,7 @@ export function CommandPalette({ onOpenNote, onCreateNote }: CommandPaletteProps
     return items;
   }, [matchedNotes, matchedActions]);
 
-  // Select current item
+
   const selectCurrent = useCallback(() => {
     const item = selectables[activeIndex];
     if (!item) return;
@@ -314,7 +314,7 @@ export function CommandPalette({ onOpenNote, onCreateNote }: CommandPaletteProps
     else { item.action.onSelect(); }
   }, [selectables, activeIndex, onOpenNote]);
 
-  // Arrow key navigation
+
   function onKeyDown(e: React.KeyboardEvent) {
     if (e.key === "ArrowDown") {
       e.preventDefault();
@@ -328,11 +328,11 @@ export function CommandPalette({ onOpenNote, onCreateNote }: CommandPaletteProps
     }
   }
 
-  // Reset active index when query or list changes
+
   useEffect(() => { setActiveIndex(0); }, [query]);
 
-  let noteOffset = 0;
-  let actionOffset = matchedNotes.length;
+  const noteOffset = 0;
+  const actionOffset = matchedNotes.length;
 
   return (
     <>

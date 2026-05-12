@@ -7,7 +7,7 @@ import type { Folder as FolderEntity } from "@/entities/folder";
 import { useAuthActions } from "@/features/auth/hooks/use-auth-actions";
 import { useAuthStore } from "@/features/auth/model/auth-store";
 import { getUiCopy } from "@/shared/lib/i18n";
-import { useUiStore, type AppView } from "@/shared/store/ui-store";
+import { type AppView } from "@/shared/store/ui-store";
 
 import { getSheetAnchor, type SheetAnchor } from "./shared";
 

@@ -20,7 +20,7 @@ export function AppEntry() {
     }
   }, [initialized, status, router]);
 
-  // Splash only while auth is still booting; remove once initialized to render content immediately.
+
   if (!initialized) {
     return (
       <main className="grid min-h-screen place-items-center px-6">
@@ -36,7 +36,7 @@ export function AppEntry() {
     );
   }
 
-  // Degraded mode (local/guest) or authenticated → show the app
+
   if (status === "authenticated" || status === "degraded") {
     return (
       <ShellErrorBoundary>
@@ -45,6 +45,6 @@ export function AppEntry() {
     );
   }
 
-  // Fallback: still loading or anonymous (redirect in progress)
+
   return null;
 }

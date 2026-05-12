@@ -84,7 +84,7 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
         const runtimeConfig = await fetchAuthRuntimeConfig(controller.signal);
         useAuthStore.getState().setRuntimeConfig(runtimeConfig);
 
-        // Inject google-client-id meta tag for One Tap login-shell access
+
         if (runtimeConfig.googleClientId) {
           let meta = document.querySelector<HTMLMetaElement>("meta[name=google-client-id]");
           if (!meta) {
@@ -153,7 +153,7 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
           await syncSession(sessionData.session);
           setReady(true);
 
-          // Start Google One Tap if user is not signed in
+
           if (!sessionData.session && runtimeConfig.googleClientId) {
             void initGoogleOneTap(runtimeConfig.googleClientId, async (credential) => {
               await signInWithGoogleIdToken(credential);

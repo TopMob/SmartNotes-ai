@@ -91,7 +91,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
     setCurrentNotePageIndex(0);
   }, [markEditorDirty, note.id, setCurrentNotePageIndex]);
 
-  // Only update editor content when switching to a different page
+
   const lastPageIdRef = useRef(currentPage.id);
   useEffect(() => {
     if (currentPage.id !== lastPageIdRef.current) {
@@ -125,13 +125,13 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
 
     const pageId = currentPage.id;
 
-    // Remove from the collaborative Yjs doc first (optimistic, local)
+
     removePage(pageId);
 
-    // Persist the deletion via the note mutation
+
     deletePage(note.id, pageId);
 
-    // If we were on the last page, step back so the index stays valid
+
     if (currentNotePageIndex >= pageCount - 1) {
       setCurrentNotePageIndex(Math.max(0, currentNotePageIndex - 1));
     }

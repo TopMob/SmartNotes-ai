@@ -15,7 +15,7 @@ import {
   UserRound,
 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import type { CustomThemePreset, EditorToolKey } from "@/entities/settings";
 import { useAuthActions } from "@/features/auth/hooks/use-auth-actions";
@@ -55,13 +55,13 @@ export default function SettingsPage() {
   const { patchSettings, resetSettings } = useSettingsActions();
   const { updateProfile, pending: profilePending } = useAuthActions();
 
-  // Profile local state
+
   const [displayName, setDisplayName] = useState(user?.displayName ?? "");
   const [avatarUrl, setAvatarUrl] = useState(user?.photoURL ?? "");
   const [uidCopied, setUidCopied] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
 
-  // Sync displayName / avatarUrl when user changes
+
   useEffect(() => {
     setDisplayName(user?.displayName ?? "");
     setAvatarUrl(user?.photoURL ?? "");

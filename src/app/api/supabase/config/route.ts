@@ -18,7 +18,7 @@ export function GET() {
     },
     {
       headers: {
-        // Public, immutable across deploys — safe to cache for 1 hour at the edge.
+
         "Cache-Control": "public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400",
       },
     },

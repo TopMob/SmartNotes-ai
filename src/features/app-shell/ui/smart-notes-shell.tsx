@@ -21,7 +21,6 @@ import { Header } from "./components/Header";
 import { MainSurface } from "./components/MainSurface";
 import { Sidebar } from "./components/Sidebar";
 import { TopFiltersPopup } from "./components/TopFiltersPopup";
-import type { SheetAnchor, SheetName, SheetState } from "./components/shared";
 import { useAppShellState } from "./hooks/use-app-shell-state";
 import { useNoteInteractions } from "./hooks/use-note-interactions";
 import { useReminderEffects } from "./hooks/use-reminder-effects";
@@ -29,12 +28,12 @@ import { AiChatPanel } from "@/features/ai-engine/ui/AiChatPanel";
 import { CommandPalette } from "./components/CommandPalette";
 
 export function SmartNotesShell() {
-  // Data queries
+
   const { data: rawFolders = [] } = useFoldersQuery();
   const { data: notes = [] } = useNotesFlat();
   const { data: settings } = useSettingsQuery();
 
-  // UI store selectors
+
   const view = useUiStore((state) => state.view);
   const activeFolderId = useUiStore((state) => state.activeFolderId);
   const searchQuery = useUiStore((state) => state.searchQuery);
@@ -60,14 +59,14 @@ export function SmartNotesShell() {
   const setDesktopSidebarOpen = useUiStore((state) => state.setDesktopSidebarOpen);
   const toggleDesktopSidebar = useUiStore((state) => state.toggleDesktopSidebar);
 
-  // Settings-derived values
+
   const reduceMotion = settings?.reduceMotion ?? false;
   const folderViewMode = settings?.folderViewMode ?? "full";
   const notesPerPage = settings?.notesPerPage ?? 10;
   const lang = settings?.lang ?? "ru";
   const copy = getUiCopy(lang);
 
-  // Extracted hooks
+
   const shellState = useAppShellState();
   const { currentNoteId, openNote, createNoteDraft, closeEditor } = useNoteInteractions({
     activeFolderId,
@@ -76,14 +75,14 @@ export function SmartNotesShell() {
     setFiltersOpen: shellState.setFiltersOpen,
   });
 
-  // Reminder effects
+
   useReminderEffects(notes);
 
-  // Local UI state
+
   const [tagDraft, setTagDraft] = useState("");
   const editorDirty = useNoteUiStore((state) => state.editorDirty);
 
-  // Memoized computations
+
   const folders = useMemo(() => rawFolders.filter((folder) => !folder.trashedAt && !folder.isHidden), [rawFolders]);
   const hiddenFolders = useMemo(() => rawFolders.filter((folder) => !folder.trashedAt && folder.isHidden), [rawFolders]);
   const trashedFolders = useMemo(() => rawFolders.filter((folder) => Boolean(folder.trashedAt)), [rawFolders]);
@@ -108,7 +107,7 @@ export function SmartNotesShell() {
     return tagOptions.filter((tag) => tag.toLowerCase().includes(query)).slice(0, 6);
   }, [tagDraft, tagOptions]);
 
-  // Motion preference effect
+
   useEffect(() => {
     document.documentElement.dataset.motion = reduceMotion ? "reduce" : "full";
 
@@ -117,7 +116,7 @@ export function SmartNotesShell() {
     };
   }, [reduceMotion]);
 
-  // Theme preset effect — applies data-theme to <html> for CSS token switching
+
   const preset = settings?.preset ?? "paper";
   useEffect(() => {
     const root = document.documentElement;
@@ -129,7 +128,7 @@ export function SmartNotesShell() {
     return () => { delete root.dataset.theme; };
   }, [preset]);
 
-  // Opacity + background CSS vars effect
+
   const uiOpacity = settings?.uiOpacity ?? 0.88;
   const cardsOpacity = settings?.cardsOpacity ?? 0.92;
   const mainBg = settings?.mainBackgroundUrl ?? null;
@@ -148,7 +147,7 @@ export function SmartNotesShell() {
     );
   }, [uiOpacity, cardsOpacity, mainBg, sidebarBg]);
 
-  // Navigation helpers
+
   function toggleSidebar() {
     if (shellState.isDesktop) {
       toggleDesktopSidebar();

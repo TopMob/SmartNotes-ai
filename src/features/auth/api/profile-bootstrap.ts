@@ -28,7 +28,7 @@ function markBootstrapped(userId: string) {
   try {
     window.localStorage.setItem(bootstrappedFlagKey(userId), "1");
   } catch {
-    // Storage unavailable (private mode, quota exceeded) — ignore.
+
   }
 }
 

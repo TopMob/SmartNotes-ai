@@ -18,14 +18,14 @@ export async function middleware(request: NextRequest) {
   const isPublic = PUBLIC_PATHS.has(pathname) || pathname.startsWith("/api/") || pathname.startsWith("/auth/");
   const isAuthenticated = getUserResult?.data?.user != null;
 
-  // Authenticated users on /login should be redirected to home
+
   if (isAuthenticated && pathname === "/login") {
     const homeUrl = request.nextUrl.clone();
     homeUrl.pathname = "/";
     return NextResponse.redirect(homeUrl);
   }
 
-  // Unauthenticated users on protected routes should be redirected to login
+
   if (!isAuthenticated && !isPublic) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
