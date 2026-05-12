@@ -1,5 +1,6 @@
 import type { Note, NoteDraft, NoteLock } from "@/entities/note";
 import type { Database } from "@/shared/api/supabase/types";
+import { stripHtml } from "@/shared/utils/string";
 
 type NoteRow = Database["public"]["Tables"]["notes"]["Row"] & {
   note_pages?: Database["public"]["Tables"]["note_pages"]["Row"][];
@@ -134,7 +135,7 @@ export function deriveTitleFromDraft(draft: NoteDraft) {
     return explicitTitle;
   }
 
-  const textTitle = draft.content.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 80);
+  const textTitle = stripHtml(draft.content).slice(0, 80);
 
   return textTitle || "Untitled note";
 }

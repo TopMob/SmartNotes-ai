@@ -1,4 +1,5 @@
 "use client";
+import { stripHtml } from "@/shared/utils/string";
 
 import { useEffect } from "react";
 
@@ -20,7 +21,7 @@ export function useReminderEffects(notes: Note[]) {
 
       if (permission === "granted") {
         showNotification(triggeredNote.title || "Reminder", {
-          body: triggeredNote.content.replace(/<[^>]*>/gu, " ").replace(/\s+/gu, " ").trim().slice(0, 120),
+          body: stripHtml(triggeredNote.content).slice(0, 120),
         });
       }
     });

@@ -4,13 +4,12 @@ export type SheetName = "folder" | "note" | "pages" | "lock" | "about" | "create
 export type SheetAnchor = { x: number; y: number; placement: "above" | "below" };
 export type SheetState = { name: Exclude<SheetName, null>; anchor: SheetAnchor | null } | null;
 
-export function escapeHtml(value: string) {
-  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
-}
+import { escapeHtml, stripHtml } from "@/shared/utils/string";
+export { escapeHtml, stripHtml };
 
-export function stripHtml(value: string) {
-  return value.replace(/<[^>]*>/gu, " ").replace(/&nbsp;/gu, " ").replace(/\s+/gu, " ").trim();
-}
+//
+
+
 
 export function getSheetAnchor(rect: DOMRect): SheetAnchor {
   const spaceBelow = window.innerHeight - rect.bottom;
