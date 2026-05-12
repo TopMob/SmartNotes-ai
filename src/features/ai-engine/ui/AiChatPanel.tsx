@@ -1,10 +1,10 @@
 "use client";
 
-// ---------------------------------------------------------------------------
-// AI Notes Chat Panel — Gmail-style slide-in panel (right side)
-// RAG: answers questions using the user's notes as context
-// ✨ Streaming support, citation chips, quick prompts, markdown render
-// ---------------------------------------------------------------------------
+
+
+
+
+
 
 import {
   Bot,
@@ -20,9 +20,9 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useUiStore } from "@/shared/store/ui-store";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+
+
+
 
 type Citation = { id: string; title: string };
 
@@ -39,9 +39,9 @@ type AiChatPanelProps = {
   onOpenNote?: (noteId: string) => void;
 };
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+
+
+
 
 function generateId() {
   return Math.random().toString(36).slice(2);
@@ -68,9 +68,9 @@ const QUICK_PROMPTS = [
   "Заметки по дизайну",
 ];
 
-// ---------------------------------------------------------------------------
-// Main component
-// ---------------------------------------------------------------------------
+
+
+
 
 export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
   const open = useUiStore((s) => s.aiChatOpen);
@@ -83,19 +83,19 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  // Auto-scroll on new messages
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Focus input when panel opens
+
   useEffect(() => {
     if (open) {
       setTimeout(() => inputRef.current?.focus(), 150);
     }
   }, [open]);
 
-  // Close on Escape
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape" && open) setAiChatOpen(false);
@@ -108,7 +108,7 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
     const question = (questionOverride ?? input).trim();
     if (!question || loading) return;
 
-    // Cancel previous request if any
+
     abortRef.current?.abort();
     abortRef.current = new AbortController();
 
@@ -139,7 +139,7 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
 
       const data = (await response.json()) as { answer: string; citations: Citation[] };
 
-      // Simulate token-by-token streaming for UX (since backend is non-streaming JSON)
+
       const fullText = data.answer;
       const citations = data.citations ?? [];
       const chunkSize = 4;
@@ -395,7 +395,7 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
                   value={input}
                   onChange={(e) => {
                     setInput(e.target.value);
-                    // Auto-grow textarea
+
                     e.target.style.height = "auto";
                     e.target.style.height = `${Math.min(e.target.scrollHeight, 128)}px`;
                   }}

@@ -28,6 +28,3 @@ export function requireSupabasePublishableKey() {
   return assertDefined(getSupabasePublishableKey(), "Supabase publishable key env is required");
 }
 
-export function requireSupabaseServiceRoleKey() {
-  return assertDefined(getSupabaseServiceRoleKey(), "Supabase service role key env is required");
-}

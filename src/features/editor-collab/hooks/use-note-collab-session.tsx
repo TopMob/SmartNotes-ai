@@ -136,7 +136,7 @@ export function NoteCollabSessionProvider({ note, children }: NoteCollabProvider
 
     session.doc.on("update", handleUpdate);
 
-    // Fast-path for brand-new empty notes: no need to wait for IndexedDB
+
     const isNewEmptyNote = !note.content && note.pages.every((p) => !p.content);
 
     function hydrateFromQuery(reason: string) {
@@ -164,7 +164,7 @@ export function NoteCollabSessionProvider({ note, children }: NoteCollabProvider
     if (isNewEmptyNote) {
       hydrateFromQuery("New empty note — skipped IndexedDB wait, applied query snapshot immediately.");
     } else {
-      // Safety timeout: if IndexedDB doesn't resolve in 600ms, force hydrate from query
+
       const hydrationTimeoutId = window.setTimeout(() => {
         if (!didHydrateFromQueryRef.current) {
           hydrateFromQuery("IndexedDB hydration timeout — fell back to query snapshot.");

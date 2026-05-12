@@ -46,16 +46,16 @@ async function processNoteItem(
   supabase: NonNullable<ReturnType<typeof createSupabaseBrowserClient>>,
   item: SyncQueueItem,
 ) {
-  // For create/patch, the actual data is already in Supabase via the repository calls.
-  // The sync queue is a safety net for offline scenarios where the repository call failed.
-  // For now, we just confirm the operation succeeded by checking the note exists.
+
+
+
   if (item.operation === "delete") {
-    // For delete operations, just verify or re-attempt
+
     const { error } = await supabase.from("notes").delete().eq("id", item.id);
-    if (error && error.code !== "PGRST116") throw error; // PGRST116 = not found, already deleted
+    if (error && error.code !== "PGRST116") throw error;
   }
-  // Create and patch operations are handled by the repository directly.
-  // The sync queue serves as a log for retry logic.
+
+
 }
 
 async function processFolderItem(
@@ -72,9 +72,9 @@ async function processSettingsItem(
   _supabase: NonNullable<ReturnType<typeof createSupabaseBrowserClient>>,
   _item: SyncQueueItem,
 ) {
-  // Settings are already patched via the repository. The sync queue entry
-  // confirms the operation. No additional server call needed for settings
-  // since they're always patched through the repository.
+
+
+
 }
 
 let isProcessing = false;
@@ -93,21 +93,21 @@ export async function processSyncQueue() {
     for (const item of items) {
       const result = await processItem(item);
       if (result === "failure") {
-        // Mark as failed but continue processing other items
+
         failedIds.add(item.id);
       }
     }
 
-    // Clear successfully processed items, keep failed ones
+
     if (failedIds.size === 0) {
       clearSyncQueue();
     } else {
-      // Keep only failed items in the queue
+
       const remaining = items.filter((item) => failedIds.has(item.id));
       clearSyncQueue();
       for (const item of remaining) {
         const { createdAt, ...rest } = item;
-        // Re-enqueue without the createdAt to get a fresh timestamp
+
         const { enqueueSyncItem } = await import("./sync-queue");
         enqueueSyncItem(rest);
       }
@@ -141,6 +141,6 @@ export function startSyncConsumer() {
     }
   });
 
-  // Try initial sync if already online
+
   void trySync();
 }

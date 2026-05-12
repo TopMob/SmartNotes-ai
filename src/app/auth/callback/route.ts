@@ -21,8 +21,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/login?error=missing_config", request.url));
   }
 
-  // Create the response first so that cookies set during exchangeCodeForSession
-  // are written onto the redirect response and reach the browser.
+
+
   const response = NextResponse.redirect(new URL(safeNext, request.url));
 
   const supabase = createServerClient<Database>(url, publishableKey, {

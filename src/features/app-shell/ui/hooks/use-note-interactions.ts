@@ -44,7 +44,7 @@ export function useNoteInteractions(options: {
 
   const createNoteDraft = useCallback(async () => {
     if (!authUser?.id || authUser.id === "local-user") {
-      // Local / guest mode — create locally, open immediately
+
       const note = createLocalNote(
         { title: "", content: "", folderId: activeFolderId, userTags: [] },
         authUser?.id ?? "local-user",
@@ -60,15 +60,15 @@ export function useNoteInteractions(options: {
       authUser.id,
     );
 
-    // Open editor immediately with the optimistic note
+
     setCurrentNoteId(note.id);
     setEditorOpen(true);
 
     try {
       await createNote({ title: "", content: "", folderId: activeFolderId, userTags: [] }, authUser.id, note);
     } catch {
-      // Creation failed — keep editor open with the locally buffered note so
-      // the user doesn't lose their work. The sync queue will retry later.
+
+
     }
   }, [activeFolderId, authUser?.id, createNote, setCurrentNoteId, setEditorOpen]);
 

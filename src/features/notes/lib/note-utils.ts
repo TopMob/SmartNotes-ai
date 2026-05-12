@@ -26,7 +26,7 @@ export function createId(): string {
     return globalThis.crypto.randomUUID();
   }
 
-  // Fallback for insecure contexts: timestamp + random
+
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 

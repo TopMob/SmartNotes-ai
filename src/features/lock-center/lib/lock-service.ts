@@ -1,4 +1,4 @@
-import type { Note, NoteLock } from "@/entities/note";
+import type { NoteLock } from "@/entities/note";
 import { secureCompare, sha256 } from "@/shared/lib/crypto";
 
 export async function createNoteLock(password: string): Promise<NoteLock> {
@@ -26,7 +26,7 @@ export async function verifyNoteLock(lock: NoteLock, password: string) {
     return false;
   }
 
-  // v1 locks have no salt — verify with plain hash for backward compatibility
+
   const expectedHash = lock.salt ? await sha256(lock.salt + normalized) : await sha256(normalized);
   return secureCompare(lock.hash, expectedHash);
 }
@@ -35,12 +35,4 @@ export function maskLockedPreview(noteId: string) {
   return `Защищенная заметка ${noteId.slice(0, 6)}. Введите пароль для просмотра.`;
 }
 
-export function canReadNoteContent(note: Pick<Note, "lock">) {
-  return !note.lock?.hidden;
-}
 
-export function assertNoteContentReadable(note: Pick<Note, "lock">) {
-  if (!canReadNoteContent(note)) {
-    throw new Error("NOTE_LOCKED");
-  }
-}

@@ -21,7 +21,7 @@ export function OPTIONS() {
 }
 
 export async function POST(request: Request) {
-  // --- Auth: user session OR server secret ---
+
   const xSecret = request.headers.get("x-secret");
   const adminSecret = process.env.AI_ADMIN_SECRET;
   const isAdminCall = adminSecret && xSecret === adminSecret;
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
     );
   }
 
-  // --- Mark note as analyzing ---
+
   const serviceRoleKey = getSupabaseServiceRoleKey();
   if (serviceRoleKey) {
     try {
@@ -66,15 +66,15 @@ export async function POST(request: Request) {
       const admin = createClient(requireSupabaseUrl(), serviceRoleKey);
       await admin.from("notes").update({ ai_status: "analyzing" }).eq("id", body.noteId);
     } catch {
-      // Non-fatal: continue with analysis even if status update fails
+
     }
   }
 
-  // --- Run AI pipeline ---
+
   try {
     const result = await analyzeNote(body);
 
-    // --- Patch note in Supabase with AI results ---
+
     if (serviceRoleKey) {
       const { createClient } = await import("@supabase/supabase-js");
       const admin = createClient(requireSupabaseUrl(), serviceRoleKey);
@@ -95,7 +95,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ status: "done", result }, { headers: CORS_HEADERS });
   } catch (error) {
-    // --- Mark note as error ---
+
     if (serviceRoleKey) {
       try {
         const { createClient } = await import("@supabase/supabase-js");
@@ -103,7 +103,7 @@ export async function POST(request: Request) {
         const message = error instanceof Error ? error.message : "AI analysis failed";
         await admin.from("notes").update({ ai_status: "error", ai_error: message }).eq("id", body.noteId);
       } catch {
-        // ignore
+
       }
     }
 

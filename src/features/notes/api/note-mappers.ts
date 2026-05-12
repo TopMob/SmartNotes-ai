@@ -1,4 +1,4 @@
-import type { MediaDescriptor, Note, NoteAccess, NoteDraft, NoteLock, NotePage } from "@/entities/note";
+import type { Note, NoteDraft, NoteLock } from "@/entities/note";
 import type { Database } from "@/shared/api/supabase/types";
 
 type NoteRow = Database["public"]["Tables"]["notes"]["Row"] & {

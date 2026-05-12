@@ -1,4 +1,4 @@
-import type { Note, NoteDraft } from "@/entities/note";
+import type { Note } from "@/entities/note";
 import { isGuestUser } from "@/features/auth/lib/guest-session";
 import { useAuthStore } from "@/features/auth/model/auth-store";
 import { localNotesRepository } from "@/features/notes/api/local-notes-repository";
@@ -38,7 +38,7 @@ export const notesRepository: NotesRepository = {
   async list(cursor?: PaginationCursor) {
     if (shouldUseLocal()) {
       const allNotes = await localNotesRepository.list();
-      // Apply client-side pagination for local mode
+
       const limit = cursor?.limit ?? 50;
       const startIndex = cursor?.cursor
         ? allNotes.findIndex((n) => n.updatedAt < cursor.cursor!)

@@ -1,7 +1,7 @@
-// ---------------------------------------------------------------------------
-// AI Note Analyzer — server-side pipeline
-// Spec: SmartNotes_Structure.txt §4.4, SmartNotes_Features.txt §10
-// ---------------------------------------------------------------------------
+
+
+
+
 import type { AnalyzeNoteRequest, AnalyzeNoteResult } from "@/features/ai-engine/model/types";
 import { openRouterComplete } from "@/shared/api/openrouter/openrouter-client";
 
@@ -35,7 +35,7 @@ function stripHtml(html: string): string {
 
 function chunkText(text: string, maxChars = 4000): string {
   if (text.length <= maxChars) return text;
-  // Truncate at word boundary
+
   const truncated = text.slice(0, maxChars);
   const lastSpace = truncated.lastIndexOf(" ");
   return (lastSpace > maxChars * 0.8 ? truncated.slice(0, lastSpace) : truncated) + "…";
