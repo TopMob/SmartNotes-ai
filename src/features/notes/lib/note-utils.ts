@@ -1,4 +1,7 @@
 import type { MediaDescriptor, Note, NoteDraft, NotePage } from "@/entities/note";
+import { stripHtml } from "@/shared/utils/string";
+import { nowIso } from "@/shared/utils/date";
+export { nowIso };
 
 export const NOTE_PAGE_TITLE_MAX_LENGTH = 80;
 
@@ -11,10 +14,6 @@ export type NormalizedNotePatch = Partial<Note>;
 
 export const ANALYSIS_FIELD_KEYS: Array<keyof Note> = ["title", "content", "pages", "userTags", "hiddenTags", "media", "folderId"];
 const analysisFields = new Set<keyof Note>(ANALYSIS_FIELD_KEYS);
-
-export function nowIso() {
-  return new Date().toISOString();
-}
 
 /**
  * Generate a plain UUID v4 suitable for database primary keys.
@@ -41,7 +40,7 @@ export function deriveTitle(draft: NoteDraft) {
     return explicitTitle;
   }
 
-  const textTitle = draft.content.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 80);
+  const textTitle = stripHtml(draft.content).slice(0, 80);
 
   return textTitle || "Untitled note";
 }

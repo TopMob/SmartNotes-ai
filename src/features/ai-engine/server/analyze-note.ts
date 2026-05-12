@@ -4,6 +4,7 @@
 
 import type { AnalyzeNoteRequest, AnalyzeNoteResult } from "@/features/ai-engine/model/types";
 import { openRouterComplete } from "@/shared/api/openrouter/openrouter-client";
+import { stripHtml } from "@/shared/utils/string";
 
 const PROMPT_VERSION = "v1.0";
 
@@ -22,16 +23,7 @@ Rules:
 - If no folder matches well, return null for folderId
 - Be concise and precise`;
 
-function stripHtml(html: string): string {
-  return html
-    .replace(/<[^>]*>/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&nbsp;/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
+
 
 function chunkText(text: string, maxChars = 4000): string {
   if (text.length <= maxChars) return text;
@@ -68,10 +60,10 @@ function safeParseResult(raw: string): Partial<AnalyzeNoteResult> {
 
     return {
       userTags: Array.isArray(parsed.userTags)
-        ? (parsed.userTags as unknown[]).filter((t) => typeof t === "string").slice(0, 8)
+        ? (parsed.userTags as unknown[]).filter((t): t is string => typeof t === "string").slice(0, 8)
         : [],
       hiddenTags: Array.isArray(parsed.hiddenTags)
-        ? (parsed.hiddenTags as unknown[]).filter((t) => typeof t === "string").slice(0, 15)
+        ? (parsed.hiddenTags as unknown[]).filter((t): t is string => typeof t === "string").slice(0, 15)
         : [],
       folderId: typeof parsed.folderId === "string" ? parsed.folderId : null,
       relevance:

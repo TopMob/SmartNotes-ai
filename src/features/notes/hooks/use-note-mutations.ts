@@ -1,4 +1,5 @@
 "use client";
+import { nowIso } from "@/shared/utils/date";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -13,7 +14,6 @@ import {
   buildPageUpdatePatch,
   createLocalNote,
   normalizeNotePatch,
-  nowIso,
   type NotePagePatch,
 } from "@/features/notes/lib/note-utils";
 import { scheduleAiAnalysis } from "@/services/ai/ai-queue";
