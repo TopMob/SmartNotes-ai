@@ -1,5 +1,5 @@
 import { Brain, Folder, Heart, RotateCcw, Shield, Sparkles } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import type { Folder as FolderEntity } from "@/entities/folder";
 import type { Note } from "@/entities/note";
@@ -151,10 +151,14 @@ function TrashView({ copy, notes, notesPerPage, trashedFolders, onOpenNote, onOp
 
 function NotesView({ copy, title: _title, notes, notesPerPage, emptyText, onOpenNote, onOpenSheet, view }: { copy: ReturnType<typeof getUiCopy>; title: string; notes: Note[]; notesPerPage: 5 | 10 | 20 | 50; emptyText: string; onOpenNote: (noteId: string) => void; onOpenSheet: (sheet: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void; view: AppView }) {
   const { data: folders = [] } = useFoldersQuery();
+  const [displayLimit, setDisplayLimit] = useState<number>(notesPerPage);
   const visibleFolders = useMemo(() => folders.filter((folder) => !folder.trashedAt && !folder.isHidden), [folders]);
   const { pinned, unpinned } = useMemo(() => selectPinnedGroups(notes), [notes]);
-  const pinnedVisible = pinned.slice(0, notesPerPage);
-  const unpinnedVisible = unpinned.slice(0, Math.max(notesPerPage - pinnedVisible.length, 0));
+
+  const pinnedVisible = pinned.slice(0, displayLimit);
+  const unpinnedVisible = unpinned.slice(0, Math.max(displayLimit - pinnedVisible.length, 0));
+  const hasMore = displayLimit < notes.length;
+
   if (!notes.length) {
     return (
       <div className="flex h-full min-h-[calc(100vh-7.5rem)] items-center justify-center p-6 text-center">
@@ -192,6 +196,18 @@ function NotesView({ copy, title: _title, notes, notesPerPage, emptyText, onOpen
             ))}
           </div>
         </section>
+      ) : null}
+
+      {hasMore ? (
+        <div className="mt-8 flex justify-center pb-8">
+          <button
+            className="rounded-2xl border border-border bg-surface-strong px-6 py-3 text-sm font-black text-foreground/72 hover:bg-surface transition-colors"
+            onClick={() => setDisplayLimit(limit => limit + notesPerPage)}
+            type="button"
+          >
+            {(copy.shell.actions as any)?.loadMore || "Показать еще"}
+          </button>
+        </div>
       ) : null}
     </div>
   );
