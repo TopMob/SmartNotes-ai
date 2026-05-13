@@ -26,7 +26,12 @@ import LinkExtension from "@tiptap/extension-link";
 import TextAlign from "@tiptap/extension-text-align";
 import StarterKit from "@tiptap/starter-kit";
 import UnderlineExtension from "@tiptap/extension-underline";
-import { useEffect, useRef, type ComponentType } from "react";
+import ImageExtension from "@tiptap/extension-image";
+import { MathExtension } from "@/features/editor/lib/math-extension";
+import { DrawingCanvas } from "@/features/editor/ui/DrawingCanvas";
+import { useAiEngineStore } from "@/features/ai-engine/model/ai-store";
+import { useAutoAnalyze } from "@/features/ai-engine/hooks/use-auto-analyze";
+import { useEffect, useRef, useState, type ComponentType } from "react";
 
 import type { Note } from "@/entities/note";
 import { useNoteCollabPage } from "@/features/editor-collab/hooks/use-note-collab-page";
@@ -46,6 +51,8 @@ const EDITOR_EXTENSIONS = [
   LinkExtension.configure({ openOnClick: false, autolink: true, linkOnPaste: true, defaultProtocol: "https" }),
   TextAlign.configure({ types: ["heading", "paragraph"] }),
   UnderlineExtension,
+  ImageExtension,
+  MathExtension,
 ];
 
 type EditorOverlayProps = {
@@ -66,6 +73,9 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
   const snapshotRef = useRef(serializeEditorSnapshot(note));
   const editorDirty = useNoteUiStore((state) => state.editorDirty);
   const markEditorDirty = useNoteUiStore((state) => state.markEditorDirty);
+  const aiStatus = useAiEngineStore((state) => state.status);
+  useAutoAnalyze(note.id, currentPage.content);
+  const [isDrawing, setIsDrawing] = useState(false);
 
   useDurableNoteSave();
 
@@ -163,6 +173,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
       try {
         const media = await createLocalInlineMediaDescriptor(file);
         attachMedia(note.id, media);
+        if (media.url) editor?.chain().focus().setImage({ src: media.url }).run();
         setMediaDiagnostic({
           provider: media.provider,
           degraded: true,
@@ -226,6 +237,15 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
 
         <section className="mt-3 min-h-0 flex-1 overflow-y-auto rounded-[2rem] border border-border bg-surface/88 p-4 shadow-2xl shadow-violet-950/8 sm:p-8">
           <input className="w-full bg-transparent text-2xl font-black tracking-tight outline-none placeholder:text-foreground/28 sm:text-4xl" onChange={(event) => handleTitleChange(event.target.value)} placeholder="Заголовок" value={title} />
+          {isDrawing && (
+            <DrawingCanvas
+              onClose={() => setIsDrawing(false)}
+              onSave={(dataUrl) => {
+                editor.chain().focus().setImage({ src: dataUrl }).run();
+                setIsDrawing(false);
+              }}
+            />
+          )}
           {toolbarVisible ? (
             <div className="sticky top-0 z-10 mt-4 flex flex-nowrap items-center gap-1.5 overflow-x-auto overflow-y-hidden rounded-2xl border border-border bg-surface-strong/92 p-1.5 backdrop-blur-xl">
               <ToolButton active={editor.isActive("bold")} icon={Bold} onClick={() => editor.chain().focus().toggleBold().run()} />
@@ -240,7 +260,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
               <ToolButton label="HR" onClick={() => editor.chain().focus().setHorizontalRule().run()} />
               <ToolButton label="Clear" onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()} />
               <ToolButton active={editor.isActive("link")} label="Link" onClick={() => { const url = window.prompt("Ссылка"); if (url) { editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run(); } }} />
-              <ToolButton icon={Paintbrush} label="Sketch" onClick={() => { addPage(`Sketch ${pageCount + 1}`); setCurrentNotePageIndex(pageCount); }} />
+              <ToolButton icon={Paintbrush} label="Sketch" onClick={() => setIsDrawing(true)} />
               <ToolButton icon={FileImage} label="Add image" onClick={() => void handleAttachImage()} />
             </div>
           ) : null}
@@ -253,7 +273,12 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
 
         <footer className="mt-3 flex items-center gap-2 rounded-[1.5rem] border border-border bg-surface/92 p-2 shadow-xl shadow-violet-950/8">
           <label className="flex min-h-9 flex-1 items-center gap-2 rounded-2xl bg-surface-strong px-3 sm:min-h-11"><Tag className="h-4 w-4 text-accent" /><input className="min-w-0 flex-1 bg-transparent outline-none" defaultValue={userTags.join(", ")} onBlur={(event) => handleTagsBlur(event.target.value)} placeholder="tag1, tag2" /></label>
-          <div className="text-xs font-bold text-foreground/48">{durableState.error ? "Ошибка сохранения durable snapshot" : durableState.isSaving ? "Сохраняем durable snapshot..." : editorDirty ? "Есть несохраненные локальные изменения" : "Durable snapshot синхронизирован"}</div>
+          <div className="flex items-center gap-2">
+            <div className="text-xs font-bold text-foreground/48">
+              AI: {aiStatus === 'pending' ? 'Ожидание' : aiStatus === 'analyzing' ? 'Анализ...' : aiStatus === 'error' ? 'Ошибка AI' : 'Готово'}
+            </div>
+            <div className="text-xs font-bold text-foreground/48">{durableState.error ? "Ошибка сохранения durable snapshot" : durableState.isSaving ? "Сохраняем durable snapshot..." : editorDirty ? "Есть несохраненные локальные изменения" : "Durable snapshot синхронизирован"}</div>
+          </div>
           <Button className="h-10 rounded-2xl sm:h-11" onClick={handleClose} type="button"><Save className="mr-2 h-4 w-4" />Готово</Button>
         </footer>
       </div>
