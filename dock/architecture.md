@@ -1,98 +1,10 @@
 # Architecture
 
-> SmartNotes AI — system design, tech stack, and structural overview.
+> SmartNotes AI — system design, data flows, and key design decisions.
 
 ---
 
-## 1. Tech Stack
-
-| Category | Technology | Version | Purpose |
-|----------|-----------|---------|---------|
-| Framework | Next.js (App Router) | 16+ | SSR, routing, API routes, middleware |
-| Language | TypeScript | 6+ (strict mode) | Type-safe development |
-| Database | Supabase (PostgreSQL + pgvector) | — | Primary data store, auth, realtime, embeddings |
-| Realtime | Supabase Channels + Yjs (CRDT) | — | Collaborative editing, live sync |
-| State Management | Zustand + TanStack React Query | — | Client state + server cache |
-| UI | Tailwind CSS + shadcn/ui + Framer Motion | — | Styling, component library, animations |
-| Editor | Tiptap + Canvas API | 3.23+ | Rich-text editing, drawing overlay |
-| Media | Google Drive (BYOS) via Next.js Proxy | — | User-owned file storage |
-| AI | OpenRouter (LLM) + pgvector (Embeddings) | — | Note classification, chat, semantic search |
-| Drag & Drop | @dnd-kit | 6+ / 10+ | Folder and note reordering |
-| Virtualization | @tanstack/react-virtual | — | Long list performance |
-| Offline | Yjs + IndexedDB (y-indexeddb) | — | Local persistence, offline-first |
-| Deployment | Vercel + PWA | — | Hosting, installable app |
-
----
-
-## 2. Project Structure
-
-```
-src/
-├── app/                    # Next.js App Router
-│   ├── api/                # Server-side API routes
-│   │   ├── ai/             #   AI analyze + chat endpoints (nodejs runtime)
-│   │   ├── health/         #   Health check endpoint
-│   │   ├── media/          #   Google Drive upload proxy (stub)
-│   │   └── supabase/       #   Runtime config endpoint
-│   ├── auth/               #   Auth callback (OAuth code exchange)
-│   ├── login/              #   Login page
-│   ├── settings/           #   Settings page
-│   ├── layout.tsx          #   Root layout (fonts, metadata, Google GIS preload)
-│   ├── page.tsx            #   Entry page → AppEntry
-│   ├── providers.tsx       #   App-wide providers (QueryClient, Auth, Bootstrap, Theme)
-│   ├── pwa-register.tsx    #   PWA service worker registration
-│   └── globals.css         #   Global styles + CSS custom properties
-│
-├── entities/               # Domain types & models (pure types, no logic)
-│   ├── note/               #   Note, NotePage, NoteLock, MediaDescriptor, NoteAccess
-│   ├── folder/             #   Folder, FolderDraft
-│   ├── user/               #   User, AccessRole, InviteStatus
-│   ├── ai-metadata/        #   AiMetadata, ResurfacingClass
-│   └── settings/           #   UserSettings, ThemePreset, EditorSettings, InterfaceSettings
-│
-├── features/               # Feature modules (FSDDD pattern)
-│   ├── ai-engine/          #   AI analysis pipeline, auto-analyze, AI store
-│   ├── app-shell/          #   Main UI shell, Header, Sidebar, NoteCard, CommandPalette
-│   ├── auth/               #   Auth provider, login shell, Google One Tap, guest sessions
-│   ├── bootstrap/          #   Data bootstrap (runtime config fetch)
-│   ├── editor/             #   Tiptap editor, math extension, DrawingCanvas
-│   ├── editor-collab/      #   Yjs + Supabase Realtime, IndexedDB persistence, durable save
-│   ├── export-import/      #   Export/Import/Print services
-│   ├── feedback/           #   Feedback modal + API
-│   ├── folders/            #   Folder CRUD, queries, mutations, mappers
-│   ├── lock-center/        #   Lock service (SHA-256), lock UI, unlock flow
-│   ├── media-byos/         #   BYOS media types
-│   ├── notes/              #   Note CRUD, queries, mutations, utils, import
-│   ├── search/             #   Search engine, search store, filters UI
-│   └── settings/           #   Settings CRUD, queries, mutations, defaults
-│
-├── services/               # Background / cross-cutting services
-│   ├── ai/                 #   AI queue processing
-│   ├── diagnostics/        #   Runtime diagnostics
-│   ├── notifications/      #   Notification service
-│   ├── realtime/           #   Realtime subscription management
-│   ├── reminders/          #   Reminder scheduling + event publishing
-│   ├── sync/               #   Sync queue + consumer (offline-first)
-│   ├── console-log-store   #   Diagnostic log store (feedback-only collection)
-│   └── event-bus           #   Typed internal event system
-│
-├── shared/                 # Shared utilities & infrastructure
-│   ├── api/                #   Supabase client (browser/server/middleware/env/types)
-│   │                       #   OpenRouter client, Google Drive types
-│   ├── lib/                #   crypto, i18n, local-storage, search, utils
-│   ├── store/              #   Global UI store (Zustand)
-│   ├── ui/                 #   Base UI components (button, error-boundary, logo-mark)
-│   ├── utils/              #   date, string helpers (stripHtml, etc.)
-│   └── lib/react-query/    #   Query client factory + query keys registry
-│
-└── middleware.ts           # Next.js middleware (auth redirect, session refresh)
-```
-
----
-
-## 3. Architectural Principles
-
-### 3.1 Feature-Sliced Domain-Driven Design (FSDDD)
+## 1. Architectural Pattern: Feature-Sliced Domain-Driven Design (FSDDD)
 
 The project follows a **feature-sliced** architecture where each feature module encapsulates its own:
 
@@ -102,40 +14,27 @@ The project follows a **feature-sliced** architecture where each feature module 
 - **UI** — React components specific to the feature
 - **Lib** — pure utility functions
 
-Cross-feature dependencies flow **inward**: features may depend on `entities` and `shared`, but never on other features directly. Shared state is coordinated via the `EventBus` and `Zustand` stores.
-
-### 3.2 Offline-First
-
-- **IndexedDB** (`y-indexeddb`) persists Yjs documents locally
-- **LocalStorage** serves as a backup for Yjs updates
-- **Sync Queue** (`services/sync/`) buffers mutations when offline
-- **Durable Save** (`use-durable-note-save`) debounces and retries saves with fallback
-
-### 3.3 Partial Updates
-
-All note and settings mutations send **only the changed fields** (delta patches), not full objects. This reduces bandwidth and avoids overwriting concurrent changes.
-
-### 3.4 AI as Pipeline
-
-The AI engine operates as a **pipeline**, not a single call:
-
-1. Note content changes → `aiStatus = "pending"`
-2. Auto-analyze hook debounces and triggers `/api/ai/analyze`
-3. Server calls OpenRouter LLM → generates `userTags`, `hiddenTags`, `folderId`, `relevance`, `resurfacingClass`
-4. Results written back to Supabase → `aiStatus = "done"`
-5. Future: embeddings pipeline → `note_embeddings` → vector retrieval
-
-### 3.5 BYOS (Bring Your Own Storage)
-
-User media files are stored on the **user's own Google Drive**, not in the project's Supabase Storage. Notes contain only reference `MediaDescriptor` objects with `fileId`, `url`, and `thumbnailUrl`. Upload flows through a Next.js proxy route.
-
-### 3.6 Zero-Knowledge Lock
-
-Note locking uses **client-side SHA-256** hashing with salt. The password never leaves the client. Locked note content is masked with a placeholder until the correct password is verified via `secureCompare` (timing-safe).
+Cross-feature dependencies flow **inward**: features may depend on `entities` and `shared`, but never on other features directly. Shared state is coordinated via the [`EventBus`](src/services/event-bus.ts) and Zustand stores.
 
 ---
 
-## 4. Data Flow
+## 2. Offline-First Architecture
+
+- **IndexedDB** (`y-indexeddb`) persists Yjs documents locally
+- **LocalStorage** serves as a backup for Yjs updates
+- **Sync Queue** ([`sync-queue.ts`](src/services/sync/sync-queue.ts)) buffers mutations when offline
+- **Sync Consumer** ([`sync-consumer.ts`](src/services/sync/sync-consumer.ts)) processes the queue when connectivity is restored
+- **Durable Save** ([`use-durable-note-save.ts`](src/features/editor-collab/hooks/use-durable-note-save.ts)) debounces and retries saves with fallback
+
+---
+
+## 3. Partial Updates
+
+All note and settings mutations send **only the changed fields** (delta patches), not full objects. This reduces bandwidth and avoids overwriting concurrent changes.
+
+---
+
+## 4. Data Flows
 
 ### 4.1 Authentication Flow
 
@@ -214,7 +113,7 @@ Internal events (typed):
 
 ## 6. Middleware & Routing
 
-The [`middleware.ts`](src/middleware.ts:1) handles:
+[`middleware.ts`](src/middleware.ts) handles:
 
 - **Session refresh** — `updateSupabaseSession` refreshes auth cookies on every request
 - **Auth guard** — unauthenticated users redirected to `/login` (except `/api/*`, `/auth/*`, `/login`)
@@ -238,4 +137,28 @@ RootLayout
       │       └─ {children} → AppEntry → SmartNotesShell
 ```
 
-The [`AuthProvider`](src/features/auth/ui/auth-provider.tsx:64) implements a **watchdog timeout** (8 seconds). If auth bootstrap exceeds this, the app enters a **degraded mode** with limited functionality.
+[`AuthProvider`](src/features/auth/ui/auth-provider.tsx) implements a **watchdog timeout** (8 seconds). If auth bootstrap exceeds this, the app enters a **degraded mode** with limited functionality.
+
+---
+
+## 8. AI as Pipeline
+
+The AI engine operates as a **pipeline**, not a single call:
+
+1. Note content changes → `aiStatus = "pending"`
+2. Auto-analyze hook debounces and triggers `/api/ai/analyze`
+3. Server calls OpenRouter LLM → generates `userTags`, `hiddenTags`, `folderId`, `relevance`, `resurfacingClass`
+4. Results written back to Supabase → `aiStatus = "done"`
+5. Future: embeddings pipeline → `note_embeddings` → vector retrieval
+
+---
+
+## 9. BYOS (Bring Your Own Storage)
+
+User media files are stored on the **user's own Google Drive**, not in the project's Supabase Storage. Notes contain only reference `MediaDescriptor` objects with `fileId`, `url`, and `thumbnailUrl`. Upload flows through a Next.js proxy route.
+
+---
+
+## 10. Zero-Knowledge Lock
+
+Note locking uses **client-side SHA-256** hashing with salt. The password never leaves the client. Locked note content is masked with a placeholder until the correct password is verified via `secureCompare` (timing-safe).
