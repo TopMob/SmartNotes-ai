@@ -12,7 +12,7 @@ export function GET() {
       googleClientId:
         process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ??
         process.env.GOOGLE_CLIENT_ID ??
-        process.env.NEXT_PUBLIC_SMARTNOTES_SUPABASE_GOOGLE_CLIENT_ID ??
+        process.env.NEXT_PUBLIC_SMARTNOTES_GOOGLE_CLIENT_ID ??
         process.env.NEXT_PUBLIC_SMARTNOTES_GOOGLE_CLIENT_ID ??
         null,
     },
