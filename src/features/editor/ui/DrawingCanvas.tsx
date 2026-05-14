@@ -30,7 +30,7 @@ export function DrawingCanvas({ onClose, onSave }: DrawingCanvasProps) {
     context.strokeStyle = color;
     context.lineWidth = lineWidth;
     contextRef.current = context;
-  }, []);
+  }, [color, lineWidth]);
 
   useEffect(() => {
     if (contextRef.current) {

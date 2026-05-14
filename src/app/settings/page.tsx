@@ -15,7 +15,7 @@ import {
   UserRound,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import type { CustomThemePreset, EditorToolKey } from "@/entities/settings";
 import { useAuthActions } from "@/features/auth/hooks/use-auth-actions";
@@ -46,7 +46,7 @@ const themePresets = ["paper", "smarthub", "smartlib", "cyber", "lego", "classic
 export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState<(typeof sections)[number]["id"]>("appearance");
   const [presetName, setPresetName] = useState("");
-  const { data: settings, isLoading, error } = useSettingsQuery();
+  const { data: settings, isLoading: _isLoading, error } = useSettingsQuery();
   const { data: folders = [] } = useFoldersQuery();
   const { data: notes = [] } = useNotesFlat();
   const user = useAuthStore((state) => state.user);
@@ -60,22 +60,6 @@ export default function SettingsPage() {
   const [avatarUrl, setAvatarUrl] = useState(user?.photoURL ?? "");
   const [uidCopied, setUidCopied] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
-
-
-  useEffect(() => {
-    setDisplayName(user?.displayName ?? "");
-    setAvatarUrl(user?.photoURL ?? "");
-  }, [user?.displayName, user?.photoURL]);
-
-  if (isLoading) {
-    return (
-      <main className="min-h-screen px-4 py-4 sm:px-6 lg:p-6">
-        <div className="mx-auto max-w-3xl rounded-[1.6rem] border border-border bg-surface p-6 text-sm text-foreground/64 shadow-2xl shadow-violet-950/8 backdrop-blur-2xl">
-          Загрузка настроек...
-        </div>
-      </main>
-    );
-  }
 
   const lang = settings?.lang ?? "ru";
   const copy = getUiCopy(lang);

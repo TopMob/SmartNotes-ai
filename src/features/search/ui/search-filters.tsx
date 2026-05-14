@@ -8,7 +8,7 @@ export function SearchFilters() {
     sort, setSort,
     tags, setTags,
     updatedWindowDays, setUpdatedWindowDays,
-    showSavedFilters, showTagFilter, showUpdatedPeriodFilter, toggleVisibility,
+    showSavedFilters: _showSavedFilters, showTagFilter, showUpdatedPeriodFilter, toggleVisibility,
     resetFilters
   } = useSearchStore();
 

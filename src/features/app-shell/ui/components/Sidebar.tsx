@@ -1,6 +1,6 @@
 import { Archive, Bell, EyeOff, Folder, Heart, Inbox, Lock, Shield, Trash2, X, GripVertical, type LucideIcon } from "lucide-react";
 import Link from "next/link";
-import React, { useMemo } from "react";
+import React from "react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';

@@ -153,7 +153,7 @@ function TrashView({ copy, notes, notesPerPage, trashedFolders, onOpenNote, onOp
   );
 }
 
-function NotesView({ copy, title: _title, notes, notesPerPage, emptyText, onOpenNote, onOpenSheet, view }: { copy: ReturnType<typeof getUiCopy>; title: string; notes: Note[]; notesPerPage: 5 | 10 | 20 | 50; emptyText: string; onOpenNote: (noteId: string) => void; onOpenSheet: (sheet: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void; view: AppView }) {
+function NotesView({ copy, title: _title, notes, notesPerPage, emptyText: _emptyText, onOpenNote, onOpenSheet, view }: { copy: ReturnType<typeof getUiCopy>; title: string; notes: Note[]; notesPerPage: 5 | 10 | 20 | 50; emptyText: string; onOpenNote: (noteId: string) => void; onOpenSheet: (sheet: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void; view: AppView }) {
   const { data: folders = [] } = useFoldersQuery();
   const [displayLimit, setDisplayLimit] = useState<number>(notesPerPage);
   const visibleFolders = useMemo(() => folders.filter((folder) => !folder.trashedAt && !folder.isHidden), [folders]);
@@ -207,7 +207,7 @@ function NotesView({ copy, title: _title, notes, notesPerPage, emptyText, onOpen
         case "textLength":
           return b.content.length - a.content.length;
         case "manual":
-          return ((a as any).manualOrder || 0) - ((b as any).manualOrder || 0);
+          return ((a as Record<string, unknown>).manualOrder as number || 0) - ((b as Record<string, unknown>).manualOrder as number || 0);
         case "updatedAt":
         default:
           return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
@@ -271,7 +271,7 @@ function NotesView({ copy, title: _title, notes, notesPerPage, emptyText, onOpen
             onClick={() => setDisplayLimit(limit => limit + notesPerPage)}
             type="button"
           >
-            {(copy.shell.actions as any)?.loadMore || "Показать еще"}
+            {(copy.shell.actions as Record<string, string>)?.loadMore || "Показать еще"}
           </button>
         </div>
       ) : null}

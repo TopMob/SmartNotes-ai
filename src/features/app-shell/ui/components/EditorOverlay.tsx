@@ -68,7 +68,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
   const currentNotePageIndex = useNoteUiStore((state) => state.currentNotePageIndex);
   const setCurrentNotePageIndex = useNoteUiStore((state) => state.setCurrentNotePageIndex);
   const { status, durableState } = useNoteCollabSession();
-  const { page: currentPage, pageCount, addPage, removePage, setPageContent } = useNoteCollabPage(currentNotePageIndex);
+  const { page: currentPage, pageCount, addPage: _addPage, removePage, setPageContent } = useNoteCollabPage(currentNotePageIndex);
   const { title, userTags, setTitle, setUserTags } = useNoteTitleTags();
   const snapshotRef = useRef(serializeEditorSnapshot(note));
   const editorDirty = useNoteUiStore((state) => state.editorDirty);

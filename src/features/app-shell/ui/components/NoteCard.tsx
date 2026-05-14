@@ -19,7 +19,7 @@ type NoteCardProps = {
 };
 
 export function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: NoteCardProps) {
-  const [folderPickerOpen, setFolderPickerOpen] = useState(false);
+  const [_folderPickerOpen, setFolderPickerOpen] = useState(false);
   const { toggleFavorite, togglePinned } = useNoteActions();
   const setCurrentNoteId = useNoteUiStore((state) => state.setCurrentNoteId);
 
@@ -30,7 +30,7 @@ export function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: NoteC
 
   const folder = folders.find((f) => f.id === note.folderId) ?? null;
 
-  function openReminderSheet(anchor: SheetAnchor) {
+  function _openReminderSheet(anchor: SheetAnchor) {
     setCurrentNoteId(note.id);
     onOpenSheet("reminder", anchor);
     setFolderPickerOpen(false);

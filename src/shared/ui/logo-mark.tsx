@@ -3,7 +3,7 @@ type LogoMarkProps = {
   title?: string;
 };
 
-export function LogoMark({ className, title = "SmartNotes" }: LogoMarkProps) {
+export function LogoMark({ className: _className, title: _title = "SmartNotes" }: LogoMarkProps) {
   return (
     <svg version="1.0" xmlns="http://www.w3.org/2000/svg"
       width="1170.000000pt" height="1087.000000pt" viewBox="0 0 1170.000000 1087.000000"

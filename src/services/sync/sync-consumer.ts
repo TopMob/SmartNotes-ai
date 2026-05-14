@@ -28,7 +28,7 @@ async function processItem(item: SyncQueueItem, attempt = 1): Promise<SyncResult
     }
 
     return "success";
-  } catch (error) {
+  } catch {
     if (attempt >= MAX_RETRIES) {
       publish("syncFailed", {
         message: `Sync failed after ${MAX_RETRIES} attempts: ${item.entity}/${item.operation} for ${item.id}`,
@@ -106,7 +106,7 @@ export async function processSyncQueue() {
       const remaining = items.filter((item) => failedIds.has(item.id));
       clearSyncQueue();
       for (const item of remaining) {
-        const { createdAt, ...rest } = item;
+        const { createdAt: _createdAt, ...rest } = item;
 
         const { enqueueSyncItem } = await import("./sync-queue");
         enqueueSyncItem(rest);

@@ -48,7 +48,7 @@ export const MathExtension = Extension.create({
                       view.dispatch(tr);
                       return true; // We handled the input
                     }
-                 } catch (e) {
+                 } catch {
                      // Expression was invalid math, do nothing
                  }
               }

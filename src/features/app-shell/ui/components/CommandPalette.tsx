@@ -33,7 +33,6 @@ import {
 import type { Note } from "@/entities/note";
 import { useNotesFlat } from "@/features/notes/hooks/use-notes-query";
 import { scoreSearchMatch } from "@/shared/lib/search";
-import { stripHtml } from "@/shared/utils/string";
 import { useUiStore } from "@/shared/store/ui-store";
 import Link from "next/link";
 
@@ -63,7 +62,7 @@ type SectionItem = {
   label: string;
 };
 
-type PaletteItem = ActionItem | NoteItem | SectionItem;
+type _PaletteItem = ActionItem | NoteItem | SectionItem;
 
 type CommandPaletteProps = {
   onOpenNote: (noteId: string) => void;

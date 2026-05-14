@@ -177,7 +177,7 @@ export function LoginShell() {
   );
 }
 
-function Field({ icon: Icon, label, placeholder, type, value, onChange }: { icon: any; label: string; placeholder: string; type: string; value: string; onChange: (value: string) => void }) {
+function Field({ icon: Icon, label, placeholder, type, value, onChange }: { icon: React.ElementType; label: string; placeholder: string; type: string; value: string; onChange: (value: string) => void }) {
   return (
     <label className="block">
       <span className="mb-2 block text-sm font-bold text-foreground/62">{label}</span>

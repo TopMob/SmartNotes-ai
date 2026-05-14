@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint src",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -44,6 +44,7 @@
     "@types/react-dom": "latest",
     "eslint": "latest",
     "eslint-config-next": "^16.0.0",
+    "eslint-plugin-unused-imports": "^4.1.4",
     "tailwindcss": "latest",
     "typescript": "^6.0.3"
   }

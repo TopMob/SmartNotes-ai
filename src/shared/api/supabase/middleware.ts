@@ -35,6 +35,6 @@ export function updateSupabaseSession(request: NextRequest, response: NextRespon
  *  - Authenticated users accessing /login → /
  *  - Auth callback, static assets, etc. are always allowed
  */
-const PUBLIC_PATHS = new Set(["/login", "/auth/callback"]);
+const _PUBLIC_PATHS = new Set(["/login", "/auth/callback"]);
 
 

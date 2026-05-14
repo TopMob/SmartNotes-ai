@@ -28,7 +28,7 @@ type HeaderProps = {
   setSearchQuery: (query: string) => void;
 };
 
-export function Header({ copy, view, activeFolder, searchQuery, filtersOpen, filtersRef, onOpenDrawer, onOpenFilters, onOpenFolderMenu, profileOpen, profileRef, setProfileOpen, setSearchQuery }: HeaderProps) {
+export function Header({ copy, view, activeFolder, searchQuery: _searchQuery, filtersOpen, filtersRef, onOpenDrawer, onOpenFilters, onOpenFolderMenu, profileOpen, profileRef, setProfileOpen, setSearchQuery: _setSearchQuery }: HeaderProps) {
   const user = useAuthStore((state) => state.user);
   const { logout, pending, updateProfile } = useAuthActions();
   const title =
@@ -91,7 +91,7 @@ export function Header({ copy, view, activeFolder, searchQuery, filtersOpen, fil
 
         <label className="absolute left-[15px] right-[15px] top-[65px] z-50 flex h-[42px] min-w-0 max-w-none items-center gap-3 rounded-full border border-border bg-surface-strong px-4 shadow-lg md:static md:mx-auto md:flex-1 md:max-w-[560px] md:shadow-inner md:shadow-violet-950/4">
           <Search className="h-5 w-5 shrink-0 text-foreground/38" />
-          <input className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-foreground/38" onChange={(event) => useSearchStore.getState().setQuery(event.target.value)} placeholder={copy.shell.search} value={useSearchStore((state: any) => state.query)} />
+          <input className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-foreground/38" onChange={(event) => useSearchStore.getState().setQuery(event.target.value)} placeholder={copy.shell.search} value={useSearchStore((state) => state.query)} />
           <kbd className="hidden items-center gap-1 rounded-lg border border-border bg-surface px-1.5 py-0.5 text-[10px] font-bold text-foreground/32 md:flex" title="Command Palette">
             <Command className="h-2.5 w-2.5" />K
           </kbd>

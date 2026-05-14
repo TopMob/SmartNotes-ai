@@ -387,7 +387,7 @@ function LockContent({ onClose }: { onClose: () => void }) {
 function AboutContent() {
   const { data: settings } = useSettingsQuery();
   const lang = settings?.lang ?? "ru";
-  const copy = getUiCopy(lang);
+  const _copy = getUiCopy(lang);
   const [tab, setTab] = useState<"about" | "rate">("about");
   const [rating, setRating] = useState(5);
   const [feedback, setFeedback] = useState("");
