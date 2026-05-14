@@ -33,3 +33,5 @@ Thumbs.db
 # deployment artifacts
 .vercel/
 package-lock.json
+.roo/mcp.json
+.roo/
