@@ -16,7 +16,8 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
   const isPublic = PUBLIC_PATHS.has(pathname) || pathname.startsWith("/api/") || pathname.startsWith("/auth/");
-  const isAuthenticated = getUserResult?.data?.user != null;
+  const isGuest = request.cookies.has("smartnotes_guest");
+  const isAuthenticated = getUserResult?.data?.user != null || isGuest;
 
 
   if (isAuthenticated && pathname === "/login") {

@@ -36,6 +36,9 @@ export function beginGuestSession() {
   };
 
   storage?.setItem(GUEST_SESSION_KEY, JSON.stringify(session));
+  if (typeof window !== "undefined") {
+    document.cookie = "smartnotes_guest=true; path=/; max-age=600";
+  }
   return session;
 }
 
@@ -73,6 +76,10 @@ export function clearGuestSession(userId?: string) {
   const targetUserId = userId ?? activeSession?.user.id;
 
   storage.removeItem(GUEST_SESSION_KEY);
+
+  if (typeof window !== "undefined") {
+    document.cookie = "smartnotes_guest=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  }
 
   if (!targetUserId) {
     return;
