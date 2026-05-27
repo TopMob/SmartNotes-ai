@@ -26,7 +26,7 @@ function writeFolders(folders: Folder[]) {
 
 export const localFoldersRepository = {
   async list() {
-    return readFolders();
+    return readFolders().sort((left, right) => left.folderOrder - right.folderOrder);
   },
   async create(folder: Folder) {
     const folders = readFolders();

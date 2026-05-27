@@ -76,7 +76,7 @@ export function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: NoteC
             {isShared ? <span className="rounded-full bg-violet-500/10 px-2.5 py-1 text-violet-400">👥 Collab</span> : null}
           </div>
         )}
-        {note.userTags.length > 0 && (
+        {!note.lock?.hidden && note.userTags.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-2">
             {note.userTags.slice(0, 5).map((tag) => (
               <span className="rounded-full border border-border px-3.5 py-1 text-xs font-semibold text-foreground/56" key={tag}>

@@ -47,6 +47,7 @@ export function Header({ copy, view, activeFolder, searchQuery: _searchQuery, fi
   const { logout, pending, updateProfile } = useAuthActions();
 
   const [myInvites, setMyInvites] = useState<HeaderInvite[]>([]);
+  const [uidCopied, setUidCopied] = useState(false);
 
   useEffect(() => {
     if (!user?.email) return;
@@ -101,10 +102,17 @@ export function Header({ copy, view, activeFolder, searchQuery: _searchQuery, fi
                       ? copy.shell.trash
                       : copy.shell.notes;
 
-  const userName = user?.displayName?.trim() || user?.email || "Guest";
+  const userName = user?.displayName?.trim() || user?.email || (copy.common.back === "Назад" ? "Гость" : "Guest");
   const userUid = user?.uid ?? "anonymous";
 
   const dlgs = copy.shell.dialogs;
+
+  function handleCopyUid() {
+    void navigator.clipboard.writeText(userUid).then(() => {
+      setUidCopied(true);
+      setTimeout(() => setUidCopied(false), 2000);
+    });
+  }
 
   async function editDisplayName() {
     const nextName = window.prompt(dlgs?.profileRenamePrompt || "Новое имя профиля", userName)?.trim();
@@ -157,8 +165,13 @@ export function Header({ copy, view, activeFolder, searchQuery: _searchQuery, fi
           </div>
 
           <div className="relative shrink-0" ref={profileRef}>
-            <button className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-border bg-surface-strong sm:h-10 sm:w-10" onClick={() => setProfileOpen(!profileOpen)} type="button">
-              <UserRound className="h-6 w-6 sm:h-5 sm:w-5" />
+            <button className="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-border bg-surface-strong overflow-hidden sm:h-10 sm:w-10" onClick={() => setProfileOpen(!profileOpen)} type="button">
+              {user?.photoURL ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={user.photoURL} alt="avatar" className="h-full w-full object-cover" />
+              ) : (
+                <UserRound className="h-6 w-6 sm:h-5 sm:w-5" />
+              )}
               {myInvites.length > 0 && (
                 <span className="absolute -right-1 -top-1 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-accent text-[9px] font-black text-background animate-pulse">
                   {myInvites.length}
@@ -178,8 +191,8 @@ export function Header({ copy, view, activeFolder, searchQuery: _searchQuery, fi
                   <button className="mt-2 w-full rounded-xl bg-background/70 px-3 py-2 text-left text-xs font-bold text-foreground/56" onClick={() => void changeAvatar()} type="button">
                     {dlgs?.profileChangeAvatar || "Сменить аватар"}
                   </button>
-                  <button className="mt-2 flex w-full items-center justify-between rounded-xl bg-background/70 px-3 py-2 text-left text-xs font-bold text-foreground/56" onClick={() => void navigator.clipboard.writeText(userUid)} type="button">
-                    UID: {userUid}
+                  <button className="mt-2 flex w-full items-center justify-between rounded-xl bg-background/70 px-3 py-2 text-left text-xs font-bold text-foreground/56" onClick={handleCopyUid} type="button">
+                    {uidCopied ? (copy.settings?.profile?.copied || "Copied!") : `UID: ${userUid}`}
                     <Copy className="h-3.5 w-3.5" />
                   </button>
                 </div>

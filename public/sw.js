@@ -1,11 +1,64 @@
+const CACHE_NAME = "smartnotes-v1";
+const ASSETS_TO_CACHE = [
+  "/",
+  "/settings",
+  "/login",
+  "/manifest.json",
+  "/apple-icon.svg",
+];
+
 self.addEventListener("install", (event) => {
-  event.waitUntil(self.skipWaiting());
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(ASSETS_TO_CACHE);
+    }).then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    }).then(() => self.clients.claim())
+  );
 });
 
-self.addEventListener("fetch", () => {
-  // Network-first shell placeholder. Offline caching will be implemented with the sync layer.
+self.addEventListener("fetch", (event) => {
+  // Only cache GET requests
+  if (event.request.method !== "GET") return;
+
+  // Skip chrome-extension, supabase API, OpenRouter, and API routes
+  const url = new URL(event.request.url);
+  if (
+    url.origin !== self.location.origin ||
+    url.pathname.startsWith("/api/") ||
+    url.pathname.startsWith("/_next/webpack-hmr")
+  ) {
+    return;
+  }
+
+  event.respondWith(
+    caches.match(event.request).then((cachedResponse) => {
+      const fetchPromise = fetch(event.request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200 && networkResponse.type === "basic") {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
+        }
+        return networkResponse;
+      }).catch(() => {
+        // Fallback for offline if not in cache
+        return cachedResponse;
+      });
+
+      return cachedResponse || fetchPromise;
+    })
+  );
 });

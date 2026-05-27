@@ -19,6 +19,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useUiStore } from "@/shared/store/ui-store";
 import { useNotesFlat } from "@/features/notes/hooks/use-notes-query";
+import { useAuthStore } from "@/features/auth/model/auth-store";
+import { isGuestUser } from "@/features/auth/lib/guest-session";
 
 
 
@@ -79,6 +81,7 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
   const open = useUiStore((s) => s.aiChatOpen);
   const setAiChatOpen = useUiStore((s) => s.setAiChatOpen);
   const { data: notes = [] } = useNotesFlat();
+  const user = useAuthStore((s) => s.user);
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -130,10 +133,14 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
     setLoading(true);
 
     try {
+      const isGuest = !user || user.id === "local-user" || isGuestUser(user);
       const response = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question }),
+        body: JSON.stringify({
+          question,
+          ...(isGuest ? { notes } : {}),
+        }),
         signal: abortRef.current.signal,
       });
 
@@ -189,7 +196,7 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
       setLoading(false);
       setTimeout(() => inputRef.current?.focus(), 50);
     }
-  }, [input, loading]);
+  }, [input, loading, user, notes]);
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {

@@ -47,6 +47,12 @@ export function LoginShell() {
     const googleClientId = runtimeConfig?.googleClientId;
     if (!googleClientId || status === "authenticated") return;
 
+    const lastDismissed = localStorage.getItem("google_onetap_dismissed_at");
+    const COOLDOWN_MS = 5 * 60 * 1000;
+    if (lastDismissed && Date.now() - Number(lastDismissed) < COOLDOWN_MS) {
+      return;
+    }
+
     let cleanup: (() => void) | undefined;
     let cancelled = false;
 

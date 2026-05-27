@@ -61,6 +61,7 @@ export async function signInWithGoogle() {
     provider: "google",
     options: {
       redirectTo: getAuthRedirectTo(),
+      scopes: "https://www.googleapis.com/auth/drive.file",
       queryParams: {
         access_type: "offline",
         prompt: "select_account",

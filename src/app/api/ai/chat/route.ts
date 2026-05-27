@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { openRouterComplete } from "@/shared/api/openrouter/openrouter-client";
 import { requireSupabaseUrl, requireSupabasePublishableKey } from "@/shared/api/supabase/env";
 import { getEmbedding } from "@/shared/lib/ai/local-embeddings";
+import type { Note } from "@/entities/note";
 
 export const runtime = "nodejs";
 
@@ -32,6 +33,20 @@ interface EmbeddingMatch {
 }
 
 export async function POST(request: Request) {
+  let question: string;
+  let clientNotes: Note[] | undefined;
+
+  try {
+    const body = await request.json();
+    question = body.question;
+    clientNotes = body.notes;
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400, headers: CORS_HEADERS });
+  }
+
+  if (!question?.trim()) {
+    return NextResponse.json({ error: "Question is required" }, { status: 400, headers: CORS_HEADERS });
+  }
 
   let userId: string | null = null;
   try {
@@ -47,38 +62,108 @@ export async function POST(request: Request) {
     userId = null;
   }
 
-  if (!userId) {
+  if (!userId && (!clientNotes || !Array.isArray(clientNotes))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: CORS_HEADERS });
   }
 
-  const { question } = (await request.json()) as { question: string };
-  if (!question?.trim()) {
-    return NextResponse.json({ error: "Question is required" }, { status: 400, headers: CORS_HEADERS });
-  }
-
-
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    requireSupabaseUrl(),
-    requireSupabasePublishableKey(),
-    { cookies: { getAll: () => cookieStore.getAll(), setAll: () => undefined } },
-  );
-
   let chunks: EmbeddingMatch[] = [];
-  try {
-    const questionEmbedding = await getEmbedding(question);
-    const { data, error } = await supabase.rpc("match_note_embeddings", {
-      query_embedding: questionEmbedding,
-      match_threshold: 0.15, // minimum similarity score
-      match_count: 6,
-      p_owner_id: userId
-    });
-    
-    if (error) throw error;
-    chunks = (data as EmbeddingMatch[]) || [];
-  } catch (error) {
-    console.error("Vector matching failed:", error);
-    return NextResponse.json({ error: "Failed to search vector embeddings" }, { status: 500, headers: CORS_HEADERS });
+
+  if (clientNotes && Array.isArray(clientNotes)) {
+    try {
+      const questionEmbedding = await getEmbedding(question);
+      const allChunks: { note_id: string; note_title: string; content: string }[] = [];
+
+      for (const note of clientNotes) {
+        if (note.lock) continue; // Skip locked notes
+
+        if (note.pages && note.pages.length > 0) {
+          for (const page of note.pages) {
+            if (page.content?.trim()) {
+              allChunks.push({
+                note_id: note.id,
+                note_title: note.title || "Без названия",
+                content: page.content.replace(/<[^>]*>/g, " ").trim(),
+              });
+            }
+          }
+        } else if (note.content?.trim()) {
+          allChunks.push({
+            note_id: note.id,
+            note_title: note.title || "Без названия",
+            content: note.content.replace(/<[^>]*>/g, " ").trim(),
+          });
+        }
+      }
+
+      if (allChunks.length > 0) {
+        const chunkEmbeddings = await Promise.all(
+          allChunks.map(async (c) => {
+            try {
+              const emb = await getEmbedding(c.content);
+              return { chunk: c, embedding: emb };
+            } catch (e) {
+              console.error("Failed to embed chunk:", e);
+              return { chunk: c, embedding: null };
+            }
+          })
+        );
+
+        const cosineSimilarity = (a: number[], b: number[]) => {
+          let dotProduct = 0;
+          let mA = 0;
+          let mB = 0;
+          for (let i = 0; i < a.length; i++) {
+            dotProduct += a[i] * b[i];
+            mA += a[i] * a[i];
+            mB += b[i] * b[i];
+          }
+          mA = Math.sqrt(mA);
+          mB = Math.sqrt(mB);
+          if (mA === 0 || mB === 0) return 0;
+          return dotProduct / (mA * mB);
+        };
+
+        const matches = chunkEmbeddings
+          .filter((ce) => ce.embedding !== null)
+          .map((ce) => {
+            const similarity = cosineSimilarity(questionEmbedding, ce.embedding!);
+            return {
+              ...ce.chunk,
+              similarity,
+            };
+          })
+          .filter((m) => m.similarity >= 0.15)
+          .sort((a, b) => b.similarity - a.similarity)
+          .slice(0, 6);
+
+        chunks = matches;
+      }
+    } catch (error) {
+      console.error("Local vector matching failed:", error);
+      return NextResponse.json({ error: "Failed to search local vector embeddings" }, { status: 500, headers: CORS_HEADERS });
+    }
+  } else {
+    try {
+      const cookieStore = await cookies();
+      const supabase = createServerClient(
+        requireSupabaseUrl(),
+        requireSupabasePublishableKey(),
+        { cookies: { getAll: () => cookieStore.getAll(), setAll: () => undefined } },
+      );
+      const questionEmbedding = await getEmbedding(question);
+      const { data, error } = await supabase.rpc("match_note_embeddings", {
+        query_embedding: questionEmbedding,
+        match_threshold: 0.15,
+        match_count: 6,
+        p_owner_id: userId,
+      });
+
+      if (error) throw error;
+      chunks = (data as EmbeddingMatch[]) || [];
+    } catch (error) {
+      console.error("Vector matching failed:", error);
+      return NextResponse.json({ error: "Failed to search vector embeddings" }, { status: 500, headers: CORS_HEADERS });
+    }
   }
 
   if (chunks.length === 0) {

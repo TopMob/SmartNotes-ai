@@ -37,7 +37,7 @@ export async function initGoogleOneTap(
     return () => undefined;
   }
 
-  const google = (window as unknown as { google?: { accounts: { id: { initialize: (c: object) => void; prompt: (cb?: (n: { isNotDisplayed(): boolean; isSkippedMoment(): boolean }) => void) => void; cancel: () => void } } } }).google;
+  const google = (window as unknown as { google?: { accounts: { id: { initialize: (c: object) => void; prompt: (cb?: (n: { isNotDisplayed(): boolean; isSkippedMoment(): boolean; isDismissedMoment(): boolean }) => void) => void; cancel: () => void } } } }).google;
 
   if (!google?.accounts?.id) {
     return () => undefined;
@@ -55,7 +55,11 @@ export async function initGoogleOneTap(
     context: "signin",
   });
 
-  google.accounts.id.prompt();
+  google.accounts.id.prompt((notification) => {
+    if (notification.isDismissedMoment() || notification.isSkippedMoment()) {
+      localStorage.setItem("google_onetap_dismissed_at", String(Date.now()));
+    }
+  });
 
   return () => {
     try {

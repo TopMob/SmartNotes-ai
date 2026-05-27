@@ -48,7 +48,7 @@ export const useUiStore = create<UiState>((set) => ({
   desktopSidebarOpen: false,
   desktopSidebarPinned: false,
   aiChatOpen: false,
-  developerMode: false,
+  developerMode: typeof window !== "undefined" ? localStorage.getItem("smartnotes:developer_mode") === "true" : false,
   setView: (view) => set({ view }),
   setActiveFolderId: (activeFolderId) => set({ activeFolderId }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
@@ -110,6 +110,18 @@ export const useUiStore = create<UiState>((set) => ({
     })),
   setAiChatOpen: (aiChatOpen) => set({ aiChatOpen }),
   toggleAiChat: () => set((state) => ({ aiChatOpen: !state.aiChatOpen })),
-  setDeveloperMode: (developerMode) => set({ developerMode }),
-  toggleDeveloperMode: () => set((state) => ({ developerMode: !state.developerMode })),
+  setDeveloperMode: (developerMode) => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("smartnotes:developer_mode", String(developerMode));
+    }
+    set({ developerMode });
+  },
+  toggleDeveloperMode: () =>
+    set((state) => {
+      const next = !state.developerMode;
+      if (typeof window !== "undefined") {
+        localStorage.setItem("smartnotes:developer_mode", String(next));
+      }
+      return { developerMode: next };
+    }),
 }));
