@@ -87,6 +87,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
   const aiStatus = useAiEngineStore((state) => state.status);
   useAutoAnalyze(note, currentPage.content);
   const [isDrawing, setIsDrawing] = useState(false);
+  const isHydratedRef = useRef(false);
 
   const tagString = userTags.join(", ");
   const [tagsInput, setTagsInput] = useState(tagString);
@@ -103,6 +104,9 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
     immediatelyRender: false,
     editable: role !== "viewer",
     onUpdate: ({ editor: tiptapEditor }) => {
+      if (status !== "ready" || !isHydratedRef.current) {
+        return;
+      }
       setPageContent(currentPage.id, tiptapEditor.getHTML());
       markEditorDirty(true);
     },
@@ -124,16 +128,20 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
     snapshotRef.current = serializeEditorSnapshot(note);
     markEditorDirty(false);
     setCurrentNotePageIndex(0);
+    isHydratedRef.current = false;
   }, [markEditorDirty, note.id, setCurrentNotePageIndex]);
 
 
   const lastPageIdRef = useRef(currentPage.id);
   useEffect(() => {
-    if (currentPage.id !== lastPageIdRef.current) {
+    if (status !== "ready" || !editor) return;
+
+    if (!isHydratedRef.current || currentPage.id !== lastPageIdRef.current) {
+      isHydratedRef.current = true;
       lastPageIdRef.current = currentPage.id;
-      editor?.commands.setContent(plainTextToEditorContent(currentPage.content), { emitUpdate: false });
+      editor.commands.setContent(plainTextToEditorContent(currentPage.content), { emitUpdate: false });
     }
-  }, [currentPage.id, currentPage.content, editor]);
+  }, [status, currentPage.id, currentPage.content, editor]);
 
   useEffect(() => {
     markEditorDirty(durableState.hasUnsavedChanges);
