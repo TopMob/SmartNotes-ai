@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 
 import { buildDurableNotePatchFromYDoc } from "@/features/editor-collab/model/yjs-note-doc";
 import type { Note } from "@/entities/note";
@@ -75,14 +75,89 @@ export function useDurableNoteSave() {
     });
   }, [doc, hydratedFromQuery, querySnapshotSerialized, setDurableState, status, noteId]);
 
+  const flush = useCallback(async () => {
+    const curHydrated = hydratedRef.current;
+    const curStatus = statusRef.current;
+    const curNoteId = noteIdRef.current;
+    const curDraftNote = draftNoteRef.current;
+
+    if (!curHydrated || curStatus !== "ready") return;
+
+    const nextPatch = normalizeNotePatch(buildDurableNotePatchFromYDoc(doc), { scheduleAnalysis: false });
+    const serialized = serializeContentSnapshot(nextPatch);
+    const hasChanges = serialized !== lastSavedRef.current;
+
+    if (!hasChanges) return;
+
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
+    setDurableStateRef.current((s) => ({ ...s, isSaving: true, error: null }));
+    setCollabDiagnostic(curNoteId, { status: curStatus, hydratedFromQuery: curHydrated, transport: "connected", persistence: "synced", durable: "saving", message: "Saving…" });
+
+    if (curDraftNote && curDraftNote.id === curNoteId) {
+      const cleanContent = (nextPatch.content ?? "")
+        .replace(/<p><\/p>/g, "")
+        .replace(/<p><br><\/p>/g, "")
+        .trim();
+      const titleText = (nextPatch.title ?? "").trim();
+      const isTitleNonEmpty = titleText.length > 0 && titleText !== "Untitled note";
+      const hasContent = isTitleNonEmpty || cleanContent.length > 0;
+
+      if (!hasContent) {
+        setDurableStateRef.current((s) => ({ ...s, isSaving: false }));
+        return;
+      }
+
+      try {
+        await createMutateRef.current({
+          draft: {
+            title: nextPatch.title ?? "",
+            content: nextPatch.content ?? "",
+            folderId: curDraftNote.folderId,
+            userTags: nextPatch.userTags ?? [],
+          },
+          optimisticNote: {
+            ...curDraftNote,
+            title: nextPatch.title ?? curDraftNote.title,
+            content: nextPatch.content ?? curDraftNote.content,
+            pages: nextPatch.pages ?? curDraftNote.pages,
+            userTags: nextPatch.userTags ?? curDraftNote.userTags,
+          }
+        });
+        if (disposedRef.current) return;
+        lastSavedRef.current = serialized;
+        setDraftNoteRef.current(null); // Clear the draft flag, it is now in the DB
+        setDurableStateRef.current({ isSaving: false, lastSavedAt: Date.now(), error: null, hasUnsavedChanges: false });
+        setCollabDiagnostic(curNoteId, { status: curStatus, hydratedFromQuery: curHydrated, transport: "connected", persistence: "synced", durable: "saved", message: "Saved." });
+      } catch (err: unknown) {
+        if (disposedRef.current) return;
+        setDurableStateRef.current((s) => ({ ...s, isSaving: false, error: err instanceof Error ? err : new Error("Save failed.") }));
+        setCollabDiagnostic(curNoteId, { status: curStatus, hydratedFromQuery: curHydrated, transport: "connected", persistence: "synced", durable: "error", message: err instanceof Error ? err.message : "Save failed." });
+      }
+    } else {
+      try {
+        await mutateRef.current({ noteId: curNoteId, patch: nextPatch });
+        if (disposedRef.current) return;
+        lastSavedRef.current = serialized;
+        setDurableStateRef.current({ isSaving: false, lastSavedAt: Date.now(), error: null, hasUnsavedChanges: false });
+        setCollabDiagnostic(curNoteId, { status: curStatus, hydratedFromQuery: curHydrated, transport: "connected", persistence: "synced", durable: "saved", message: "Saved." });
+      } catch (err: unknown) {
+        if (disposedRef.current) return;
+        setDurableStateRef.current((s) => ({ ...s, isSaving: false, error: err instanceof Error ? err : new Error("Save failed.") }));
+        setCollabDiagnostic(curNoteId, { status: curStatus, hydratedFromQuery: curHydrated, transport: "connected", persistence: "synced", durable: "error", message: err instanceof Error ? err.message : "Save failed." });
+      }
+    }
+  }, [doc]);
+
   useEffect(() => {
     if (!hydratedFromQuery || status !== "ready") return;
 
     const scheduleSave = () => {
       const curHydrated = hydratedRef.current;
       const curStatus = statusRef.current;
-      const curNoteId = noteIdRef.current;
-      const curDraftNote = draftNoteRef.current;
 
       if (!curHydrated || curStatus !== "ready") return;
 
@@ -97,69 +172,7 @@ export function useDurableNoteSave() {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
 
       timeoutRef.current = setTimeout(() => {
-        setDurableStateRef.current((s) => ({ ...s, isSaving: true, error: null }));
-        setCollabDiagnostic(curNoteId, { status: curStatus, hydratedFromQuery: curHydrated, transport: "connected", persistence: "synced", durable: "saving", message: "Saving…" });
-
-        // If this is a new unsaved draft note
-        if (curDraftNote && curDraftNote.id === curNoteId) {
-          const cleanContent = (nextPatch.content ?? "")
-            .replace(/<p><\/p>/g, "")
-            .replace(/<p><br><\/p>/g, "")
-            .trim();
-          const titleText = (nextPatch.title ?? "").trim();
-          const isTitleNonEmpty = titleText.length > 0 && titleText !== "Untitled note";
-          const hasContent = isTitleNonEmpty || cleanContent.length > 0;
-
-          if (!hasContent) {
-            setDurableStateRef.current((s) => ({ ...s, isSaving: false }));
-            return;
-          }
-
-          // Trigger creation
-          void createMutateRef.current({
-            draft: {
-              title: nextPatch.title ?? "",
-              content: nextPatch.content ?? "",
-              folderId: curDraftNote.folderId,
-              userTags: nextPatch.userTags ?? [],
-            },
-            optimisticNote: {
-              ...curDraftNote,
-              title: nextPatch.title ?? curDraftNote.title,
-              content: nextPatch.content ?? curDraftNote.content,
-              pages: nextPatch.pages ?? curDraftNote.pages,
-              userTags: nextPatch.userTags ?? curDraftNote.userTags,
-            }
-          })
-            .then(() => {
-              if (disposedRef.current) return;
-              lastSavedRef.current = serialized;
-              setDraftNoteRef.current(null); // Clear the draft flag, it is now in the DB
-              setDurableStateRef.current({ isSaving: false, lastSavedAt: Date.now(), error: null, hasUnsavedChanges: false });
-              setCollabDiagnostic(curNoteId, { status: curStatus, hydratedFromQuery: curHydrated, transport: "connected", persistence: "synced", durable: "saved", message: "Saved." });
-            })
-            .catch((err: unknown) => {
-              if (disposedRef.current) return;
-              setDurableStateRef.current((s) => ({ ...s, isSaving: false, error: err instanceof Error ? err : new Error("Save failed.") }));
-              setCollabDiagnostic(curNoteId, { status: curStatus, hydratedFromQuery: curHydrated, transport: "connected", persistence: "synced", durable: "error", message: err instanceof Error ? err.message : "Save failed." });
-            });
-
-          return;
-        }
-
-        // Regular note save (update/patch)
-        void mutateRef.current({ noteId: curNoteId, patch: nextPatch })
-          .then(() => {
-            if (disposedRef.current) return;
-            lastSavedRef.current = serialized;
-            setDurableStateRef.current({ isSaving: false, lastSavedAt: Date.now(), error: null, hasUnsavedChanges: false });
-            setCollabDiagnostic(curNoteId, { status: curStatus, hydratedFromQuery: curHydrated, transport: "connected", persistence: "synced", durable: "saved", message: "Saved." });
-          })
-          .catch((err: unknown) => {
-            if (disposedRef.current) return;
-            setDurableStateRef.current((s) => ({ ...s, isSaving: false, error: err instanceof Error ? err : new Error("Save failed.") }));
-            setCollabDiagnostic(curNoteId, { status: curStatus, hydratedFromQuery: curHydrated, transport: "connected", persistence: "synced", durable: "error", message: err instanceof Error ? err.message : "Save failed." });
-          });
+        void flush();
       }, NOTE_COLLAB_SAVE_DEBOUNCE_MS);
     };
 
@@ -167,8 +180,14 @@ export function useDurableNoteSave() {
 
     return () => {
       doc.off("update", scheduleSave);
-      if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+        void flush();
+      }
     };
-  }, [doc, hydratedFromQuery, status]);
+  }, [doc, hydratedFromQuery, status, flush]);
+
+  return { flush };
 }
 

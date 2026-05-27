@@ -91,7 +91,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
     setTagsInput(tagString);
   }, [tagString]);
 
-  useDurableNoteSave();
+  const { flush } = useDurableNoteSave();
 
   const editor = useEditor({
     extensions: EDITOR_EXTENSIONS,
@@ -146,7 +146,8 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [markEditorDirty, onClose]);
 
-  function handleClose() {
+  async function handleClose() {
+    await flush();
     onClose();
   }
 

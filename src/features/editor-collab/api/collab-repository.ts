@@ -33,7 +33,7 @@ export const collabRepository = {
       .select(`
         user_id,
         role,
-        profiles:user_id (
+        profiles:profiles!user_id (
           email,
           display_name,
           avatar_url
@@ -167,11 +167,11 @@ export const collabRepository = {
       .from("note_invites")
       .select(`
         *,
-        notes:note_id (
+        notes:notes!note_id (
           title,
           owner_id
         ),
-        inviter:inviter_id (
+        inviter:profiles!inviter_id (
           email,
           display_name
         )
@@ -205,10 +205,10 @@ export const collabRepository = {
       .from("note_invites")
       .select(`
         *,
-        notes:note_id (
+        notes:notes!note_id (
           title
         ),
-        inviter:inviter_id (
+        inviter:profiles!inviter_id (
           email,
           display_name
         )

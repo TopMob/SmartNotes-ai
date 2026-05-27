@@ -36,8 +36,13 @@ function getFlatNotes(data: InfiniteNotesData | undefined): Note[] {
   return data?.pages.flatMap((page) => page.data) ?? [];
 }
 
-function updateFirstPageNotes(data: InfiniteNotesData | undefined, updater: (notes: Note[]) => Note[]): InfiniteNotesData | undefined {
-  if (!data) return data;
+function updateFirstPageNotes(data: InfiniteNotesData | undefined, updater: (notes: Note[]) => Note[]): InfiniteNotesData {
+  if (!data) {
+    return {
+      pages: [{ data: updater([]), nextCursor: null, hasMore: false }],
+      pageParams: [undefined],
+    };
+  }
   return {
     ...data,
     pages: data.pages.map((page, i) => (i === 0 ? { ...page, data: updater(page.data) } : page)),

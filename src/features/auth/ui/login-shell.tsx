@@ -79,7 +79,7 @@ export function LoginShell() {
   }
 
   return (
-    <main className="relative grid min-h-screen place-items-center px-4 py-4 sm:px-6 lg:p-6 overflow-hidden">
+    <main className="relative grid min-h-screen place-items-center px-4 py-8 sm:px-6 lg:p-6 overflow-y-auto">
       {/* Ambient Glow Backdrops */}
       <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
         <div className="absolute -top-[10%] left-[5%] h-[35rem] w-[35rem] rounded-full bg-accent/8 opacity-20 blur-[120px] sm:opacity-30" />
@@ -138,7 +138,7 @@ export function LoginShell() {
           <Button className="mt-5 h-12 w-full rounded-2xl bg-foreground text-background hover:bg-foreground/90 transition-all" disabled={pending} onClick={() => void loginWithGoogle()}>
             <span className="mr-2 flex h-5 w-5 items-center justify-center rounded-full bg-background text-xs font-black text-foreground shadow-sm">G</span>
             Войти через Google
-            <span className="ml-auto flex items-center gap-1 rounded-full bg-background/15 px-2 py-0.5 text-[10px] font-black">
+            <span className="ml-auto hidden sm:flex items-center gap-1 rounded-full bg-background/15 px-2 py-0.5 text-[10px] font-black">
               <Zap className="h-3 w-3" /> One Tap
             </span>
           </Button>
