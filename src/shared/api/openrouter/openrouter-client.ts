@@ -103,7 +103,6 @@ export async function openRouterComplete(systemPrompt: string, userPrompt: strin
     ],
     temperature: 0.2,
     max_tokens: 1024,
-    response_format: { type: "json_object" },
     ...options,
   });
 

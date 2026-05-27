@@ -172,9 +172,10 @@ export async function POST(request: Request) {
       const newMetadata = {
         ...currentMetadata,
         summary: result.summary || currentMetadata.summary || null,
+        promptVersion: result.promptVersion,
       };
 
-      await admin.from("notes").update({
+      const updateResponse = await admin.from("notes").update({
         user_tags: result.userTags,
         hidden_tags: result.hiddenTags,
         folder_id: result.folderId ?? undefined,
@@ -184,10 +185,14 @@ export async function POST(request: Request) {
         ai_processed: true,
         analyzed: true,
         ai_error: null,
-        prompt_version: result.promptVersion,
         metadata: newMetadata,
         updated_at: new Date().toISOString(),
       }).eq("id", body.noteId);
+
+      if (updateResponse.error) {
+        console.error("Database update error:", updateResponse.error);
+        throw new Error(`Database update failed: ${updateResponse.error.message}`);
+      }
 
       // Generate vector embeddings locally and save to note_embeddings
       const plainText = stripHtml(body.content || "");
@@ -214,7 +219,11 @@ export async function POST(request: Request) {
         }
         
         if (records.length > 0) {
-          await admin.from("note_embeddings").insert(records);
+          const insertResponse = await admin.from("note_embeddings").insert(records);
+          if (insertResponse.error) {
+            console.error("Database embeddings insert error:", insertResponse.error);
+            throw new Error(`Database embeddings insert failed: ${insertResponse.error.message}`);
+          }
         }
       }
     }
