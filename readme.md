@@ -196,7 +196,6 @@ npm run typecheck    # TypeScript type check
 7. **PWA required** — installable app, offline shell, system notifications
 
 ---
-
 ## License
 
 Private project. All rights reserved.
