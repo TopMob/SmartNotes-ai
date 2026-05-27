@@ -9,6 +9,8 @@ import { useAuthStore } from "@/features/auth/model/auth-store";
 import { useNoteUiStore } from "@/features/notes/model/note-ui-store";
 import { startSyncConsumer } from "@/services/sync/sync-consumer";
 import { startRealtimeSubscriptions, stopRealtimeSubscriptions } from "@/services/realtime/realtime-subscriptions";
+import { subscribe } from "@/services/event-bus";
+import { submitFeedback } from "@/features/feedback/api/feedback-api";
 
 export function DataBootstrap({ children }: Readonly<{ children: ReactNode }>) {
   const queryClient = useQueryClient();
@@ -45,6 +47,20 @@ export function DataBootstrap({ children }: Readonly<{ children: ReactNode }>) {
     stopRealtimeSubscriptions();
     return undefined;
   }, [canUseRemoteSync, queryClient]);
+
+  useEffect(() => {
+    const unsubscribe = subscribe("feedbackSubmitted", async (payload) => {
+      try {
+        await submitFeedback(payload);
+      } catch (error) {
+        console.error("Failed to submit feedback:", error);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   return children;
 }

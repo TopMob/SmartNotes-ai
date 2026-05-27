@@ -1,6 +1,6 @@
 import type { Note } from "@/entities/note";
 
-export type SheetName = "folder" | "note" | "pages" | "lock" | "about" | "create-folder" | "reminder" | "admin-tools" | null;
+export type SheetName = "folder" | "note" | "pages" | "lock" | "about" | "create-folder" | "reminder" | "admin-tools" | "share" | null;
 export type SheetAnchor = { x: number; y: number; placement: "above" | "below" };
 export type SheetState = { name: Exclude<SheetName, null>; anchor: SheetAnchor | null } | null;
 

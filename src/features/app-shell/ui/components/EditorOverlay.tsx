@@ -39,12 +39,14 @@ import { useDurableNoteSave } from "@/features/editor-collab/hooks/use-durable-n
 import { useNoteCollabSession } from "@/features/editor-collab/hooks/use-note-collab-session";
 import { useNoteTitleTags } from "@/features/editor-collab/hooks/use-note-title-tags";
 import { useNoteActions } from "@/features/notes/hooks/use-note-mutations";
-import { createLocalInlineMediaDescriptor } from "@/features/notes/lib/media-import";
+import { uploadMediaFile } from "@/features/notes/lib/media-import";
 import { useNoteUiStore } from "@/features/notes/model/note-ui-store";
 import { setMediaDiagnostic } from "@/services/diagnostics/runtime-diagnostics";
 import { Button } from "@/shared/ui/button";
+import { AccessBadge } from "@/features/editor-collab/ui/access-badge";
+import { useAuthStore } from "@/features/auth/model/auth-store";
 
-import { getSheetAnchor, plainTextToEditorContent, serializeEditorSnapshot, shareNote, type SheetAnchor, type SheetName } from "./shared";
+import { getSheetAnchor, plainTextToEditorContent, serializeEditorSnapshot, type SheetAnchor, type SheetName } from "./shared";
 
 const EDITOR_EXTENSIONS = [
   StarterKit.configure({ bulletList: { keepMarks: true, keepAttributes: false }, link: false }),
@@ -68,6 +70,11 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
   const currentNotePageIndex = useNoteUiStore((state) => state.currentNotePageIndex);
   const setCurrentNotePageIndex = useNoteUiStore((state) => state.setCurrentNotePageIndex);
   const { status, durableState } = useNoteCollabSession();
+  const user = useAuthStore((state) => state.user);
+  const isOwner = note.ownerId === user?.id || user?.id === "local-user";
+  const userAccess = note.access?.find(a => a.userId === user?.id);
+  const role = isOwner ? "owner" : (userAccess?.role ?? "viewer");
+
   const { page: currentPage, pageCount, addPage: _addPage, removePage, setPageContent } = useNoteCollabPage(currentNotePageIndex);
   const { title, userTags, setTitle, setUserTags } = useNoteTitleTags();
   const snapshotRef = useRef(serializeEditorSnapshot(note));
@@ -90,11 +97,18 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
     extensions: EDITOR_EXTENSIONS,
     content: plainTextToEditorContent(currentPage.content),
     immediatelyRender: false,
+    editable: role !== "viewer",
     onUpdate: ({ editor: tiptapEditor }) => {
       setPageContent(currentPage.id, tiptapEditor.getHTML());
       markEditorDirty(true);
     },
   });
+
+  useEffect(() => {
+    if (editor && !editor.isDestroyed) {
+      editor.setEditable(role !== "viewer");
+    }
+  }, [editor, role]);
 
   useEffect(() => {
     if (currentNotePageIndex > pageCount - 1) {
@@ -155,11 +169,13 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
   }
 
   function handleTitleChange(value: string) {
+    if (role === "viewer") return;
     setTitle(value);
     markEditorDirty(true);
   }
 
   function handleTagsBlur(value: string) {
+    if (role === "viewer") return;
     const tags = value.split(",").map((tag) => tag.trim()).filter(Boolean);
     setUserTags(tags);
     markEditorDirty(true);
@@ -178,13 +194,15 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
       }
 
       try {
-        const media = await createLocalInlineMediaDescriptor(file);
+        const media = await uploadMediaFile(file, note.id);
         attachMedia(note.id, media);
         if (media.url) editor?.chain().focus().setImage({ src: media.url }).run();
         setMediaDiagnostic({
           provider: media.provider,
-          degraded: true,
-          message: `Stored ${file.name} as local inline media because direct Drive upload is not configured in this client build.`,
+          degraded: media.provider === "local-inline",
+          message: media.provider === "local-inline"
+            ? `Stored ${file.name} as local inline media because direct Drive upload is not configured in this client build.`
+            : `Uploaded ${file.name} successfully to Google Drive via proxy.`,
         });
       } catch (error) {
         window.alert(error instanceof Error ? error.message : "Не удалось добавить изображение.");
@@ -224,7 +242,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
             <button
               aria-label="Удалить страницу"
               className="flex h-8 w-8 items-center justify-center rounded-lg text-destructive hover:bg-background disabled:opacity-35"
-              disabled={pageCount <= 1}
+              disabled={pageCount <= 1 || role === "viewer"}
               onClick={handleDeletePage}
               title="Удалить страницу"
               type="button"
@@ -233,17 +251,18 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
             </button>
           </div>
           <button className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={(event) => onOpenSheet("pages", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><Folder className="h-6 w-6 sm:h-5 sm:w-5" /></button>
+          <AccessBadge role={role} />
           <div className="ml-auto flex shrink-0 items-center gap-1">
-            <button className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong disabled:opacity-35 sm:h-10 sm:w-10" disabled={!editor.can().undo()} onClick={() => editor.chain().focus().undo().run()} type="button"><Undo2 className="h-6 w-6 sm:h-5 sm:w-5" /></button>
+             <button className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong disabled:opacity-35 sm:h-10 sm:w-10" disabled={!editor.can().undo()} onClick={() => editor.chain().focus().undo().run()} type="button"><Undo2 className="h-6 w-6 sm:h-5 sm:w-5" /></button>
             <button className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong disabled:opacity-35 sm:h-10 sm:w-10" disabled={!editor.can().redo()} onClick={() => editor.chain().focus().redo().run()} type="button"><Redo2 className="h-6 w-6 sm:h-5 sm:w-5" /></button>
-            <button className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={() => void shareNote(note)} type="button"><Share2 className="h-6 w-6 sm:h-5 sm:w-5" /></button>
+            <button className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={(event) => onOpenSheet("share", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><Share2 className="h-6 w-6 sm:h-5 sm:w-5" /></button>
             <button className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={(event) => onOpenSheet("note", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><MoreHorizontal className="h-6 w-6 sm:h-5 sm:w-5" /></button>
             <button className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={() => setToolbarVisible(!toolbarVisible)} type="button"><ChevronDown className="h-6 w-6 sm:h-5 sm:w-5" /></button>
           </div>
         </header>
 
         <section className="mt-3 min-h-0 flex-1 overflow-y-auto rounded-[2rem] border border-border bg-surface/88 p-4 shadow-2xl shadow-violet-950/8 sm:p-8">
-          <input className="w-full bg-transparent text-2xl font-black tracking-tight outline-none placeholder:text-foreground/28 sm:text-4xl" onChange={(event) => handleTitleChange(event.target.value)} placeholder="Заголовок" value={(title === "Untitled note" || title === "Untitled Note" ? "" : title) || ""} />
+           <input disabled={role === "viewer"} className="w-full bg-transparent text-2xl font-black tracking-tight outline-none placeholder:text-foreground/28 sm:text-4xl" onChange={(event) => handleTitleChange(event.target.value)} placeholder="Заголовок" value={(title === "Untitled note" || title === "Untitled Note" ? "" : title) || ""} />
           {isDrawing && (
             <DrawingCanvas
               onClose={() => setIsDrawing(false)}
@@ -253,7 +272,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
               }}
             />
           )}
-          {toolbarVisible ? (
+           {toolbarVisible && role !== "viewer" ? (
             <div className="sticky top-0 z-10 mt-4 flex flex-nowrap items-center gap-1.5 overflow-x-auto no-scrollbar overflow-y-hidden rounded-2xl border border-border bg-surface-strong/92 p-1.5 backdrop-blur-xl">
               <ToolButton active={editor.isActive("bold")} icon={Bold} onClick={() => editor.chain().focus().toggleBold().run()} />
               <ToolButton active={editor.isActive("italic")} icon={Italic} onClick={() => editor.chain().focus().toggleItalic().run()} />
@@ -285,6 +304,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
           <label className="flex min-h-11 flex-1 items-center gap-2 rounded-2xl bg-surface-strong px-3 sm:min-h-11">
             <Tag className="h-5 w-5 text-accent sm:h-4 sm:w-4" />
             <input 
+              disabled={role === "viewer"}
               className="min-w-0 flex-1 bg-transparent outline-none" 
               value={tagsInput}
               onChange={(event) => setTagsInput(event.target.value)}

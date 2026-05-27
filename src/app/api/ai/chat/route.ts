@@ -103,6 +103,7 @@ export async function POST(request: Request) {
     .eq("owner_id", userId)
     .is("trashed_at", null)
     .eq("is_archived", false)
+    .eq("lock_hidden", false)
     .limit(200);
 
   if (notesError || !notes) {

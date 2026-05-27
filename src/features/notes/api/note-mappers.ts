@@ -4,6 +4,9 @@ import { stripHtml } from "@/shared/utils/string";
 
 type NoteRow = Database["public"]["Tables"]["notes"]["Row"] & {
   note_pages?: Database["public"]["Tables"]["note_pages"]["Row"][];
+  note_access?: (Database["public"]["Tables"]["note_access"]["Row"] & {
+    profiles?: Database["public"]["Tables"]["profiles"]["Row"] | null;
+  })[];
 };
 type NoteInsert = Database["public"]["Tables"]["notes"]["Insert"];
 type NoteUpdate = Database["public"]["Tables"]["notes"]["Update"];
@@ -45,7 +48,14 @@ export function mapNoteRow(row: NoteRow): Note {
     isArchived: row.is_archived,
     reminderAt: row.reminder_at,
     lock: asLock(row),
-    access: [],
+    access: (row.note_access || []).map((acc) => ({
+      userId: acc.user_id,
+      role: acc.role,
+      status: "accepted" as const,
+      email: acc.profiles?.email || null,
+      displayName: acc.profiles?.display_name || null,
+      photoURL: acc.profiles?.avatar_url || null,
+    })),
     order: row.manual_order,
     folderOrder: row.folder_order,
     aiStatus: row.ai_status,

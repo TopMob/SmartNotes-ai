@@ -19,6 +19,7 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useUiStore } from "@/shared/store/ui-store";
+import { useNotesFlat } from "@/features/notes/hooks/use-notes-query";
 
 
 
@@ -56,7 +57,10 @@ function renderMarkdown(text: string): string {
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
     .replace(/\*(.+?)\*/g, "<em>$1</em>")
     .replace(/`(.+?)`/g, "<code class=\"rounded bg-foreground/8 px-1 py-0.5 text-[0.85em] font-mono\">$1</code>")
-    .replace(/\[Note: "(.+?)"\]/g, (_, t) => `<span class="font-bold text-violet-600">[${t}]</span>`)
+    .replace(/\[Note: "(.+?)"\]/g, (_, t) => {
+      const attrTitle = t.replace(/"/g, "&quot;");
+      return `<button class="note-link-inline font-black text-violet-600 hover:underline hover:text-violet-800" data-note-title="${attrTitle}">[${t}]</button>`;
+    })
     .replace(/\n\n/g, "</p><p class=\"mt-2\">")
     .replace(/\n/g, "<br/>");
 }
@@ -75,6 +79,7 @@ const QUICK_PROMPTS = [
 export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
   const open = useUiStore((s) => s.aiChatOpen);
   const setAiChatOpen = useUiStore((s) => s.setAiChatOpen);
+  const { data: notes = [] } = useNotesFlat();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -204,6 +209,22 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
     void navigator.clipboard?.writeText(text);
   }
 
+  const handleMessageClick = useCallback((e: React.MouseEvent<HTMLSpanElement>) => {
+    const target = e.target as HTMLElement;
+    const button = target.closest(".note-link-inline");
+    if (button) {
+      const title = button.getAttribute("data-note-title");
+      if (title) {
+        const found = notes.find((n) => n.title.toLowerCase() === title.toLowerCase());
+        if (found) {
+          onOpenNote?.(found.id);
+        } else {
+          window.alert(`Заметка "${title}" не найдена.`);
+        }
+      }
+    }
+  }, [notes, onOpenNote]);
+
   const isEmpty = messages.length === 0;
 
   return (
@@ -324,6 +345,7 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
                   >
                     {msg.role === "assistant" && !msg.error ? (
                       <span
+                        onClick={handleMessageClick}
                         dangerouslySetInnerHTML={{
                           __html: `<p>${renderMarkdown(msg.text)}</p>`,
                         }}

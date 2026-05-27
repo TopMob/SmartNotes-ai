@@ -22,8 +22,9 @@ import { listSyncQueue } from "@/services/sync/sync-queue";
 import { getConsoleLogs } from "@/services/console-log-store";
 import { getUiCopy } from "@/shared/lib/i18n";
 import { Button } from "@/shared/ui/button";
+import { SharePrompt } from "@/features/editor-collab/ui/share-prompt";
 
-import { exportNoteAsPdf, exportNoteAsTxt, exportNoteForImport, getNotePlainText, shareFolder, shareNote, type SheetState } from "./shared";
+import { exportNoteAsPdf, exportNoteAsTxt, exportNoteForImport, getNotePlainText, shareFolder, type SheetState, type SheetAnchor, type SheetName } from "./shared";
 
 type BottomSheetProps = {
   sheet: SheetState;
@@ -31,9 +32,10 @@ type BottomSheetProps = {
   editorDirty: boolean;
   isDesktop: boolean;
   onClose: () => void;
+  onOpenSheet?: (name: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void;
 };
 
-export function BottomSheet({ sheet, activeFolder, isDesktop, onClose }: BottomSheetProps) {
+export function BottomSheet({ sheet, activeFolder, isDesktop, onClose, onOpenSheet }: BottomSheetProps) {
   if (!sheet) {
     return null;
   }
@@ -54,7 +56,9 @@ export function BottomSheet({ sheet, activeFolder, isDesktop, onClose }: BottomS
                 ? "Напоминание"
                 : name === "admin-tools"
                   ? "Диагностика"
-                  : "О приложении";
+                  : name === "share"
+                    ? "Совместный доступ"
+                    : "О приложении";
   const topSheet = name === "pages";
   const mobileSheet = !isDesktop;
   const folderPopup = name === "folder" && !!anchor && !mobileSheet;
@@ -62,8 +66,8 @@ export function BottomSheet({ sheet, activeFolder, isDesktop, onClose }: BottomS
   function renderSheetContent() {
     return (
       <section
-        className={`absolute border border-border bg-surface p-4 shadow-2xl shadow-violet-950/20 backdrop-blur-2xl ${mobileSheet ? "inset-3 max-h-[calc(100vh-1.5rem)] overflow-y-auto rounded-[2rem]" : name === "note" || name === "about" ? "left-1/2 top-1/2 w-[min(92vw,32rem)] max-h-[86vh] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[2rem]" : anchor ? "w-[min(92vw,24rem)] max-h-[82vh] overflow-y-auto rounded-[1.8rem]" : topSheet ? "inset-x-0 top-0 max-h-[86vh] overflow-y-auto rounded-b-[2rem] lg:left-1/2 lg:top-4 lg:w-[min(94vw,48rem)] lg:-translate-x-1/2 lg:rounded-[2rem]" : "inset-x-0 bottom-0 max-h-[86vh] overflow-y-auto rounded-t-[2rem] lg:inset-auto lg:bottom-6 lg:right-6 lg:w-[420px] lg:rounded-[2rem]"}`}
-        style={name === "note" || name === "about" || mobileSheet || !anchor ? undefined : { left: `${anchor.x}px`, top: `${anchor.y}px`, transform: `translate(-50%, ${anchor.placement === "above" ? "-100%" : "0"})` }}
+        className={`absolute border border-border bg-surface p-4 shadow-2xl shadow-violet-950/20 backdrop-blur-2xl ${mobileSheet ? "inset-3 max-h-[calc(100vh-1.5rem)] overflow-y-auto rounded-[2rem]" : name === "note" || name === "about" || name === "share" ? "left-1/2 top-1/2 w-[min(92vw,32rem)] max-h-[86vh] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[2rem]" : anchor ? "w-[min(92vw,24rem)] max-h-[82vh] overflow-y-auto rounded-[1.8rem]" : topSheet ? "inset-x-0 top-0 max-h-[86vh] overflow-y-auto rounded-b-[2rem] lg:left-1/2 lg:top-4 lg:w-[min(94vw,48rem)] lg:-translate-x-1/2 lg:rounded-[2rem]" : "inset-x-0 bottom-0 max-h-[86vh] overflow-y-auto rounded-t-[2rem] lg:inset-auto lg:bottom-6 lg:right-6 lg:w-[420px] lg:rounded-[2rem]"}`}
+        style={name === "note" || name === "about" || name === "share" || mobileSheet || !anchor ? undefined : { left: `${anchor.x}px`, top: `${anchor.y}px`, transform: `translate(-50%, ${anchor.placement === "above" ? "-100%" : "0"})` }}
       >
         <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-foreground/18 lg:hidden" />
         <div className="flex items-center justify-between gap-3">
@@ -71,13 +75,14 @@ export function BottomSheet({ sheet, activeFolder, isDesktop, onClose }: BottomS
           <button className="rounded-full p-2 hover:bg-surface-strong" onClick={onClose} type="button"><X className="h-5 w-5" /></button>
         </div>
         {name === "folder" ? <FolderActionList activeFolder={activeFolder} /> : null}
-        {name === "note" ? <NoteActionSheet /> : null}
+        {name === "note" ? <NoteActionSheet onOpenSheet={onOpenSheet} /> : null}
         {name === "pages" ? <PagesContent /> : null}
         {name === "lock" ? <LockContent onClose={onClose} /> : null}
         {name === "about" ? <AboutContent /> : null}
         {name === "admin-tools" ? <DiagnosticsContent /> : null}
         {name === "create-folder" ? <CreateFolderContent onClose={onClose} /> : null}
         {name === "reminder" ? <ReminderContent onClose={onClose} /> : null}
+        {name === "share" ? <ShareContent onClose={onClose} /> : null}
       </section>
     );
   }
@@ -130,7 +135,7 @@ async function copyNoteText(note: Note) {
   textarea.remove();
 }
 
-function NoteActionSheet() {
+function NoteActionSheet({ onOpenSheet }: { onOpenSheet?: (name: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void }) {
   const { data: notes = [] } = useNotesFlat();
   const { data: folders = [] } = useFoldersQuery();
   const { moveNoteToFolder, patchNote, restoreNote, permanentlyDeleteNote, setArchived, setReminder, trashNote } = useNoteActions();
@@ -203,7 +208,7 @@ function NoteActionSheet() {
             <ActionCard label={note.isArchived ? "Вернуть из архива" : "Архивировать"} onClick={() => void setArchived(note.id, !note.isArchived)} />
             <ActionCard destructive label="Удалить" onClick={() => void trashNote(note.id)} />
             <ActionCard label="Копировать текст" onClick={() => void copyNoteText(note)} />
-            <ActionCard label="Поделиться заметкой" onClick={() => void shareNote(note)} />
+            <ActionCard label="Совместный доступ (коллаборация)" onClick={() => onOpenSheet?.("share", null)} />
             <ActionCard label="Переместить в папку" onClick={() => setFolderPickerOpen((value) => !value)} />
             <ActionCard label={note.reminderAt ? "Очистить напоминание" : "Напоминание"} onClick={() => { const reminderAt = note.reminderAt ? null : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); void setReminder(note.id, reminderAt); scheduleReminder(note.id, reminderAt); }} />
             <ActionCard label="Скачать файл для импорта" onClick={() => exportNoteForImport(note)} />
@@ -524,5 +529,22 @@ export function DiagnosticsContent() {
         <p className="mt-2 text-sm text-foreground/56">{mediaDiagnostic.message}</p>
       </section>
     </div>
+  );
+}
+
+function ShareContent({ onClose }: { onClose: () => void }) {
+  const { data: notes = [] } = useNotesFlat();
+  const currentNoteId = useNoteUiStore((state) => state.currentNoteId);
+  const note = notes.find((item) => item.id === currentNoteId) ?? null;
+
+  if (!note) return null;
+
+  return (
+    <SharePrompt
+      noteId={note.id}
+      noteTitle={note.title}
+      ownerId={note.ownerId}
+      onClose={onClose}
+    />
   );
 }

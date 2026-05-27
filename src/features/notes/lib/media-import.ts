@@ -21,3 +21,24 @@ export async function createLocalInlineMediaDescriptor(file: File): Promise<Medi
     thumbnailUrl: file.type.startsWith("image/") ? dataUrl : null,
   };
 }
+
+export async function uploadMediaFile(file: File, noteId: string): Promise<MediaDescriptor> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("noteId", noteId);
+
+  try {
+    const response = await fetch("/api/media/google-drive/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (response.ok) {
+      return (await response.json()) as MediaDescriptor;
+    }
+  } catch (error) {
+    console.warn("Failed to upload via Google Drive proxy, falling back to local-inline:", error);
+  }
+
+  return createLocalInlineMediaDescriptor(file);
+}

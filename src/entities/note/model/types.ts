@@ -34,6 +34,9 @@ export type NoteAccess = {
   userId: string;
   role: AccessRole;
   status: InviteStatus;
+  email?: string | null;
+  displayName?: string | null;
+  photoURL?: string | null;
 };
 
 export type Note = {

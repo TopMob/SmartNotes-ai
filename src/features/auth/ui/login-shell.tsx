@@ -37,7 +37,9 @@ export function LoginShell() {
 
   useEffect(() => {
     if (status === "authenticated") {
-      window.location.assign("/");
+      const searchParams = new URLSearchParams(window.location.search);
+      const nextPath = searchParams.get("next");
+      window.location.assign(nextPath || "/");
     }
   }, [status]);
 

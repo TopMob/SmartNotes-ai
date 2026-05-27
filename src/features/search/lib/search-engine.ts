@@ -36,14 +36,15 @@ export function fixLayout(text: string): string[] {
   return variants;
 }
 
-export function calculateScore(item: { title: string; content: string; userTags?: string[]; hiddenTags?: string[] }, query: string): number {
+export function calculateScore(item: { title: string; content: string; userTags?: string[]; hiddenTags?: string[]; lock?: { hidden: boolean } | null }, query: string): number {
   if (!query) return 1;
 
+  const isLocked = item.lock?.hidden === true;
   const variants = fixLayout(query);
   const title = normalizeText(item.title);
-  const content = normalizeText(item.content);
+  const content = isLocked ? "" : normalizeText(item.content);
   const userTags = (item.userTags || []).map(normalizeText);
-  const hiddenTags = (item.hiddenTags || []).map(normalizeText);
+  const hiddenTags = isLocked ? [] : (item.hiddenTags || []).map(normalizeText);
 
   let maxScore = 0;
 
@@ -57,15 +58,17 @@ export function calculateScore(item: { title: string; content: string; userTags?
     if (userTags.includes(q)) score += 80;
     if (hiddenTags.includes(q)) score += 60;
 
-    if (content === q) score += 40;
-    else if (content.includes(q)) score += 20;
+    if (!isLocked) {
+      if (content === q) score += 40;
+      else if (content.includes(q)) score += 20;
+    }
 
     // Fuzzy/Partial match weight (primitive)
     const tokens = q.split(/\s+/);
     for (const token of tokens) {
       if (token.length < 3) continue;
       if (title.includes(token)) score += 10;
-      if (content.includes(token)) score += 5;
+      if (!isLocked && content.includes(token)) score += 5;
       if (userTags.some(t => t.includes(token))) score += 15;
     }
 

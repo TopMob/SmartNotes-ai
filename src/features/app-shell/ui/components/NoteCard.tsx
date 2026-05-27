@@ -7,6 +7,7 @@ import { useNoteActions } from "@/features/notes/hooks/use-note-mutations";
 import { maskLockedPreview } from "@/features/lock-center/lib/lock-service";
 import { useNoteUiStore } from "@/features/notes/model/note-ui-store";
 import type { AppView } from "@/shared/store/ui-store";
+import { useAuthStore } from "@/features/auth/model/auth-store";
 
 import { getSheetAnchor, stripHtml, type SheetAnchor, type SheetName } from "./shared";
 
@@ -22,6 +23,8 @@ export function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: NoteC
   const [_folderPickerOpen, setFolderPickerOpen] = useState(false);
   const { toggleFavorite, togglePinned } = useNoteActions();
   const setCurrentNoteId = useNoteUiStore((state) => state.setCurrentNoteId);
+  const currentUserId = useAuthStore((state) => state.user?.id);
+  const isShared = (note.access && note.access.length > 0) || (note.ownerId && note.ownerId !== currentUserId && currentUserId !== "local-user" && currentUserId !== undefined);
 
   const previewText = note.lock?.hidden ? maskLockedPreview(note.id) : stripHtml(note.content);
   const reminderLabel = note.reminderAt
@@ -64,12 +67,13 @@ export function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: NoteC
         <p className={`mt-2 line-clamp-3 text-sm leading-6 text-foreground/60 ${note.lock?.hidden ? "select-none" : ""}`}>
           {previewText}
         </p>
-        {Boolean(note.reminderAt || note.lock || note.isArchived || folder) && (
+        {Boolean(note.reminderAt || note.lock || note.isArchived || folder || isShared) && (
           <div className="mt-3 flex flex-wrap items-center gap-2 text-[12px] font-black uppercase tracking-[0.18em] text-foreground/42">
             {note.reminderAt ? <span className="rounded-full bg-amber-500/10 px-2 py-1 text-amber-600">{reminderLabel}</span> : null}
             {note.lock ? <span className="rounded-full bg-foreground/8 px-2 py-1">🔒</span> : null}
             {note.isArchived ? <span className="rounded-full bg-foreground/8 px-2 py-1">Archive</span> : null}
             {folder ? <span className="rounded-full bg-accent/10 px-2 py-1 text-accent">{folder.name}</span> : null}
+            {isShared ? <span className="rounded-full bg-violet-500/10 px-2.5 py-1 text-violet-400">👥 Collab</span> : null}
           </div>
         )}
         {note.userTags.length > 0 && (
