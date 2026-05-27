@@ -3,7 +3,7 @@
 
 
 
-const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+const OPENROUTER_BASE_URL = process.env.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1";
 const OPENROUTER_DEFAULT_MODEL = "openai/gpt-4o-mini";
 const MAX_RETRIES = 3;
 const RETRY_BASE_DELAY_MS = 1000;
