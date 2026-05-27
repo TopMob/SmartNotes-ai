@@ -519,10 +519,10 @@ function AboutContent({ copy }: { copy: ReturnType<typeof getUiCopy> }) {
   const dlgs = copy.shell.dialogs;
 
   const developers = [
-    { name: "Александров Арсений", role: "Frontend & UI/UX" },
-    { name: "Малышев Егор", role: "Backend & Systems" },
-    { name: "Миняев Иван", role: "AI Integration" },
-    { name: "Копаев Иван", role: "Product Manager" },
+    { name: "Александров Арсений", role: "QA Tester" },
+    { name: "Малышев Егор", role: "UI/UX Designer" },
+    { name: "Миняев Иван", role: "Full-Stack Developer" },
+    { name: "Копаев Иван", role: "Product Manager & Chief Visionary Officer (CVO)" },
   ];
 
   function handleFeedbackSubmit() {
