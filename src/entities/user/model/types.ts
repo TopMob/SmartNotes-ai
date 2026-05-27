@@ -8,4 +8,5 @@ export type User = {
   displayName: string | null;
   photoURL: string | null;
   accessToken?: string;
+  hasGoogleLinked?: boolean;
 };

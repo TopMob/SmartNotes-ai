@@ -3,7 +3,20 @@ export function escapeHtml(value: string) {
 }
 
 export function stripHtml(value: string) {
-  return value
+  if (!value) return "";
+  let clean = value;
+  
+  // Pre-strip huge base64 data URLs to prevent regex catastrophic backtracking/limits
+  clean = clean.replace(/src="data:image\/[^"]+"/gi, 'src="[Фото]"');
+  clean = clean.replace(/src='data:image\/[^']+'/gi, "src='[Фото]'");
+  
+  // Replace img tags with [Фото]
+  clean = clean.replace(/<img[^>]*>/gi, " [Фото] ");
+  
+  // Replace api media download links with [Фото]
+  clean = clean.replace(/\/api\/media\/google-drive\/download\?fileId=[a-zA-Z0-9-]+/g, " [Фото] ");
+
+  return clean
     .replace(/<[^>]*>/gu, " ")
     .replace(/&amp;/gu, "&")
     .replace(/&lt;/gu, "<")
