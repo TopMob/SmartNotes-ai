@@ -12,6 +12,8 @@ export type Folder = {
   createdAt: string;
   updatedAt: string;
   trashedAt: string | null;
+  embedding?: string | null;
+  isSystem?: boolean;
 };
 
 export type FolderDraft = Pick<Folder, "name" | "description" | "isHidden">;

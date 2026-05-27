@@ -82,6 +82,7 @@ export function useDurableNoteSave() {
     const curDraftNote = draftNoteRef.current;
 
     if (!curHydrated || curStatus !== "ready") return;
+    if (lastSavedRef.current === null) return;
 
     const nextPatch = normalizeNotePatch(buildDurableNotePatchFromYDoc(doc), { scheduleAnalysis: false });
     const serialized = serializeContentSnapshot(nextPatch);

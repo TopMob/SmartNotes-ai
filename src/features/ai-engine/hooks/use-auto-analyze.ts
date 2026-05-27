@@ -1,12 +1,22 @@
 import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAiEngineStore } from "../model/ai-store";
+import type { Note } from "@/entities/note";
+import { normalizeText } from "@/shared/utils/string";
 
-export function useAutoAnalyze(noteId: string, content: string) {
+async function computeHash(text: string): Promise<string> {
+  const msgBuffer = new TextEncoder().encode(text);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+export function useAutoAnalyze(note: Note, content: string) {
   const setStatus = useAiEngineStore((state) => state.setStatus);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isFirstRender = useRef(true);
   const queryClient = useQueryClient();
+  const lastHashRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (isFirstRender.current) {
@@ -14,27 +24,38 @@ export function useAutoAnalyze(noteId: string, content: string) {
       return;
     }
 
-    setStatus("pending");
-
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
 
     timeoutRef.current = setTimeout(async () => {
-      setStatus("analyzing");
-
       try {
+        const normalized = normalizeText(content);
+        const hash = await computeHash(normalized);
+        
+        // Check if hash matches the DB metadata content_hash or our last local hash
+        const existingMetadata = note.metadata as any;
+        const storedHash = existingMetadata?.content_hash || null;
+        
+        if (hash === storedHash || hash === lastHashRef.current) {
+          console.log("Content hash matches. Skipping auto AI analysis.");
+          return;
+        }
+
+        setStatus("pending");
+        setStatus("analyzing");
+
         const response = await fetch("/api/ai/analyze", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ noteId }),
+          body: JSON.stringify({ noteId: note.id }),
         });
 
         if (response.ok) {
+          lastHashRef.current = hash;
           setStatus("done");
-          // Invalidate notes query to reload the updated note summary/metadata in the UI
           void queryClient.invalidateQueries({
             predicate: (query) => query.queryKey[0] === "notes",
           });
@@ -52,5 +73,5 @@ export function useAutoAnalyze(noteId: string, content: string) {
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [content, noteId, setStatus, queryClient]);
+  }, [content, note, setStatus, queryClient]);
 }

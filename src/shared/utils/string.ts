@@ -12,3 +12,10 @@ export function stripHtml(value: string) {
     .replace(/\s+/gu, " ")
     .trim();
 }
+
+export function normalizeText(text: string): string {
+  return stripHtml(text)
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]/gu, "");
+}
+

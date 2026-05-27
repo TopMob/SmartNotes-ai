@@ -78,7 +78,7 @@ export const notesRepository: NotesRepository = {
 
     const hasMore = data.length > limit;
     const rows = hasMore ? data.slice(0, limit) : data;
-    const notes = rows.map(mapNoteRow);
+    const notes = (rows as any).map(mapNoteRow);
 
     return {
       data: notes,
@@ -103,7 +103,7 @@ export const notesRepository: NotesRepository = {
       throw error;
     }
 
-    return data.map(mapNoteRow);
+    return (data as any).map(mapNoteRow);
   },
   async create(note) {
     if (shouldUseLocal()) {

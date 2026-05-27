@@ -51,9 +51,22 @@ export const foldersRepository: FoldersRepository = {
       return localFoldersRepository.create(createLocalFolder(draft, ownerId, folderOrder));
     }
 
+    let embedding: string | null = null;
+    try {
+      const folderText = `${draft.name} ${draft.description || ""}`.trim();
+      const { data: embedData } = await supabase.functions.invoke("embed", {
+        body: { text: folderText, isFolder: true },
+      });
+      if (embedData && Array.isArray(embedData.embedding)) {
+        embedding = JSON.stringify(embedData.embedding);
+      }
+    } catch (e) {
+      console.warn("Failed to generate folder embedding on creation:", e);
+    }
+
     const { data, error } = await supabase
       .from("folders")
-      .insert(mapFolderDraftToInsert(draft, ownerId, folderOrder))
+      .insert(mapFolderDraftToInsert(draft, ownerId, folderOrder, embedding))
       .select("*")
       .single();
 
@@ -74,9 +87,38 @@ export const foldersRepository: FoldersRepository = {
       return localFoldersRepository.patch(folderId, patch);
     }
 
+    let updatedEmbedding: string | null | undefined = undefined;
+    if (patch.name !== undefined || patch.description !== undefined) {
+      try {
+        const { data: currentFolder } = await supabase
+          .from("folders")
+          .select("name, description")
+          .eq("id", folderId)
+          .single();
+
+        const finalName = patch.name !== undefined ? patch.name : (currentFolder?.name || "");
+        const finalDesc = patch.description !== undefined ? patch.description : (currentFolder?.description || "");
+        const folderText = `${finalName} ${finalDesc || ""}`.trim();
+
+        const { data: embedData } = await supabase.functions.invoke("embed", {
+          body: { text: folderText, isFolder: true },
+        });
+        if (embedData && Array.isArray(embedData.embedding)) {
+          updatedEmbedding = JSON.stringify(embedData.embedding);
+        }
+      } catch (e) {
+        console.warn("Failed to update folder embedding:", e);
+      }
+    }
+
+    const updatePayload = mapFolderPatchToUpdate(patch);
+    if (updatedEmbedding !== undefined) {
+      updatePayload.embedding = updatedEmbedding;
+    }
+
     const { data, error } = await supabase
       .from("folders")
-      .update(mapFolderPatchToUpdate(patch))
+      .update(updatePayload)
       .eq("id", folderId)
       .select("*")
       .single();

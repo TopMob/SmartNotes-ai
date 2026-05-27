@@ -18,10 +18,18 @@ export function mapFolderRow(row: FolderRow): Folder {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     trashedAt: row.trashed_at,
+    embedding: row.embedding,
+    isSystem: row.is_system ?? false,
   };
 }
 
-export function mapFolderDraftToInsert(draft: FolderDraft, ownerId: string, folderOrder: number): FolderInsert {
+export function mapFolderDraftToInsert(
+  draft: FolderDraft,
+  ownerId: string,
+  folderOrder: number,
+  embedding?: string | null,
+  isSystem?: boolean
+): FolderInsert {
   return {
     owner_id: ownerId,
     name: draft.name.trim() || "Новая папка",
@@ -30,6 +38,8 @@ export function mapFolderDraftToInsert(draft: FolderDraft, ownerId: string, fold
     is_archived: false,
     folder_order: folderOrder,
     access_role: "owner",
+    embedding: embedding ?? null,
+    is_system: isSystem ?? false,
   };
 }
 
@@ -45,5 +55,7 @@ export function mapFolderPatchToUpdate(patch: Partial<Folder>): FolderUpdate {
     created_at: patch.createdAt,
     updated_at: patch.updatedAt,
     trashed_at: patch.trashedAt,
+    embedding: patch.embedding,
+    is_system: patch.isSystem,
   };
 }

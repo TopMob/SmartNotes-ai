@@ -82,7 +82,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
   const editorDirty = useNoteUiStore((state) => state.editorDirty);
   const markEditorDirty = useNoteUiStore((state) => state.markEditorDirty);
   const aiStatus = useAiEngineStore((state) => state.status);
-  useAutoAnalyze(note.id, currentPage.content);
+  useAutoAnalyze(note, currentPage.content);
   const [isDrawing, setIsDrawing] = useState(false);
 
   const tagString = userTags.join(", ");
