@@ -10,7 +10,6 @@ import {
   Bot,
   ChevronRight,
   Copy,
-  Loader2,
   RotateCcw,
   Send,
   Sparkles,

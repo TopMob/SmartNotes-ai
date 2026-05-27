@@ -35,7 +35,7 @@ import { MathExtension } from "@/features/editor/lib/math-extension";
 import { DrawingCanvas } from "@/features/editor/ui/DrawingCanvas";
 import { useAiEngineStore } from "@/features/ai-engine/model/ai-store";
 import { useAutoAnalyze } from "@/features/ai-engine/hooks/use-auto-analyze";
-import { useEffect, useRef, useState, type ComponentType } from "react";
+import { useEffect, useRef, useState, useCallback, type ComponentType } from "react";
 
 import type { Note } from "@/entities/note";
 import { useNoteCollabPage } from "@/features/editor-collab/hooks/use-note-collab-page";
@@ -129,6 +129,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
     markEditorDirty(false);
     setCurrentNotePageIndex(0);
     isHydratedRef.current = false;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [markEditorDirty, note.id, setCurrentNotePageIndex]);
 
 
@@ -147,21 +148,21 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
     markEditorDirty(durableState.hasUnsavedChanges);
   }, [durableState.hasUnsavedChanges, markEditorDirty]);
 
+  const handleClose = useCallback(async () => {
+    await flush();
+    onClose();
+  }, [flush, onClose]);
+
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        handleClose();
+        void handleClose();
       }
     }
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [markEditorDirty, onClose]);
-
-  async function handleClose() {
-    await flush();
-    onClose();
-  }
+  }, [handleClose]);
 
   function handleDeletePage() {
     if (pageCount <= 1) return;

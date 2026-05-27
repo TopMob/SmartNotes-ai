@@ -25,6 +25,12 @@ Always cite which note(s) your answer comes from using [Note: "title"] format.
 Be concise, helpful, and use the same language as the question.
 Respond in plain text (no markdown code blocks).`;
 
+interface EmbeddingMatch {
+  note_id: string;
+  note_title?: string;
+  content: string;
+}
+
 export async function POST(request: Request) {
 
   let userId: string | null = null;
@@ -58,7 +64,7 @@ export async function POST(request: Request) {
     { cookies: { getAll: () => cookieStore.getAll(), setAll: () => undefined } },
   );
 
-  let chunks: any[] = [];
+  let chunks: EmbeddingMatch[] = [];
   try {
     const questionEmbedding = await getEmbedding(question);
     const { data, error } = await supabase.rpc("match_note_embeddings", {
@@ -69,7 +75,7 @@ export async function POST(request: Request) {
     });
     
     if (error) throw error;
-    chunks = data || [];
+    chunks = (data as EmbeddingMatch[]) || [];
   } catch (error) {
     console.error("Vector matching failed:", error);
     return NextResponse.json({ error: "Failed to search vector embeddings" }, { status: 500, headers: CORS_HEADERS });

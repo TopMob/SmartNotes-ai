@@ -1,6 +1,8 @@
 import { getSupabaseUrl, getSupabaseServiceRoleKey, getSupabasePublishableKey } from "@/shared/api/supabase/env";
 
-let extractorPromise: Promise<any> | null = null;
+type Extractor = (text: string, options?: { pooling?: string; normalize?: boolean }) => Promise<{ data: number[] | Float32Array }>;
+
+let extractorPromise: Promise<Extractor> | null = null;
 
 /**
  * Generates a 384-dimensional vector embedding for the given text.
@@ -51,7 +53,7 @@ export async function getEmbedding(text: string): Promise<number[]> {
     env.cacheDir = "./.next/cache/transformers";
 
     if (!extractorPromise) {
-      extractorPromise = pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2");
+      extractorPromise = pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2") as unknown as Promise<Extractor>;
     }
     const extractor = await extractorPromise;
     const output = await extractor(cleanText, { pooling: "mean", normalize: true });

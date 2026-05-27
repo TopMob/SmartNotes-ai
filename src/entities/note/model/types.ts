@@ -63,7 +63,7 @@ export type Note = {
   aiError: string | null;
   aiRelevance: number;
   resurfacingClass: ResurfacingClass | null;
-  metadata?: any | null;
+  metadata?: Record<string, unknown> | null;
   createdAt: string;
   updatedAt: string;
   trashedAt: string | null;

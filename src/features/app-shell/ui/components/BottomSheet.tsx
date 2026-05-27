@@ -38,6 +38,10 @@ type BottomSheetProps = {
 };
 
 export function BottomSheet({ sheet, activeFolder, isDesktop, onClose, onOpenSheet }: BottomSheetProps) {
+  const { data: settings } = useSettingsQuery();
+  const lang = settings?.lang ?? "ru";
+  const copy = getUiCopy(lang);
+
   if (!sheet) {
     return null;
   }
@@ -45,22 +49,22 @@ export function BottomSheet({ sheet, activeFolder, isDesktop, onClose, onOpenShe
   const { name, anchor } = sheet;
   const title =
     name === "folder"
-      ? "Папка"
+      ? copy.shell.folder
       : name === "note"
-        ? "Действия заметки"
+        ? copy.shell.noteActions
         : name === "pages"
-          ? "Страницы"
+          ? copy.shell.pages
           : name === "lock"
-            ? "Lock Center"
+            ? copy.shell.lockCenter
             : name === "create-folder"
-              ? "Создать папку"
+              ? copy.shell.createFolderSheet
               : name === "reminder"
-                ? "Напоминание"
+                ? copy.shell.reminder
                 : name === "admin-tools"
-                  ? "Диагностика"
+                  ? copy.shell.adminTools
                   : name === "share"
-                    ? "Совместный доступ"
-                    : "О приложении";
+                    ? copy.shell.actions.share
+                    : copy.shell.aboutSheet;
   const topSheet = name === "pages";
   const mobileSheet = !isDesktop;
   const folderPopup = name === "folder" && !!anchor && !mobileSheet;
@@ -76,14 +80,14 @@ export function BottomSheet({ sheet, activeFolder, isDesktop, onClose, onOpenShe
           <h2 className="min-w-0 truncate text-xl font-black">{title}</h2>
           <button className="rounded-full p-2 hover:bg-surface-strong" onClick={onClose} type="button"><X className="h-5 w-5" /></button>
         </div>
-        {name === "folder" ? <FolderActionList activeFolder={activeFolder} /> : null}
-        {name === "note" ? <NoteActionSheet onOpenSheet={onOpenSheet} /> : null}
-        {name === "pages" ? <PagesContent /> : null}
-        {name === "lock" ? <LockContent onClose={onClose} /> : null}
-        {name === "about" ? <AboutContent /> : null}
+        {name === "folder" ? <FolderActionList copy={copy} activeFolder={activeFolder} /> : null}
+        {name === "note" ? <NoteActionSheet copy={copy} onOpenSheet={onOpenSheet} /> : null}
+        {name === "pages" ? <PagesContent copy={copy} /> : null}
+        {name === "lock" ? <LockContent copy={copy} onClose={onClose} /> : null}
+        {name === "about" ? <AboutContent copy={copy} /> : null}
         {name === "admin-tools" ? <DiagnosticsContent /> : null}
-        {name === "create-folder" ? <CreateFolderContent onClose={onClose} /> : null}
-        {name === "reminder" ? <ReminderContent onClose={onClose} /> : null}
+        {name === "create-folder" ? <CreateFolderContent copy={copy} onClose={onClose} /> : null}
+        {name === "reminder" ? <ReminderContent copy={copy} onClose={onClose} /> : null}
         {name === "share" ? <ShareContent onClose={onClose} /> : null}
       </section>
     );
@@ -102,7 +106,7 @@ export function BottomSheet({ sheet, activeFolder, isDesktop, onClose, onOpenShe
   );
 }
 
-function getLockPassword(promptText: string) {
+function getLockPassword(promptText: string, errorEmpty: string) {
   const value = window.prompt(promptText);
 
   if (value === null) {
@@ -112,7 +116,7 @@ function getLockPassword(promptText: string) {
   const password = value.trim();
 
   if (!password) {
-    window.alert("Пароль не может быть пустым.");
+    window.alert(errorEmpty);
     return null;
   }
 
@@ -137,7 +141,7 @@ async function copyNoteText(note: Note) {
   textarea.remove();
 }
 
-function NoteActionSheet({ onOpenSheet }: { onOpenSheet?: (name: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void }) {
+function NoteActionSheet({ copy, onOpenSheet }: { copy: ReturnType<typeof getUiCopy>; onOpenSheet?: (name: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void }) {
   const { data: notes = [] } = useNotesFlat();
   const { data: folders = [] } = useFoldersQuery();
   const { moveNoteToFolder, patchNote, restoreNote, permanentlyDeleteNote, setArchived, setReminder, trashNote } = useNoteActions();
@@ -147,6 +151,7 @@ function NoteActionSheet({ onOpenSheet }: { onOpenSheet?: (name: Exclude<SheetNa
   const visibleFolders = useMemo(() => folders.filter((folder) => !folder.trashedAt && !folder.isHidden), [folders]);
 
   const aiStatus = useAiEngineStore((state) => state.status);
+  const dlgs = copy.shell.dialogs;
 
   async function toggleNoteLock() {
     if (!note) {
@@ -154,7 +159,10 @@ function NoteActionSheet({ onOpenSheet }: { onOpenSheet?: (name: Exclude<SheetNa
     }
 
     if (note.lock) {
-      const password = getLockPassword("Введите пароль для снятия блокировки");
+      const password = getLockPassword(
+        dlgs?.lockPromptUnlock || "Введите пароль для снятия блокировки",
+        dlgs?.lockAlertEmpty || "Пароль не может быть пустым."
+      );
 
       if (!password) {
         return false;
@@ -163,7 +171,7 @@ function NoteActionSheet({ onOpenSheet }: { onOpenSheet?: (name: Exclude<SheetNa
       const valid = await verifyNoteLock(note.lock, password);
 
       if (!valid) {
-        window.alert("Неверный пароль.");
+        window.alert(dlgs?.lockAlertIncorrect || "Неверный пароль.");
         return false;
       }
 
@@ -171,20 +179,26 @@ function NoteActionSheet({ onOpenSheet }: { onOpenSheet?: (name: Exclude<SheetNa
       return true;
     }
 
-    const password = getLockPassword("Задайте пароль для заметки");
+    const password = getLockPassword(
+      dlgs?.lockPromptSet || "Задайте пароль для заметки",
+      dlgs?.lockAlertEmpty || "Пароль не может быть пустым."
+    );
 
     if (!password) {
       return false;
     }
 
-    const confirmPassword = getLockPassword("Повторите пароль для подтверждения");
+    const confirmPassword = getLockPassword(
+      dlgs?.lockConfirmPassword || "Повторите пароль для подтверждения",
+      dlgs?.lockAlertEmpty || "Пароль не может быть пустым."
+    );
 
     if (!confirmPassword) {
       return false;
     }
 
     if (password !== confirmPassword) {
-      window.alert("Пароли не совпадают.");
+      window.alert(dlgs?.lockAlertMismatch || "Пароли не совпадают.");
       return false;
     }
 
@@ -199,35 +213,35 @@ function NoteActionSheet({ onOpenSheet }: { onOpenSheet?: (name: Exclude<SheetNa
 
   return (
     <div className="mt-4 space-y-4 pb-6">
-      <AiSummaryCard summary={note.metadata?.summary} aiStatus={aiStatus} />
+      <AiSummaryCard summary={note.metadata?.summary as string | undefined} aiStatus={aiStatus} />
       <div className="grid gap-2 sm:grid-cols-2">
         {note.trashedAt ? (
           <>
-            <ActionCard label="Восстановить" onClick={() => void restoreNote(note.id)} />
-            <ActionCard destructive label="Удалить навсегда" onClick={() => void permanentlyDeleteNote(note.id)} />
+            <ActionCard label={copy.shell.actions.restore} onClick={() => void restoreNote(note.id)} />
+            <ActionCard destructive label={copy.shell.actions.permanentDelete} onClick={() => void permanentlyDeleteNote(note.id)} />
           </>
         ) : (
           <>
-            <ActionCard label="Отметить для повторного анализа" onClick={() => void patchNote(note.id, { aiStatus: "pending", aiProcessed: false, analyzed: false, aiError: null }, { scheduleAnalysis: false })} />
-            <ActionCard label={note.lock?.hidden ? "Показать по паролю" : note.lock ? "Скрыть снова" : "Заблокировать заметку"} onClick={() => void toggleNoteLock()} />
-            <ActionCard label={note.isArchived ? "Вернуть из архива" : "Архивировать"} onClick={() => void setArchived(note.id, !note.isArchived)} />
-            <ActionCard destructive label="Удалить" onClick={() => void trashNote(note.id)} />
-            <ActionCard label="Копировать текст" onClick={() => void copyNoteText(note)} />
-            <ActionCard label="Совместный доступ (коллаборация)" onClick={() => onOpenSheet?.("share", null)} />
-            <ActionCard label="Переместить в папку" onClick={() => setFolderPickerOpen((value) => !value)} />
-            <ActionCard label={note.reminderAt ? "Очистить напоминание" : "Напоминание"} onClick={() => { const reminderAt = note.reminderAt ? null : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); void setReminder(note.id, reminderAt); scheduleReminder(note.id, reminderAt); }} />
-            <ActionCard label="Скачать файл для импорта" onClick={() => exportNoteForImport(note)} />
-            <ActionCard label="Скачать TXT" onClick={() => exportNoteAsTxt(note)} />
-            <ActionCard label="Экспорт PDF" onClick={() => exportNoteAsPdf(note)} />
+            <ActionCard label={dlgs?.reanalyze || "Отметить для повторного анализа"} onClick={() => void patchNote(note.id, { aiStatus: "pending", aiProcessed: false, analyzed: false, aiError: null }, { scheduleAnalysis: false })} />
+            <ActionCard label={note.lock?.hidden ? (dlgs?.lockShow || "Показать по паролю") : note.lock ? (dlgs?.lockHide || "Скрыть снова") : (dlgs?.lockNote || "Заблокировать заметку")} onClick={() => void toggleNoteLock()} />
+            <ActionCard label={note.isArchived ? (dlgs?.unarchive || "Вернуть из архива") : copy.shell.actions.archive} onClick={() => void setArchived(note.id, !note.isArchived)} />
+            <ActionCard destructive label={copy.shell.actions.delete} onClick={() => void trashNote(note.id)} />
+            <ActionCard label={dlgs?.copyText || "Копировать текст"} onClick={() => void copyNoteText(note)} />
+            <ActionCard label={dlgs?.collabAccess || "Совместный доступ (коллаборация)"} onClick={() => onOpenSheet?.("share", null)} />
+            <ActionCard label={dlgs?.moveToFolder || "Переместить в папку"} onClick={() => setFolderPickerOpen((value) => !value)} />
+            <ActionCard label={note.reminderAt ? (dlgs?.clearReminder || "Очистить напоминание") : copy.shell.reminder} onClick={() => { const reminderAt = note.reminderAt ? null : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); void setReminder(note.id, reminderAt); scheduleReminder(note.id, reminderAt); }} />
+            <ActionCard label={dlgs?.downloadForImport || "Скачать файл для импорта"} onClick={() => exportNoteForImport(note)} />
+            <ActionCard label={dlgs?.downloadTxt || "Скачать TXT"} onClick={() => exportNoteAsTxt(note)} />
+            <ActionCard label={dlgs?.exportPdf || "Экспорт PDF"} onClick={() => exportNoteAsPdf(note)} />
           </>
         )}
       </div>
 
       {folderPickerOpen ? (
         <div className="rounded-[1.5rem] border border-border bg-surface-strong p-4">
-          <div className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-foreground/42">Папки</div>
+          <div className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-foreground/42">{copy.shell.folders}</div>
           <div className="grid gap-2 sm:grid-cols-2">
-            <ActionCard label="Без папки" onClick={() => { void moveNoteToFolder(note.id, null); setFolderPickerOpen(false); }} />
+            <ActionCard label={copy.shell.prompts.emptyFolder || "Без папки"} onClick={() => { void moveNoteToFolder(note.id, null); setFolderPickerOpen(false); }} />
             {visibleFolders.map((folder) => (
               <ActionCard key={folder.id} label={folder.name} onClick={() => { void moveNoteToFolder(note.id, folder.id); setFolderPickerOpen(false); }} />
             ))}
@@ -236,8 +250,12 @@ function NoteActionSheet({ onOpenSheet }: { onOpenSheet?: (name: Exclude<SheetNa
       ) : null}
 
       <div className="grid gap-2 rounded-[1.5rem] border border-border bg-surface-strong p-4 sm:grid-cols-2">
-        <div className="rounded-2xl bg-background px-4 py-3 text-sm font-semibold text-foreground/72">Ваш доступ: {note.access.length ? note.access[0].role : "локальный"}</div>
-        <div className="rounded-2xl bg-background px-4 py-3 text-sm font-semibold text-foreground/72">Статус анализа: {note.aiStatus === "done" ? "готово" : note.aiStatus === "pending" ? "в очереди" : note.aiStatus === "analyzing" ? "анализируется" : "ошибка"}</div>
+        <div className="rounded-2xl bg-background px-4 py-3 text-sm font-semibold text-foreground/72">
+          {(dlgs?.yourAccess || "Ваш доступ: ") + (note.access.length ? note.access[0].role : (dlgs?.accessLocal || "локальный"))}
+        </div>
+        <div className="rounded-2xl bg-background px-4 py-3 text-sm font-semibold text-foreground/72">
+          {(dlgs?.aiStatusLabel || "Статус анализа: ") + (note.aiStatus === "done" ? copy.shell.status.aiDone : note.aiStatus === "pending" ? copy.shell.status.aiPending : note.aiStatus === "analyzing" ? copy.shell.status.aiAnalyzing : copy.shell.status.aiError)}
+        </div>
       </div>
     </div>
   );
@@ -251,7 +269,7 @@ function ActionCard({ label, onClick, destructive = false }: { label: string; on
   );
 }
 
-function FolderActionList({ activeFolder }: { activeFolder: FolderEntity | null }) {
+function FolderActionList({ copy, activeFolder }: { copy: ReturnType<typeof getUiCopy>; activeFolder: FolderEntity | null }) {
   const { hideFolder, moveFolder, renameFolder, trashFolder, unhideFolder, updateFolderDescription } = useFolderActions();
 
   if (!activeFolder) {
@@ -259,9 +277,10 @@ function FolderActionList({ activeFolder }: { activeFolder: FolderEntity | null 
   }
 
   const folder = activeFolder;
+  const dlgs = copy.shell.dialogs;
 
   function handleRename() {
-    const nextName = window.prompt("Новое имя папки", folder.name)?.trim();
+    const nextName = window.prompt(dlgs?.folderRenamePrompt || "Новое имя папки", folder.name)?.trim();
 
     if (!nextName) {
       return;
@@ -271,7 +290,8 @@ function FolderActionList({ activeFolder }: { activeFolder: FolderEntity | null 
   }
 
   function handleDelete() {
-    if (!window.confirm(`Удалить папку «${folder.name}»?`)) {
+    const confirmMsg = (dlgs?.folderDeleteConfirm || "Удалить папку «{name}»?").replace("{name}", folder.name);
+    if (!window.confirm(confirmMsg)) {
       return;
     }
 
@@ -279,7 +299,7 @@ function FolderActionList({ activeFolder }: { activeFolder: FolderEntity | null 
   }
 
   function handleDescription() {
-    const nextValue = window.prompt("Описание папки", folder.description ?? "");
+    const nextValue = window.prompt(dlgs?.folderDescriptionPrompt || "Описание папки", folder.description ?? "");
 
     if (nextValue === null) {
       return;
@@ -292,18 +312,18 @@ function FolderActionList({ activeFolder }: { activeFolder: FolderEntity | null 
 
   return (
     <div className="mt-4 space-y-2">
-      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={() => void shareFolder(folder)} type="button">Поделиться</button>
-      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={handleRename} type="button">Переименовать</button>
-      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={handleDescription} type="button">Изменить описание</button>
-      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={() => void moveFolder(folder.id, -1)} type="button">Поднять выше</button>
-      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={() => void moveFolder(folder.id, 1)} type="button">Опустить ниже</button>
-      {folder.isHidden ? <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={() => void unhideFolder(folder.id)} type="button">Показать</button> : <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={() => void hideFolder(folder.id)} type="button">Скрыть</button>}
-      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left text-rose-500 hover:bg-surface-strong" onClick={handleDelete} type="button">Удалить</button>
+      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={() => void shareFolder(folder)} type="button">{copy.shell.actions.share}</button>
+      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={handleRename} type="button">{copy.shell.actions.rename}</button>
+      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={handleDescription} type="button">{dlgs?.folderDescriptionPrompt || "Изменить описание"}</button>
+      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={() => void moveFolder(folder.id, -1)} type="button">{copy.shell.actions.move} ↑</button>
+      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={() => void moveFolder(folder.id, 1)} type="button">{copy.shell.actions.move} ↓</button>
+      {folder.isHidden ? <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={() => void unhideFolder(folder.id)} type="button">{copy.shell.actions.unhide}</button> : <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={() => void hideFolder(folder.id)} type="button">{copy.shell.actions.hide}</button>}
+      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left text-rose-500 hover:bg-surface-strong" onClick={handleDelete} type="button">{copy.shell.actions.delete}</button>
     </div>
   );
 }
 
-function PagesContent() {
+function PagesContent({ copy }: { copy: ReturnType<typeof getUiCopy> }) {
   const currentNoteId = useNoteUiStore((state) => state.currentNoteId);
   const currentNotePageIndex = useNoteUiStore((state) => state.currentNotePageIndex);
   const setCurrentNotePageIndex = useNoteUiStore((state) => state.setCurrentNotePageIndex);
@@ -314,14 +334,12 @@ function PagesContent() {
     return null;
   }
 
+  const dlgs = copy.shell.dialogs;
+
   function renamePage(pageId: string, currentTitle: string) {
-    const nextTitle = window.prompt("Название страницы", currentTitle)?.trim();
+    const nextTitle = window.prompt(dlgs?.pageRenamePrompt || "Название страницы", currentTitle)?.trim();
 
     if (!nextTitle) {
-      return;
-    }
-
-    if (!currentNoteId) {
       return;
     }
 
@@ -329,11 +347,7 @@ function PagesContent() {
   }
 
   function removePage(pageId: string) {
-    if (!window.confirm("Удалить страницу?")) {
-      return;
-    }
-
-    if (!currentNoteId) {
+    if (!window.confirm(dlgs?.pageDeleteConfirm || "Удалить страницу?")) {
       return;
     }
 
@@ -350,16 +364,16 @@ function PagesContent() {
               <span className="min-w-0 flex-1 truncate font-bold">{page.title}</span>
             </button>
             <button className="rounded-xl p-2 text-foreground/60 hover:bg-background" onClick={() => renamePage(page.id, page.title)} type="button"><Pencil className="h-4 w-4" /></button>
-            {pages.length > 1 ? <button className="rounded-xl px-3 py-2 text-xs font-bold text-rose-500 hover:bg-background" onClick={() => removePage(page.id)} type="button">Удалить</button> : null}
+            {pages.length > 1 ? <button className="rounded-xl px-3 py-2 text-xs font-bold text-rose-500 hover:bg-background" onClick={() => removePage(page.id)} type="button">{copy.shell.actions.removePage || "Удалить"}</button> : null}
           </div>
         ))}
       </div>
-      <Button className="w-full rounded-2xl" onClick={() => currentNoteId ? addPage() : null} type="button" variant="secondary">Добавить страницу</Button>
+      <Button className="w-full rounded-2xl" onClick={() => currentNoteId ? addPage() : null} type="button" variant="secondary">{copy.shell.actions.addPage || "Добавить страницу"}</Button>
     </div>
   );
 }
 
-function LockContent({ onClose }: { onClose: () => void }) {
+function LockContent({ copy, onClose }: { copy: ReturnType<typeof getUiCopy>; onClose: () => void }) {
   const { data: notes = [] } = useNotesFlat();
   const { patchNote } = useNoteActions();
   const currentNoteId = useNoteUiStore((state) => state.currentNoteId);
@@ -372,35 +386,30 @@ function LockContent({ onClose }: { onClose: () => void }) {
   }
 
   const currentLock = note.lock;
+  const dlgs = copy.shell.dialogs;
 
   async function handleUnlock() {
     const valid = await verifyNoteLock(currentLock, password);
 
     if (!valid) {
-      setError("Неверный пароль");
+      setError(dlgs?.lockAlertIncorrect || "Неверный пароль");
       return;
     }
 
-    if (!currentNoteId) {
-      return;
-    }
-
-    await patchNote(currentNoteId, { lock: { ...currentLock, hidden: false } }, { scheduleAnalysis: false });
+    await patchNote(currentNoteId!, { lock: { ...currentLock, hidden: false } }, { scheduleAnalysis: false });
     setError(null);
     setPassword("");
     onClose();
   }
 
-  return <div className="mt-4 space-y-3"><p className="text-sm leading-6 text-foreground/58">Контент заметки скрыт до локальной verify-проверки. Preview уже замаскирован в карточке.</p><input autoComplete="off" className="h-10 w-full rounded-2xl border border-border bg-surface-strong px-4 outline-none sm:h-12" name={`lock_${currentNoteId.slice(0, 6)}`} onChange={(event) => setPassword(event.target.value)} placeholder="Пароль заметки" type="password" value={password} />{error ? <p className="text-sm font-bold text-rose-500">{error}</p> : null}<Button className="h-10 w-full rounded-2xl sm:h-11" onClick={() => void handleUnlock()} type="button">Unlock</Button></div>;
+  return <div className="mt-4 space-y-3"><p className="text-sm leading-6 text-foreground/58">{dlgs?.lockDescription || "Контент заметки скрыт до локальной verify-проверки. Preview уже замаскирован в карточке."}</p><input autoComplete="off" className="h-10 w-full rounded-2xl border border-border bg-surface-strong px-4 outline-none sm:h-12" name={`lock_${currentNoteId.slice(0, 6)}`} onChange={(event) => setPassword(event.target.value)} placeholder={dlgs?.lockEnterPassword || "Пароль заметки"} type="password" value={password} />{error ? <p className="text-sm font-bold text-rose-500">{error}</p> : null}<Button className="h-10 w-full rounded-2xl sm:h-11" onClick={() => void handleUnlock()} type="button">{dlgs?.lockButton || "Unlock"}</Button></div>;
 }
 
-function AboutContent() {
-  const { data: settings } = useSettingsQuery();
-  const lang = settings?.lang ?? "ru";
-  const _copy = getUiCopy(lang);
+function AboutContent({ copy }: { copy: ReturnType<typeof getUiCopy> }) {
   const [tab, setTab] = useState<"about" | "rate">("about");
   const [rating, setRating] = useState(5);
   const [feedback, setFeedback] = useState("");
+  const dlgs = copy.shell.dialogs;
 
   function handleFeedbackSubmit() {
     publish("feedbackSubmitted", {
@@ -410,20 +419,20 @@ function AboutContent() {
       systemLanguage: navigator.language,
       userAgent: navigator.userAgent,
     });
-    window.alert("Спасибо за обратную связь!");
+    window.alert(dlgs?.feedbackSent || "Спасибо за обратную связь!");
     setFeedback("");
   }
 
   return (
     <div className="mt-5 grid gap-4">
       <div className="grid grid-cols-2 gap-2 rounded-[1.5rem] border border-border bg-surface-strong p-2">
-        <button className={`rounded-xl px-4 py-3 text-sm font-black transition ${tab === "about" ? "bg-background text-accent" : "text-foreground/72 hover:bg-background/70"}`} onClick={() => setTab("about")} type="button">О нас</button>
-        <button className={`rounded-xl px-4 py-3 text-sm font-black transition ${tab === "rate" ? "bg-background text-accent" : "text-foreground/72 hover:bg-background/70"}`} onClick={() => setTab("rate")} type="button">Оценить</button>
+        <button className={`rounded-xl px-4 py-3 text-sm font-black transition ${tab === "about" ? "bg-background text-accent" : "text-foreground/72 hover:bg-background/70"}`} onClick={() => setTab("about")} type="button">{copy.shell.aboutSheet || "О нас"}</button>
+        <button className={`rounded-xl px-4 py-3 text-sm font-black transition ${tab === "rate" ? "bg-background text-accent" : "text-foreground/72 hover:bg-background/70"}`} onClick={() => setTab("rate")} type="button">{copy.shell.rateUsTitle || "Оценить"}</button>
       </div>
 
       {tab === "about" ? (
         <section className="rounded-[1.5rem] border border-border bg-surface-strong p-5">
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-accent">О нас</p>
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-accent">{copy.shell.aboutSheet || "О нас"}</p>
           <h3 className="mt-3 text-2xl font-black">SmartNotes</h3>
           <ul className="mt-4 space-y-2 text-sm text-foreground/70">
             <li>Александров Арсений</li>
@@ -431,12 +440,12 @@ function AboutContent() {
             <li>Миняев Иван</li>
             <li>Копаев Иван</li>
           </ul>
-          <h3 className="mt-3 text-2xl font-black">Обратная связь</h3>
+          <h3 className="mt-3 text-2xl font-black">{copy.shell.about || "Обратная связь"}</h3>
           <a className="mt-4 inline-flex font-black text-accent hover:underline" href="https://t.me/SmartNotesInfo_bot" rel="noreferrer" target="_blank">@SmartNotesInfo_bot</a>
         </section>
       ) : (
         <section className="rounded-[1.5rem] border border-border bg-surface-strong p-5">
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-accent">Оценить</p>
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-accent">{copy.shell.rateUsTitle || "Оценить"}</p>
           <div className="mt-4 flex gap-2">
             {[1, 2, 3, 4, 5].map((value) => (
               <button className={`flex h-10 w-10 items-center justify-center rounded-2xl border transition sm:h-11 sm:w-11 ${rating >= value ? "border-amber-400 bg-amber-400/12 text-amber-400" : "border-border bg-background text-foreground/42 hover:bg-surface"}`} key={value} onClick={() => setRating(value)} type="button">
@@ -444,18 +453,19 @@ function AboutContent() {
               </button>
             ))}
           </div>
-          <textarea className="mt-4 min-h-32 w-full rounded-2xl border border-border bg-background p-4 text-sm outline-none" onChange={(event) => setFeedback(event.target.value)} placeholder="Feedback, пояснение" value={feedback} />
-          <Button className="mt-4 w-full rounded-2xl" onClick={handleFeedbackSubmit} type="button">Отправить</Button>
+          <textarea className="mt-4 min-h-32 w-full rounded-2xl border border-border bg-background p-4 text-sm outline-none" onChange={(event) => setFeedback(event.target.value)} placeholder={copy.shell.feedbackPlaceholder || "Feedback, пояснение"} value={feedback} />
+          <Button className="mt-4 w-full rounded-2xl" onClick={handleFeedbackSubmit} type="button">{copy.shell.sendFeedback || "Отправить"}</Button>
         </section>
       )}
     </div>
   );
 }
 
-function CreateFolderContent({ onClose }: { onClose: () => void }) {
+function CreateFolderContent({ copy, onClose }: { copy: ReturnType<typeof getUiCopy>; onClose: () => void }) {
   const { addFolder } = useFolderActions();
   const [name, setName] = useState("");
   const userId = useAuthStore((state) => state.user?.id ?? "local-user");
+  const dlgs = copy.shell.dialogs;
 
   function handleCreate() {
     const normalized = name.trim();
@@ -469,10 +479,10 @@ function CreateFolderContent({ onClose }: { onClose: () => void }) {
     onClose();
   }
 
-  return <div className="mt-4 space-y-3"><input className="h-10 w-full rounded-2xl border border-border bg-surface-strong px-4 outline-none sm:h-12" onChange={(event) => setName(event.target.value)} placeholder="Введите название папки" value={name} /><Button className="h-10 w-full rounded-2xl sm:h-11" disabled={!name.trim()} onClick={handleCreate} type="button">Создать папку</Button></div>;
+  return <div className="mt-4 space-y-3"><input className="h-10 w-full rounded-2xl border border-border bg-surface-strong px-4 outline-none sm:h-12" onChange={(event) => setName(event.target.value)} placeholder={dlgs?.folderCreatePrompt || "Введите название папки"} value={name} /><Button className="h-10 w-full rounded-2xl sm:h-11" disabled={!name.trim()} onClick={handleCreate} type="button">{dlgs?.folderCreateButton || "Создать папку"}</Button></div>;
 }
 
-function ReminderContent({ onClose }: { onClose: () => void }) {
+function ReminderContent({ copy, onClose }: { copy: ReturnType<typeof getUiCopy>; onClose: () => void }) {
   const { data: notes = [] } = useNotesFlat();
   const { setReminder } = useNoteActions();
   const currentNoteId = useNoteUiStore((state) => state.currentNoteId);
@@ -492,7 +502,7 @@ function ReminderContent({ onClose }: { onClose: () => void }) {
     return null;
   }
 
-  return <div className="mt-4 space-y-3"><input className="h-10 w-full rounded-2xl border border-border bg-surface-strong px-4 outline-none sm:h-12" onChange={(event) => setValue(event.target.value)} type="datetime-local" value={value} /><div className="grid grid-cols-2 gap-2"><Button className="h-10 rounded-2xl sm:h-11" disabled={!value} onClick={async () => { const reminderAt = new Date(value).toISOString(); await setReminder(currentNoteId, reminderAt); scheduleReminder(currentNoteId, reminderAt); await requestNotificationPermission(); onClose(); }} type="button">Сохранить</Button><Button className="h-10 rounded-2xl sm:h-11" onClick={() => { void setReminder(currentNoteId, null); scheduleReminder(currentNoteId, null); onClose(); }} type="button" variant="secondary">Очистить</Button></div></div>;
+  return <div className="mt-4 space-y-3"><input className="h-10 w-full rounded-2xl border border-border bg-surface-strong px-4 outline-none sm:h-12" onChange={(event) => setValue(event.target.value)} type="datetime-local" value={value} /><div className="grid grid-cols-2 gap-2"><Button className="h-10 rounded-2xl sm:h-11" disabled={!value} onClick={async () => { const reminderAt = new Date(value).toISOString(); await setReminder(currentNoteId, reminderAt); scheduleReminder(currentNoteId, reminderAt); await requestNotificationPermission(); onClose(); }} type="button">{copy.common.save || "Сохранить"}</Button><Button className="h-10 rounded-2xl sm:h-11" onClick={() => { void setReminder(currentNoteId, null); scheduleReminder(currentNoteId, null); onClose(); }} type="button" variant="secondary">{copy.common.reset || "Очистить"}</Button></div></div>;
 }
 
 export function DiagnosticsContent() {

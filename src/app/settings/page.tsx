@@ -50,6 +50,10 @@ export default function SettingsPage() {
   const { data: folders = [] } = useFoldersQuery();
   const { data: notes = [] } = useNotesFlat();
   const user = useAuthStore((state) => state.user);
+  const googleAuthUser = user as unknown as {
+    app_metadata?: { provider?: string };
+    identities?: Array<{ provider: string }>;
+  } | null;
   const userId = useAuthStore((state) => state.user?.id ?? "local-user");
   const { createNote } = useNoteActions();
   const { patchSettings, resetSettings } = useSettingsActions();
@@ -502,7 +506,7 @@ export default function SettingsPage() {
                  <div className="rounded-[1.2rem] border border-border bg-surface-strong p-4 text-sm text-foreground/58 space-y-3">
                    <p className="font-black text-foreground">
                      {lang === "ru" ? "Статус: " : "Status: "}
-                     {(user as any)?.app_metadata?.provider === "google" || (user as any)?.identities?.some((i: any) => i.provider === "google") ? (
+                     {googleAuthUser?.app_metadata?.provider === "google" || googleAuthUser?.identities?.some((i) => i.provider === "google") ? (
                        <span className="text-emerald-500">{lang === "ru" ? "Подключено (Вход через Google)" : "Connected (Signed in via Google)"}</span>
                      ) : (
                        <span className="text-amber-500">

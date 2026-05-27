@@ -1,10 +1,4 @@
-
-
-
-
-
 const AI_QUEUE_KEY = "smartnotes:ai:pending";
-const DEBOUNCE_MS = 3_000;
 
 function canUseLocalStorage() {
   return typeof window !== "undefined" && Boolean(window.localStorage);
@@ -37,38 +31,14 @@ function persistPendingNoteIds(noteIds: Set<string>) {
 
 const pendingNoteIds = new Set<string>(readPendingNoteIds());
 
-const timers = new Map<string, ReturnType<typeof setTimeout>>();
-
-async function dispatchAnalysis(noteId: string): Promise<void> {
-  try {
-    const response = await fetch("/api/ai/analyze", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ noteId }),
-    });
-
-    if (response.ok) {
-      pendingNoteIds.delete(noteId);
-      persistPendingNoteIds(pendingNoteIds);
-    }
-
-  } catch {
-
-  }
-}
-
-export function scheduleAiAnalysis(noteId: string) {
+export function scheduleAiAnalysis(_noteId: string) {
   // Temporarily disabled as requested
   return;
 }
 
-
-
 export function listPendingAiAnalysis(): string[] {
   return [...pendingNoteIds];
 }
-
-
 
 export function clearAiAnalysisQueue() {
   pendingNoteIds.clear();

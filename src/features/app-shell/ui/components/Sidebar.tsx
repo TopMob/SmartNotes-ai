@@ -1,13 +1,13 @@
 import { Archive, Bell, EyeOff, Folder, Heart, Inbox, Lock, Shield, Trash2, X, GripVertical, type LucideIcon } from "lucide-react";
 import Link from "next/link";
-import React from "react";
+import React, { useRef } from "react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
 import type { Folder as FolderEntity } from "@/entities/folder";
 import { getUiCopy } from "@/shared/lib/i18n";
-import type { AppView } from "@/shared/store/ui-store";
+import { type AppView, useUiStore } from "@/shared/store/ui-store";
 import { Button } from "@/shared/ui/button";
 import { LogoMark } from "@/shared/ui/logo-mark";
 
@@ -66,14 +66,36 @@ function SortableFolderItem({ folder, isActive, folderViewMode, onOpenFolder }: 
 }
 
 export function Sidebar({ copy, currentView, folders, folderViewMode, activeFolderId, isDesktop = false, onClose, onCreateFolder, onOpenFolder, onOpenSheet, onSwitchView }: SidebarProps) {
+  const logoClicksRef = useRef(0);
+  const developerMode = useUiStore((s) => s.developerMode);
+  const toggleDeveloperMode = useUiStore((s) => s.toggleDeveloperMode);
+
+  function handleLogoClick() {
+    logoClicksRef.current += 1;
+    if (logoClicksRef.current >= 7) {
+      toggleDeveloperMode();
+      // Access dialogs via copy.shell.dialogs safely
+      const nextMode = !developerMode;
+      const msg = nextMode
+        ? copy.shell.dialogs?.devModeEnabled || "Developer mode enabled! 🛠️"
+        : copy.shell.dialogs?.devModeDisabled || "Developer mode disabled.";
+      window.alert(msg);
+      logoClicksRef.current = 0;
+    }
+  }
+
   return (
     <aside className="sidebar-glass panel-card flex h-full flex-col overflow-hidden p-4 shadow-2xl shadow-violet-950/10">
       <div className="mb-1 flex shrink-0 items-center justify-between gap-2">
         <div className="flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-accent/12 text-accent">
+          <button
+            onClick={handleLogoClick}
+            className="flex h-11 w-11 items-center justify-center rounded-2xl bg-accent/12 text-accent transition-transform hover:scale-105 active:scale-95 cursor-default"
+            type="button"
+          >
             <LogoMark className="h-7 w-7" />
-          </span>
-          <p className="text-sm font-black uppercase tracking-[0.22em] text-accent">SmartNotes</p>
+          </button>
+          <p className="text-sm font-black uppercase tracking-[0.22em] text-accent select-none">SmartNotes</p>
         </div>
         {!isDesktop ? (
           <button className="flex h-10 w-10 items-center justify-center rounded-2xl border border-border bg-surface-strong" onClick={onClose} type="button">
@@ -105,10 +127,12 @@ export function Sidebar({ copy, currentView, folders, folderViewMode, activeFold
                 return <SortableFolderItem key={folder.id} folder={folder} isActive={isActive} folderViewMode={folderViewMode} onOpenFolder={onOpenFolder} />;
               })}
             </SortableContext>
-            <button className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left text-sm font-bold transition ${currentView === "admin_tools" ? "border-accent bg-accent/15 text-accent ring-1 ring-accent/50" : "border-transparent text-foreground/70 hover:border-border hover:bg-surface-strong"}`} onClick={() => onSwitchView("admin_tools")} type="button">
-              <Shield className="h-[18px] w-[18px]" />
-              <span>{copy.shell.adminTools}</span>
-            </button>
+            {developerMode ? (
+              <button className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left text-sm font-bold transition ${currentView === "admin_tools" ? "border-accent bg-accent/15 text-accent ring-1 ring-accent/50" : "border-transparent text-foreground/70 hover:border-border hover:bg-surface-strong"}`} onClick={() => onSwitchView("admin_tools")} type="button">
+                <Shield className="h-[18px] w-[18px]" />
+                <span>{copy.shell.adminTools}</span>
+              </button>
+            ) : null}
           </SidebarSection>
         </div>
 

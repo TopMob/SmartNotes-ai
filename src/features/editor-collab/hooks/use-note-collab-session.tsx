@@ -223,6 +223,7 @@ export function NoteCollabSessionProvider({ note, children }: NoteCollabProvider
       indexeddbRef.current = null;
       clearCollabDiagnostic(note.id);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [note.id]);
 
   useEffect(() => () => {

@@ -41,7 +41,7 @@ export function useAutoAnalyze(note: Note, content: string) {
         const hash = await computeHash(normalized);
         
         // Check if hash matches the DB metadata content_hash or our last local hash
-        const existingMetadata = note.metadata as any;
+        const existingMetadata = note.metadata as { content_hash?: string } | null | undefined;
         const storedHash = existingMetadata?.content_hash || null;
         
         if (hash === storedHash || hash === lastHashRef.current) {

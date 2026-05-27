@@ -99,7 +99,7 @@ export async function POST(request: Request) {
       .single();
 
     const existingMetadata = noteData?.metadata || {};
-    const storedHash = (existingMetadata as any).content_hash || null;
+    const storedHash = (existingMetadata as Record<string, unknown>).content_hash || null;
 
     if (contentHash === storedHash) {
       console.log("Content hash matches. Skipping AI analyze trigger.");
@@ -132,7 +132,7 @@ export async function POST(request: Request) {
 
     const resJson = await response.json();
     return NextResponse.json({ status: "queued", result: resJson }, { headers: CORS_HEADERS });
-  } catch (error: any) {
+  } catch (error) {
     console.error("AI analysis route error:", error);
     
     try {
@@ -142,7 +142,7 @@ export async function POST(request: Request) {
         .from("notes")
         .update({
           ai_status: "error",
-          ai_error: error.message || String(error)
+          ai_error: error instanceof Error ? error.message : String(error)
         })
         .eq("id", body.noteId);
     } catch (dbErr) {
@@ -150,7 +150,7 @@ export async function POST(request: Request) {
     }
       
     return NextResponse.json(
-      { error: error.message || "Failed to start AI analysis" },
+      { error: error instanceof Error ? error.message : "Failed to start AI analysis" },
       { status: 500, headers: CORS_HEADERS }
     );
   }

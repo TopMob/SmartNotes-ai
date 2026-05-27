@@ -104,8 +104,10 @@ export function Header({ copy, view, activeFolder, searchQuery: _searchQuery, fi
   const userName = user?.displayName?.trim() || user?.email || "Guest";
   const userUid = user?.uid ?? "anonymous";
 
+  const dlgs = copy.shell.dialogs;
+
   async function editDisplayName() {
-    const nextName = window.prompt("Новое имя профиля", userName)?.trim();
+    const nextName = window.prompt(dlgs?.profileRenamePrompt || "Новое имя профиля", userName)?.trim();
 
     if (!nextName) {
       return;
@@ -115,7 +117,7 @@ export function Header({ copy, view, activeFolder, searchQuery: _searchQuery, fi
   }
 
   async function changeAvatar() {
-    const nextValue = window.prompt("URL аватара", user?.photoURL ?? "");
+    const nextValue = window.prompt(dlgs?.profileAvatarPrompt || "URL аватара", user?.photoURL ?? "");
 
     if (nextValue === null) {
       return;
@@ -174,7 +176,7 @@ export function Header({ copy, view, activeFolder, searchQuery: _searchQuery, fi
                     </button>
                   </div>
                   <button className="mt-2 w-full rounded-xl bg-background/70 px-3 py-2 text-left text-xs font-bold text-foreground/56" onClick={() => void changeAvatar()} type="button">
-                    Сменить аватар
+                    {dlgs?.profileChangeAvatar || "Сменить аватар"}
                   </button>
                   <button className="mt-2 flex w-full items-center justify-between rounded-xl bg-background/70 px-3 py-2 text-left text-xs font-bold text-foreground/56" onClick={() => void navigator.clipboard.writeText(userUid)} type="button">
                     UID: {userUid}
@@ -184,24 +186,30 @@ export function Header({ copy, view, activeFolder, searchQuery: _searchQuery, fi
 
                 {myInvites.length > 0 && (
                   <div className="mt-3 rounded-2xl bg-surface-strong/70 p-3 space-y-2">
-                    <p className="text-[10px] font-black uppercase tracking-wider text-foreground/45">Приглашения ({myInvites.length})</p>
+                    <p className="text-[10px] font-black uppercase tracking-wider text-foreground/45">
+                      {(dlgs?.collabInvites || "Приглашения") + " (" + myInvites.length + ")"}
+                    </p>
                     <div className="max-h-36 overflow-y-auto space-y-2 pr-1 no-scrollbar">
                       {myInvites.map((invite) => (
                         <div key={invite.id} className="rounded-xl border border-border/60 bg-background/50 p-2 text-[11px]">
-                          <p className="font-bold text-foreground/80 leading-snug truncate">Заметка: &quot;{invite.noteTitle}&quot;</p>
-                          <p className="text-[10px] text-foreground/48 mt-0.5 truncate">От: {invite.inviterEmail}</p>
+                          <p className="font-bold text-foreground/80 leading-snug truncate">
+                            {(dlgs?.collabInviteNote || "Заметка") + ": \"" + invite.noteTitle + "\""}
+                          </p>
+                          <p className="text-[10px] text-foreground/48 mt-0.5 truncate">
+                            {(dlgs?.collabInviteFrom || "От") + ": " + invite.inviterEmail}
+                          </p>
                           <div className="flex gap-1.5 mt-2">
                             <button
                               onClick={() => handleAcceptInvite(invite)}
                               className="flex-1 rounded-lg bg-accent py-1 text-[10px] font-black text-background hover:opacity-90"
                             >
-                              Принять
+                              {dlgs?.collabAccept || "Принять"}
                             </button>
                             <button
                               onClick={() => handleRejectInvite(invite)}
                               className="rounded-lg bg-surface-strong px-2 py-1 text-[10px] font-bold text-foreground/64 hover:bg-background"
                             >
-                              Отклонить
+                              {dlgs?.collabReject || "Отклонить"}
                             </button>
                           </div>
                         </div>
