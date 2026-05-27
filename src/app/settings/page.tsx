@@ -29,6 +29,8 @@ import { useSettingsQuery } from "@/features/settings/hooks/use-settings-query";
 import { publish } from "@/services/event-bus";
 import { downloadTextFile, safeFileName } from "@/features/app-shell/ui/components/shared";
 import { getUiCopy } from "@/shared/lib/i18n";
+import { useUiStore } from "@/shared/store/ui-store";
+import { isAdminUser } from "@/features/auth/lib/admin-acl";
 
 import { Panel } from "./components/Panel";
 import { SectionIntro } from "./components/SectionIntro";
@@ -50,6 +52,7 @@ export default function SettingsPage() {
   const { data: folders = [] } = useFoldersQuery();
   const { data: notes = [] } = useNotesFlat();
   const user = useAuthStore((state) => state.user);
+  const developerMode = useUiStore((s) => s.developerMode);
   const googleAuthUser = user as unknown as {
     app_metadata?: { provider?: string };
     identities?: Array<{ provider: string }>;
@@ -327,10 +330,12 @@ export default function SettingsPage() {
             })}
           </nav>
 
-          <div className="mt-4 w-full min-w-0 rounded-[1.4rem] border border-border bg-surface-strong p-3 text-xs text-foreground/62 sm:mt-6 sm:p-4 sm:text-sm">
-            <p className="font-black text-foreground">{copy.settings.appearance.pendingSync}</p>
-            <p className="mt-2">{settings.updatedAt ? new Date(settings.updatedAt).toLocaleString(lang === "ru" ? "ru-RU" : "en-US") : copy.settings.appearance.noPendingSync}</p>
-          </div>
+          {developerMode && isAdminUser(user?.email) ? (
+            <div className="mt-4 w-full min-w-0 rounded-[1.4rem] border border-border bg-surface-strong p-3 text-xs text-foreground/62 sm:mt-6 sm:p-4 sm:text-sm">
+              <p className="font-black text-foreground">{copy.settings.appearance.pendingSync}</p>
+              <p className="mt-2">{settings.updatedAt ? new Date(settings.updatedAt).toLocaleString(lang === "ru" ? "ru-RU" : "en-US") : copy.settings.appearance.noPendingSync}</p>
+            </div>
+          ) : null}
         </aside>
 
         <section className="app-surface rounded-[1.6rem] min-w-0 border border-border p-4 shadow-2xl shadow-violet-950/8 backdrop-blur-2xl sm:p-7">

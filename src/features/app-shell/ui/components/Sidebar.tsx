@@ -10,6 +10,8 @@ import { getUiCopy } from "@/shared/lib/i18n";
 import { type AppView, useUiStore } from "@/shared/store/ui-store";
 import { Button } from "@/shared/ui/button";
 import { LogoMark } from "@/shared/ui/logo-mark";
+import { useAuthStore } from "@/features/auth/model/auth-store";
+import { isAdminUser } from "@/features/auth/lib/admin-acl";
 
 import { getSheetAnchor, type SheetAnchor, type SheetName } from "./shared";
 
@@ -69,10 +71,16 @@ export function Sidebar({ copy, currentView, folders, folderViewMode, activeFold
   const logoClicksRef = useRef(0);
   const developerMode = useUiStore((s) => s.developerMode);
   const toggleDeveloperMode = useUiStore((s) => s.toggleDeveloperMode);
+  const user = useAuthStore((s) => s.user);
 
   function handleLogoClick() {
     logoClicksRef.current += 1;
     if (logoClicksRef.current >= 7) {
+      if (!isAdminUser(user?.email)) {
+        window.alert("Доступ ограничен: эта учетная запись не является администратором.");
+        logoClicksRef.current = 0;
+        return;
+      }
       toggleDeveloperMode();
       // Access dialogs via copy.shell.dialogs safely
       const nextMode = !developerMode;
@@ -127,7 +135,7 @@ export function Sidebar({ copy, currentView, folders, folderViewMode, activeFold
                 return <SortableFolderItem key={folder.id} folder={folder} isActive={isActive} folderViewMode={folderViewMode} onOpenFolder={onOpenFolder} />;
               })}
             </SortableContext>
-            {developerMode ? (
+            {developerMode && isAdminUser(user?.email) ? (
               <button className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left text-sm font-bold transition ${currentView === "admin_tools" ? "border-accent bg-accent/15 text-accent ring-1 ring-accent/50" : "border-transparent text-foreground/70 hover:border-border hover:bg-surface-strong"}`} onClick={() => onSwitchView("admin_tools")} type="button">
                 <Shield className="h-[18px] w-[18px]" />
                 <span>{copy.shell.adminTools}</span>

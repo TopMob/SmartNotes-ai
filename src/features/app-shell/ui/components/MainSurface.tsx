@@ -9,6 +9,8 @@ import { useNoteActions } from "@/features/notes/hooks/use-note-mutations";
 import { selectPinnedGroups } from "@/features/notes/model/note-selectors";
 import { useSearchStore } from "@/features/search";
 import { calculateScore } from "@/features/search/lib/search-engine";
+import { useAuthStore } from "@/features/auth/model/auth-store";
+import { isAdminUser } from "@/features/auth/lib/admin-acl";
 
 
 import { useNotesFlat } from "@/features/notes/hooks/use-notes-query";
@@ -37,7 +39,19 @@ type MainSurfaceProps = {
 };
 
 export function MainSurface({ copy, view, folders, hiddenFolders, trashedFolders, notes, activeFolder, folderViewMode, notesPerPage, onOpenFolder, onOpenNote, onOpenSheet }: MainSurfaceProps) {
+  const user = useAuthStore((s) => s.user);
+
   if (view === "admin_tools") {
+    if (!isAdminUser(user?.email)) {
+      return (
+        <section className="panel-card min-h-[calc(100vh-4.8rem)] border-t border-border bg-surface/88 p-6 shadow-xl backdrop-blur-2xl flex items-center justify-center text-center">
+          <div>
+            <h2 className="text-xl font-black text-rose-500">Доступ ограничен</h2>
+            <p className="mt-2 text-sm text-foreground/56">Вы не имеете прав для просмотра этого раздела.</p>
+          </div>
+        </section>
+      );
+    }
     return <section className="panel-card min-h-[calc(100vh-4.8rem)] border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><AdminToolsView notes={notes} onOpenSheet={onOpenSheet} /></section>;
   }
 

@@ -25,6 +25,7 @@ import { Button } from "@/shared/ui/button";
 import { SharePrompt } from "@/features/editor-collab/ui/share-prompt";
 import { AiSummaryCard } from "@/features/editor/ui/AiSummaryCard";
 import { useAiEngineStore } from "@/features/ai-engine/model/ai-store";
+import { getAdminEmails, saveAdminEmails } from "@/features/auth/lib/admin-acl";
 
 import { exportNoteAsPdf, exportNoteAsTxt, exportNoteForImport, getNotePlainText, shareFolder, type SheetState, type SheetAnchor, type SheetName } from "./shared";
 
@@ -510,6 +511,46 @@ export function DiagnosticsContent() {
   const mediaDiagnostic = getMediaDiagnostic();
   const syncQueue = listSyncQueue();
   const aiQueue = listPendingAiAnalysis();
+  const user = useAuthStore((state) => state.user);
+
+  const [adminEmails, setAdminEmails] = useState<string[]>([]);
+  const [newEmail, setNewEmail] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setAdminEmails(getAdminEmails());
+  }, []);
+
+  const handleAddEmail = () => {
+    const email = newEmail.trim().toLowerCase();
+    if (!email) return;
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError("Некорректный формат почты");
+      return;
+    }
+
+    if (adminEmails.includes(email)) {
+      setError("Почта уже добавлена");
+      return;
+    }
+
+    const updated = [...adminEmails, email];
+    setAdminEmails(updated);
+    saveAdminEmails(updated);
+    setNewEmail("");
+    setError(null);
+  };
+
+  const handleRemoveEmail = (emailToRemove: string) => {
+    if (emailToRemove === "shazak6430@gmail.com") return;
+    if (emailToRemove === user?.email?.toLowerCase()) return;
+
+    const updated = adminEmails.filter((email) => email !== emailToRemove);
+    setAdminEmails(updated);
+    saveAdminEmails(updated);
+  };
 
   return (
     <div className="mt-4 space-y-4">
@@ -521,6 +562,49 @@ export function DiagnosticsContent() {
           <div className="rounded-2xl bg-background px-4 py-3 text-sm font-semibold text-foreground/72">Sync backlog: {syncQueue.length}</div>
           <div className="rounded-2xl bg-background px-4 py-3 text-sm font-semibold text-foreground/72">AI queue: {aiQueue.length}</div>
           <div className="rounded-2xl bg-background px-4 py-3 text-sm font-semibold text-foreground/72">Media mode: {mediaDiagnostic.provider}{mediaDiagnostic.degraded ? " (degraded)" : ""}</div>
+        </div>
+      </section>
+
+      {/* Admin Management Section */}
+      <section className="rounded-[1.5rem] border border-border bg-surface-strong p-4">
+        <div className="text-xs font-black uppercase tracking-[0.18em] text-foreground/42">Управление администраторами</div>
+        <div className="mt-3 flex gap-2">
+          <input
+            type="email"
+            value={newEmail}
+            onChange={(e) => { setNewEmail(e.target.value); setError(null); }}
+            placeholder="admin@example.com"
+            className="flex-1 rounded-2xl border border-border bg-background px-4 py-2 text-sm outline-none"
+          />
+          <Button className="rounded-2xl shrink-0" onClick={handleAddEmail} type="button">Добавить</Button>
+        </div>
+        {error && <p className="mt-1 text-xs text-rose-500 font-bold px-1">{error}</p>}
+        
+        <div className="mt-4 space-y-2">
+          {adminEmails.map((email) => {
+            const isMain = email === "shazak6430@gmail.com";
+            const isSelf = email === user?.email?.toLowerCase();
+            const canRemove = !isMain && !isSelf;
+
+            return (
+              <div key={email} className="flex items-center justify-between gap-3 rounded-2xl bg-background px-4 py-3 text-sm font-semibold text-foreground/72">
+                <span className="truncate">{email}</span>
+                <div className="flex items-center gap-2">
+                  {isMain && <span className="text-[10px] bg-accent/10 text-accent px-2 py-1 rounded-lg">Владелец</span>}
+                  {isSelf && <span className="text-[10px] bg-foreground/10 text-foreground/70 px-2 py-1 rounded-lg">Вы</span>}
+                  {canRemove && (
+                    <button
+                      onClick={() => handleRemoveEmail(email)}
+                      className="text-xs text-rose-500 hover:underline font-bold"
+                      type="button"
+                    >
+                      Удалить
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </section>
 
