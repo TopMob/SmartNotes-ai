@@ -29,6 +29,7 @@ import UnderlineExtension from "@tiptap/extension-underline";
 import ImageExtension from "@tiptap/extension-image";
 import { MathExtension } from "@/features/editor/lib/math-extension";
 import { DrawingCanvas } from "@/features/editor/ui/DrawingCanvas";
+import { AiSummaryCard } from "@/features/editor/ui/AiSummaryCard";
 import { useAiEngineStore } from "@/features/ai-engine/model/ai-store";
 import { useAutoAnalyze } from "@/features/ai-engine/hooks/use-auto-analyze";
 import { useEffect, useRef, useState, type ComponentType } from "react";
@@ -264,6 +265,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
 
         <section className="mt-3 min-h-0 flex-1 overflow-y-auto rounded-[2rem] border border-border bg-surface/88 p-4 shadow-2xl shadow-violet-950/8 sm:p-8">
            <input disabled={role === "viewer"} className="w-full bg-transparent text-2xl font-black tracking-tight outline-none placeholder:text-foreground/28 sm:text-4xl" onChange={(event) => handleTitleChange(event.target.value)} placeholder="Заголовок" value={(title === "Untitled note" || title === "Untitled Note" ? "" : title) || ""} />
+           <AiSummaryCard summary={note.metadata?.summary} aiStatus={aiStatus} />
           {isDrawing && (
             <DrawingCanvas
               onClose={() => setIsDrawing(false)}

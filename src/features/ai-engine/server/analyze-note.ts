@@ -15,6 +15,7 @@ Your job is to analyze a note and return a JSON object with the following fields
 - folderId: string | null — the best matching folder ID from the provided list, or null if none fit
 - relevance: number — importance/usefulness score between 0 and 1 (0 = trivial/archive, 1 = critical)
 - resurfacingClass: "task" | "idea" | "reference" | "archive" — how this note should resurface over time
+- summary: string — a brief 1-2 sentence summary of the note, in the language of the note, highlighting key takeaways
 
 Rules:
 - Respond ONLY with valid JSON, no markdown, no explanation
@@ -74,6 +75,7 @@ function safeParseResult(raw: string): Partial<AnalyzeNoteResult> {
         ["task", "idea", "reference", "archive"].includes(parsed.resurfacingClass as string)
           ? (parsed.resurfacingClass as AnalyzeNoteResult["resurfacingClass"])
           : "reference",
+      summary: typeof parsed.summary === "string" ? parsed.summary : undefined,
     };
   } catch {
     return {};
@@ -92,5 +94,6 @@ export async function analyzeNote(request: AnalyzeNoteRequest): Promise<AnalyzeN
     relevance: parsed.relevance ?? 0.5,
     resurfacingClass: parsed.resurfacingClass ?? "reference",
     promptVersion: PROMPT_VERSION,
+    summary: parsed.summary,
   };
 }

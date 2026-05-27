@@ -394,9 +394,13 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
               {/* Loading indicator */}
               {loading && !messages.some((m) => m.streaming) && (
                 <div className="flex items-start">
-                  <div className="flex items-center gap-2 rounded-2xl border border-border bg-surface-strong px-3.5 py-2.5 text-sm text-foreground/54">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Анализирую заметки…
+                  <div className="flex items-center gap-3 rounded-2xl border border-border bg-surface-strong px-4 py-3 text-sm text-foreground/54 shadow-sm">
+                    <div className="flex space-x-1 items-center justify-center">
+                      <div className="h-2.5 w-2.5 animate-bounce rounded-full bg-violet-600 [animation-delay:-0.3s]" />
+                      <div className="h-2.5 w-2.5 animate-bounce rounded-full bg-violet-600 [animation-delay:-0.15s]" />
+                      <div className="h-2.5 w-2.5 animate-bounce rounded-full bg-violet-600" />
+                    </div>
+                    <span>AI думает…</span>
                   </div>
                 </div>
               )}

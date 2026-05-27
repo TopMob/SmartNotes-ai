@@ -5,6 +5,8 @@ import { cookies } from "next/headers";
 import type { AnalyzeNoteRequest } from "@/features/ai-engine/model/types";
 import { analyzeNote } from "@/features/ai-engine/server/analyze-note";
 import { requireSupabaseUrl, requireSupabasePublishableKey, getSupabaseServiceRoleKey } from "@/shared/api/supabase/env";
+import { getEmbedding } from "@/shared/lib/ai/local-embeddings";
+import { stripHtml } from "@/shared/utils/string";
 
 export const runtime = "nodejs";
 
@@ -18,6 +20,31 @@ const _ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ?? "http://localhost:3000"
 
 export function OPTIONS() {
   return new Response(null, { status: 204, headers: CORS_HEADERS });
+}
+
+function segmentText(text: string, chunkSize = 800, overlap = 150): string[] {
+  const cleanText = text.replace(/\s+/g, " ").trim();
+  if (cleanText.length <= chunkSize) {
+    return [cleanText];
+  }
+
+  const chunks: string[] = [];
+  let start = 0;
+  while (start < cleanText.length) {
+    let end = start + chunkSize;
+    if (end < cleanText.length) {
+      const lastSpace = cleanText.lastIndexOf(" ", end);
+      if (lastSpace > start + chunkSize * 0.5) {
+        end = lastSpace;
+      }
+    }
+    chunks.push(cleanText.slice(start, end).trim());
+    start = end - overlap;
+    if (start >= cleanText.length - 50) {
+      break;
+    }
+  }
+  return chunks.filter(Boolean);
 }
 
 export async function POST(request: Request) {
@@ -78,6 +105,21 @@ export async function POST(request: Request) {
     if (serviceRoleKey) {
       const { createClient } = await import("@supabase/supabase-js");
       const admin = createClient(requireSupabaseUrl(), serviceRoleKey);
+
+      // Get current metadata and owner info
+      const { data: noteData } = await admin
+        .from("notes")
+        .select("owner_id, metadata")
+        .eq("id", body.noteId)
+        .single();
+      
+      const ownerId = noteData?.owner_id;
+      const currentMetadata = noteData?.metadata || {};
+      const newMetadata = {
+        ...currentMetadata,
+        summary: result.summary || currentMetadata.summary || null,
+      };
+
       await admin.from("notes").update({
         user_tags: result.userTags,
         hidden_tags: result.hiddenTags,
@@ -89,8 +131,38 @@ export async function POST(request: Request) {
         analyzed: true,
         ai_error: null,
         prompt_version: result.promptVersion,
+        metadata: newMetadata,
         updated_at: new Date().toISOString(),
       }).eq("id", body.noteId);
+
+      // Generate vector embeddings locally and save to note_embeddings
+      const plainText = stripHtml(body.content || "");
+      if (plainText && ownerId) {
+        const chunks = segmentText(plainText);
+        const records = [];
+        
+        // Clear old embeddings first
+        await admin.from("note_embeddings").delete().eq("note_id", body.noteId);
+
+        for (let i = 0; i < chunks.length; i++) {
+          try {
+            const vector = await getEmbedding(chunks[i]);
+            records.push({
+              note_id: body.noteId,
+              owner_id: ownerId,
+              chunk_index: i,
+              content: chunks[i],
+              embedding: vector,
+            });
+          } catch (err) {
+            console.error(`Failed to generate embedding for chunk ${i}:`, err);
+          }
+        }
+        
+        if (records.length > 0) {
+          await admin.from("note_embeddings").insert(records);
+        }
+      }
     }
 
     return NextResponse.json({ status: "done", result }, { headers: CORS_HEADERS });

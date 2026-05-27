@@ -16,4 +16,6 @@ export type AnalyzeNoteResult = {
   relevance: number;
   resurfacingClass: ResurfacingClass;
   promptVersion: string;
+  summary?: string;
 };
+

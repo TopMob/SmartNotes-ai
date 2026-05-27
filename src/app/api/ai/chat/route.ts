@@ -1,14 +1,10 @@
-
-
-
-
-
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
 import { openRouterComplete } from "@/shared/api/openrouter/openrouter-client";
 import { requireSupabaseUrl, requireSupabasePublishableKey } from "@/shared/api/supabase/env";
+import { getEmbedding } from "@/shared/lib/ai/local-embeddings";
 
 export const runtime = "nodejs";
 
@@ -28,41 +24,6 @@ If the answer is not found in the notes, say so honestly.
 Always cite which note(s) your answer comes from using [Note: "title"] format.
 Be concise, helpful, and use the same language as the question.
 Respond in plain text (no markdown code blocks).`;
-
-type Note = {
-  id: string;
-  title: string;
-  content: string;
-  user_tags: string[];
-  hidden_tags: string[];
-};
-
-function stripHtml(html: string): string {
-  return html
-    .replace(/<[^>]*>/g, " ")
-    .replace(/&nbsp;/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function scoreNote(note: Note, query: string): number {
-  const q = query.toLowerCase();
-  const tokens = q.split(/\s+/).filter(Boolean);
-  const text = [
-    note.title,
-    stripHtml(note.content),
-    ...note.user_tags,
-    ...note.hidden_tags,
-  ].join(" ").toLowerCase();
-
-  let score = 0;
-  for (const token of tokens) {
-    if (text.includes(token)) score += 1;
-    if (note.title.toLowerCase().includes(token)) score += 2;
-    if (note.user_tags.some((t) => t.includes(token))) score += 1.5;
-  }
-  return score;
-}
 
 export async function POST(request: Request) {
 
@@ -97,38 +58,32 @@ export async function POST(request: Request) {
     { cookies: { getAll: () => cookieStore.getAll(), setAll: () => undefined } },
   );
 
-  const { data: notes, error: notesError } = await supabase
-    .from("notes")
-    .select("id, title, content, user_tags, hidden_tags")
-    .eq("owner_id", userId)
-    .is("trashed_at", null)
-    .eq("is_archived", false)
-    .eq("lock_hidden", false)
-    .limit(200);
-
-  if (notesError || !notes) {
-    return NextResponse.json({ error: "Failed to load notes" }, { status: 500, headers: CORS_HEADERS });
+  let chunks: any[] = [];
+  try {
+    const questionEmbedding = await getEmbedding(question);
+    const { data, error } = await supabase.rpc("match_note_embeddings", {
+      query_embedding: questionEmbedding,
+      match_threshold: 0.15, // minimum similarity score
+      match_count: 6,
+      p_owner_id: userId
+    });
+    
+    if (error) throw error;
+    chunks = data || [];
+  } catch (error) {
+    console.error("Vector matching failed:", error);
+    return NextResponse.json({ error: "Failed to search vector embeddings" }, { status: 500, headers: CORS_HEADERS });
   }
 
-
-  const scored = (notes as Note[])
-    .map((note) => ({ note, score: scoreNote(note, question) }))
-    .filter(({ score }) => score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 8);
-
-  const citedNotes = scored.map(({ note }) => note);
-
-  if (citedNotes.length === 0) {
+  if (chunks.length === 0) {
     return NextResponse.json({
       answer: "По твоим заметкам я не нашёл информации по этому запросу. Попробуй сформулировать иначе.",
       citations: [],
     }, { headers: CORS_HEADERS });
   }
 
-
-  const context = citedNotes.map((note, i) =>
-    `[Note ${i + 1}: "${note.title || "Без названия"}"]\n${stripHtml(note.content).slice(0, 600)}`
+  const context = chunks.map((chunk, i) =>
+    `[Note ${i + 1}: "${chunk.note_title || "Без названия"}"]\n${chunk.content}`
   ).join("\n\n---\n\n");
 
   const userPrompt = `User's notes:\n\n${context}\n\n---\n\nQuestion: ${question}`;
@@ -144,8 +99,13 @@ export async function POST(request: Request) {
     );
   }
 
+  // Deduplicate citations by note_id
+  const citations = chunks
+    .map((chunk) => ({ id: chunk.note_id, title: chunk.note_title || "Без названия" }))
+    .filter((val, index, self) => self.findIndex(t => t.id === val.id) === index);
+
   return NextResponse.json({
     answer,
-    citations: citedNotes.map((note) => ({ id: note.id, title: note.title || "Без названия" })),
+    citations,
   }, { headers: CORS_HEADERS });
 }

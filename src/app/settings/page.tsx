@@ -491,14 +491,36 @@ export default function SettingsPage() {
                     {copy.settings.data.resetSettings}
                   </button>
                 </div>
-                <div className="mt-4 rounded-[1.2rem] border border-border bg-surface-strong p-4 text-sm text-foreground/58">
-                  <p className="font-black text-foreground">{copy.settings.data.preset}: {settings.preset}</p>
-                  <p>{copy.settings.data.background}: {settings.mainBackgroundUrl ? copy.common.custom : copy.common.default}</p>
-                  <p>{copy.settings.data.customPresets}: {settings.customPresets.length}</p>
-                </div>
-              </Panel>
-            </div>
-          ) : null}
+                 <div className="mt-4 rounded-[1.2rem] border border-border bg-surface-strong p-4 text-sm text-foreground/58">
+                   <p className="font-black text-foreground">{copy.settings.data.preset}: {settings.preset}</p>
+                   <p>{copy.settings.data.background}: {settings.mainBackgroundUrl ? copy.common.custom : copy.common.default}</p>
+                   <p>{copy.settings.data.customPresets}: {settings.customPresets.length}</p>
+                 </div>
+               </Panel>
+
+               <Panel title={lang === "ru" ? "Хранилище Google Drive (BYOS)" : "Google Drive Storage (BYOS)"}>
+                 <div className="rounded-[1.2rem] border border-border bg-surface-strong p-4 text-sm text-foreground/58 space-y-3">
+                   <p className="font-black text-foreground">
+                     {lang === "ru" ? "Статус: " : "Status: "}
+                     {(user as any)?.app_metadata?.provider === "google" || (user as any)?.identities?.some((i: any) => i.provider === "google") ? (
+                       <span className="text-emerald-500">{lang === "ru" ? "Подключено (Вход через Google)" : "Connected (Signed in via Google)"}</span>
+                     ) : (
+                       <span className="text-amber-500">
+                         {lang === "ru" 
+                           ? "Локальный режим (Файлы сохраняются в заметках)" 
+                           : "Local-only mode (Files are stored inside notes)"}
+                       </span>
+                     )}
+                   </p>
+                   <p className="text-xs leading-5">
+                     {lang === "ru" 
+                       ? "Концепция BYOS (Bring Your Own Storage) позволяет загружать все изображения напрямую в ваш личный Google Drive. Приложение сохраняет только ссылки на файлы. Для включения этой функции войдите в систему с помощью учетной записи Google."
+                       : "The BYOS (Bring Your Own Storage) concept allows you to upload all images directly to your personal Google Drive. The app only stores file metadata. To enable this feature, sign in with your Google account."}
+                   </p>
+                 </div>
+               </Panel>
+             </div>
+           ) : null}
 
           {activeSection === "profile" ? (
             <div className="space-y-4">
