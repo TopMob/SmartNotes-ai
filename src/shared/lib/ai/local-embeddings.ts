@@ -1,17 +1,6 @@
-import { pipeline, env } from "@xenova/transformers";
 import { getSupabaseUrl, getSupabaseServiceRoleKey, getSupabasePublishableKey } from "@/shared/api/supabase/env";
 
-// Configure transformers cache directory in Next.js/Node environment
-env.cacheDir = "./.next/cache/transformers";
-
 let extractorPromise: Promise<any> | null = null;
-
-async function getExtractor() {
-  if (!extractorPromise) {
-    extractorPromise = pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2");
-  }
-  return extractorPromise;
-}
 
 /**
  * Generates a 384-dimensional vector embedding for the given text.
@@ -56,9 +45,15 @@ export async function getEmbedding(text: string): Promise<number[]> {
     console.warn("Supabase credentials not fully configured for Edge Function embeddings. Falling back to local model.");
   }
 
-  // 2. Fallback to local model
+  // 2. Fallback to local model (using dynamic import to prevent loading on environments where libraries like libonnxruntime are missing)
   try {
-    const extractor = await getExtractor();
+    const { pipeline, env } = await import("@xenova/transformers");
+    env.cacheDir = "./.next/cache/transformers";
+
+    if (!extractorPromise) {
+      extractorPromise = pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2");
+    }
+    const extractor = await extractorPromise;
     const output = await extractor(cleanText, { pooling: "mean", normalize: true });
     return Array.from(output.data);
   } catch (error) {
