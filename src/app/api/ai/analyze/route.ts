@@ -91,12 +91,66 @@ export async function POST(request: Request) {
     try {
       const { createClient } = await import("@supabase/supabase-js");
       const admin = createClient(requireSupabaseUrl(), serviceRoleKey);
+      
+      // Update note status to analyzing in the database
       await admin.from("notes").update({ ai_status: "analyzing" }).eq("id", body.noteId);
-    } catch {
 
+      let ownerId = null;
+
+      // 1. Fetch note details if title or content are missing
+      if (!body.title || !body.content) {
+        const { data: dbNote } = await admin
+          .from("notes")
+          .select("title, content, user_tags, owner_id")
+          .eq("id", body.noteId)
+          .single();
+
+        if (dbNote) {
+          ownerId = dbNote.owner_id;
+          if (!body.title) body.title = dbNote.title || "";
+          if (!body.content) body.content = dbNote.content || "";
+          if (!body.userTags || body.userTags.length === 0) body.userTags = dbNote.user_tags || [];
+        }
+      }
+
+      // 2. Fetch folderContext if missing
+      if (!body.folderContext || body.folderContext.length === 0) {
+        if (!ownerId) {
+          const { data: noteData } = await admin
+            .from("notes")
+            .select("owner_id")
+            .eq("id", body.noteId)
+            .single();
+          ownerId = noteData?.owner_id;
+        }
+
+        if (ownerId) {
+          const { data: foldersData } = await admin
+            .from("folders")
+            .select("id, name, description")
+            .eq("owner_id", ownerId)
+            .eq("is_hidden", false)
+            .is("trashed_at", null);
+
+          body.folderContext = (foldersData || []).map((f) => ({
+            id: f.id,
+            name: f.name,
+            description: f.description,
+          }));
+        } else {
+          body.folderContext = [];
+        }
+      }
+    } catch (err) {
+      console.error("Failed to populate missing details for AI analysis:", err);
     }
   }
 
+  // Ensure default fallback values to prevent crashes in analyzeNote
+  if (!body.title) body.title = "";
+  if (!body.content) body.content = "";
+  if (!body.userTags) body.userTags = [];
+  if (!body.folderContext) body.folderContext = [];
 
   try {
     const result = await analyzeNote(body);
