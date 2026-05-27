@@ -99,7 +99,7 @@ function FoldersGrid({ folders, mode, emptyText, folderViewMode, onOpenFolder }:
   }
 
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-[14px] p-4 sm:p-5">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3 p-3 sm:gap-[14px] sm:p-5">
       {folders.map((folder) => {
         const notesCount = notes.filter((note) => note.folderId === folder.id && !note.trashedAt).length;
 
@@ -126,14 +126,14 @@ function TrashView({ copy, notes, notesPerPage, trashedFolders, onOpenNote, onOp
   const { clearTrash } = useNoteActions();
 
   return (
-    <div className="content-scrollable space-y-6 p-4 sm:p-5">
+    <div className="content-scrollable space-y-6 p-3 sm:p-5">
       <div className="flex justify-end">
         <button className="rounded-2xl border border-border bg-surface-strong px-4 py-2 text-sm font-black text-rose-500" onClick={() => void clearTrash()} type="button">{copy.shell.actions.clear}</button>
       </div>
       {trashedFolders.length ? (
         <section>
           <div className="mb-3 text-sm font-black uppercase tracking-[0.2em] text-foreground/42">{copy.shell.sections.deletedFolders}</div>
-          <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-4">
+          <div className="grid gap-3 sm:gap-4 sm:grid-cols-3 xl:grid-cols-4">
             {trashedFolders.map((folder) => (
               <div className="rounded-[1.2rem] border border-dashed border-rose-300 bg-surface-strong p-5" key={folder.id}>
                 <h3 className="text-base font-black tracking-tight">{folder.name}</h3>
@@ -245,7 +245,7 @@ function NotesView({ copy, title: _title, notes, notesPerPage, emptyText: _empty
             <Heart className="h-4 w-4" />
             {copy.shell.sections.pinned}
           </div>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-[14px]">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3 sm:gap-[14px]">
             {pinnedVisible.map((note) => (
               <NoteCard key={note.id} folders={visibleFolders} note={note} onOpenNote={onOpenNote} onOpenSheet={onOpenSheet} view={view} />
             ))}
@@ -256,7 +256,7 @@ function NotesView({ copy, title: _title, notes, notesPerPage, emptyText: _empty
       {unpinnedVisible.length ? (
         <section>
           <div className="mb-3 text-sm font-black uppercase tracking-[0.2em] text-foreground/42">{copy.shell.sections.notes}</div>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-[14px]">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3 sm:gap-[14px]">
             {unpinnedVisible.map((note) => (
               <NoteCard key={note.id} folders={visibleFolders} note={note} onOpenNote={onOpenNote} onOpenSheet={onOpenSheet} view={view} />
             ))}

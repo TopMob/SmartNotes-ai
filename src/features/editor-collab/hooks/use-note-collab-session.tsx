@@ -231,8 +231,6 @@ export function NoteCollabSessionProvider({ note, children }: NoteCollabProvider
     channelRef.current = null;
     indexeddbRef.current?.destroy();
     indexeddbRef.current = null;
-    sessionRef.current?.doc.destroy();
-    sessionRef.current = null;
   }, []);
 
   const value = useMemo<NoteCollabSessionValue>(() => {

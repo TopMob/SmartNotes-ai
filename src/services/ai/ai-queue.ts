@@ -58,20 +58,8 @@ async function dispatchAnalysis(noteId: string): Promise<void> {
 }
 
 export function scheduleAiAnalysis(noteId: string) {
-  pendingNoteIds.add(noteId);
-  persistPendingNoteIds(pendingNoteIds);
-
-
-  const existing = timers.get(noteId);
-  if (existing) clearTimeout(existing);
-
-
-  const timer = setTimeout(() => {
-    timers.delete(noteId);
-    void dispatchAnalysis(noteId);
-  }, DEBOUNCE_MS);
-
-  timers.set(noteId, timer);
+  // Temporarily disabled as requested
+  return;
 }
 
 

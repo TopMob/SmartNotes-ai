@@ -58,14 +58,20 @@ export function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: NoteC
       </div>
 
       <button className="block w-full text-left" onClick={() => onOpenNote(note.id)} type="button">
-        <div className="mt-1 flex min-h-7 flex-wrap items-center gap-2 pr-20 text-[12px] font-black uppercase tracking-[0.18em] text-foreground/42">
-          {note.reminderAt ? <span className="rounded-full bg-amber-500/10 px-2 py-1 text-amber-600">{reminderLabel}</span> : null}
-          {note.lock ? <span className="rounded-full bg-foreground/8 px-2 py-1">🔒</span> : null}
-          {note.isArchived ? <span className="rounded-full bg-foreground/8 px-2 py-1">Archive</span> : null}
-          {folder ? <span className="rounded-full bg-accent/10 px-2 py-1 text-accent">{folder.name}</span> : null}
-        </div>
-        <h3 className="mt-3 pr-20 text-base font-black tracking-tight sm:text-lg">{note.title}</h3>
-        <p className={`mt-2 line-clamp-3 text-sm leading-6 text-foreground/60 ${note.lock?.hidden ? "select-none" : ""}`}>{previewText}</p>
+        <h3 className="pr-20 text-base font-black tracking-tight sm:text-lg mt-0">
+          {note.title}
+        </h3>
+        <p className={`mt-2 line-clamp-3 text-sm leading-6 text-foreground/60 ${note.lock?.hidden ? "select-none" : ""}`}>
+          {previewText}
+        </p>
+        {Boolean(note.reminderAt || note.lock || note.isArchived || folder) && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-[12px] font-black uppercase tracking-[0.18em] text-foreground/42">
+            {note.reminderAt ? <span className="rounded-full bg-amber-500/10 px-2 py-1 text-amber-600">{reminderLabel}</span> : null}
+            {note.lock ? <span className="rounded-full bg-foreground/8 px-2 py-1">🔒</span> : null}
+            {note.isArchived ? <span className="rounded-full bg-foreground/8 px-2 py-1">Archive</span> : null}
+            {folder ? <span className="rounded-full bg-accent/10 px-2 py-1 text-accent">{folder.name}</span> : null}
+          </div>
+        )}
         {note.userTags.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-2">
             {note.userTags.slice(0, 5).map((tag) => (
@@ -80,7 +86,7 @@ export function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: NoteC
             <div className="h-1 flex-1 rounded-full bg-foreground/8">
               <div
                 className="h-1 rounded-full bg-emerald-500"
-                style={{ width: `${Math.round(note.aiRelevance * 100)}%` }}
+                style={{ width: Math.round(note.aiRelevance * 100) + "%" }}
               />
             </div>
             <span className="text-[10px] font-bold text-foreground/36">{Math.round(note.aiRelevance * 100)}% релевантность</span>

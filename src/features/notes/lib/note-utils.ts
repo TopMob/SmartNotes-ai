@@ -40,9 +40,21 @@ export function deriveTitle(draft: NoteDraft) {
     return explicitTitle;
   }
 
-  const textTitle = stripHtml(draft.content).slice(0, 80);
+  const cleanText = stripHtml(draft.content)
+    .replace(/\s+/g, " ")
+    .trim();
 
-  return textTitle || "Untitled note";
+  if (!cleanText) {
+    return "Untitled note";
+  }
+
+  const words = cleanText.split(" ");
+  const maxWords = 6;
+  if (words.length <= maxWords) {
+    return cleanText;
+  }
+
+  return words.slice(0, maxWords).join(" ") + "...";
 }
 
 export function mergeContentFromPages(pages: NotePage[]) {

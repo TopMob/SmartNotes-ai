@@ -77,6 +77,13 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
   useAutoAnalyze(note.id, currentPage.content);
   const [isDrawing, setIsDrawing] = useState(false);
 
+  const tagString = userTags.join(", ");
+  const [tagsInput, setTagsInput] = useState(tagString);
+
+  useEffect(() => {
+    setTagsInput(tagString);
+  }, [tagString]);
+
   useDurableNoteSave();
 
   const editor = useEditor({
@@ -148,7 +155,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
   }
 
   function handleTitleChange(value: string) {
-    setTitle(value || currentPage.title || "Untitled note");
+    setTitle(value);
     markEditorDirty(true);
   }
 
@@ -208,35 +215,35 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
   return (
     <div className="fixed inset-0 z-50 bg-background/96 backdrop-blur-2xl">
       <div className="mx-auto flex h-full max-w-6xl flex-col px-3 py-3 sm:px-5">
-        <header className="flex items-center gap-1 rounded-[1.5rem] border border-border bg-surface/90 p-2 shadow-xl shadow-violet-950/8 sm:gap-2">
-          <button className="flex h-9 w-9 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={handleClose} type="button"><ChevronLeft className="h-5 w-5" /></button>
-          <div className="flex items-center gap-1 rounded-2xl bg-surface-strong px-2 py-1 text-sm font-black">
-            <button className="rounded-lg p-1 hover:bg-background disabled:opacity-35" disabled={currentNotePageIndex === 0} onClick={() => setCurrentNotePageIndex(Math.max(0, currentNotePageIndex - 1))} type="button"><ChevronLeft className="h-4 w-4" /></button>
-            {currentNotePageIndex + 1}/{pageCount}
-            <button className="rounded-lg p-1 hover:bg-background disabled:opacity-35" disabled={currentNotePageIndex >= pageCount - 1} onClick={() => setCurrentNotePageIndex(Math.min(pageCount - 1, currentNotePageIndex + 1))} type="button"><ChevronRight className="h-4 w-4" /></button>
+        <header className="flex items-center gap-1 overflow-x-auto no-scrollbar rounded-[1.5rem] border border-border bg-surface/90 p-2 shadow-xl shadow-violet-950/8 sm:gap-2">
+          <button className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={handleClose} type="button"><ChevronLeft className="h-6 w-6 sm:h-5 sm:w-5" /></button>
+          <div className="flex shrink-0 items-center gap-1 rounded-2xl bg-surface-strong px-2 py-1 text-sm font-black">
+            <button className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-background disabled:opacity-35" disabled={currentNotePageIndex === 0} onClick={() => setCurrentNotePageIndex(Math.max(0, currentNotePageIndex - 1))} type="button"><ChevronLeft className="h-5 w-5 sm:h-4 sm:w-4" /></button>
+            <span className="px-1">{currentNotePageIndex + 1}/{pageCount}</span>
+            <button className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-background disabled:opacity-35" disabled={currentNotePageIndex >= pageCount - 1} onClick={() => setCurrentNotePageIndex(Math.min(pageCount - 1, currentNotePageIndex + 1))} type="button"><ChevronRight className="h-5 w-5 sm:h-4 sm:w-4" /></button>
             <button
               aria-label="Удалить страницу"
-              className="rounded-lg p-1 text-destructive hover:bg-background disabled:opacity-35"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-destructive hover:bg-background disabled:opacity-35"
               disabled={pageCount <= 1}
               onClick={handleDeletePage}
               title="Удалить страницу"
               type="button"
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="h-5 w-5 sm:h-4 sm:w-4" />
             </button>
           </div>
-          <button className="flex h-9 w-9 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={(event) => onOpenSheet("pages", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><Folder className="h-5 w-5" /></button>
-          <div className="ml-auto flex items-center gap-1">
-            <button className="flex h-9 w-9 items-center justify-center rounded-2xl hover:bg-surface-strong disabled:opacity-35 sm:h-10 sm:w-10" disabled={!editor.can().undo()} onClick={() => editor.chain().focus().undo().run()} type="button"><Undo2 className="h-5 w-5" /></button>
-            <button className="flex h-9 w-9 items-center justify-center rounded-2xl hover:bg-surface-strong disabled:opacity-35 sm:h-10 sm:w-10" disabled={!editor.can().redo()} onClick={() => editor.chain().focus().redo().run()} type="button"><Redo2 className="h-5 w-5" /></button>
-            <button className="flex h-9 w-9 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={() => void shareNote(note)} type="button"><Share2 className="h-5 w-5" /></button>
-            <button className="flex h-9 w-9 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={(event) => onOpenSheet("note", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><MoreHorizontal className="h-5 w-5" /></button>
-            <button className="flex h-9 w-9 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={() => setToolbarVisible(!toolbarVisible)} type="button"><ChevronDown className="h-5 w-5" /></button>
+          <button className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={(event) => onOpenSheet("pages", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><Folder className="h-6 w-6 sm:h-5 sm:w-5" /></button>
+          <div className="ml-auto flex shrink-0 items-center gap-1">
+            <button className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong disabled:opacity-35 sm:h-10 sm:w-10" disabled={!editor.can().undo()} onClick={() => editor.chain().focus().undo().run()} type="button"><Undo2 className="h-6 w-6 sm:h-5 sm:w-5" /></button>
+            <button className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong disabled:opacity-35 sm:h-10 sm:w-10" disabled={!editor.can().redo()} onClick={() => editor.chain().focus().redo().run()} type="button"><Redo2 className="h-6 w-6 sm:h-5 sm:w-5" /></button>
+            <button className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={() => void shareNote(note)} type="button"><Share2 className="h-6 w-6 sm:h-5 sm:w-5" /></button>
+            <button className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={(event) => onOpenSheet("note", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><MoreHorizontal className="h-6 w-6 sm:h-5 sm:w-5" /></button>
+            <button className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={() => setToolbarVisible(!toolbarVisible)} type="button"><ChevronDown className="h-6 w-6 sm:h-5 sm:w-5" /></button>
           </div>
         </header>
 
         <section className="mt-3 min-h-0 flex-1 overflow-y-auto rounded-[2rem] border border-border bg-surface/88 p-4 shadow-2xl shadow-violet-950/8 sm:p-8">
-          <input className="w-full bg-transparent text-2xl font-black tracking-tight outline-none placeholder:text-foreground/28 sm:text-4xl" onChange={(event) => handleTitleChange(event.target.value)} placeholder="Заголовок" value={title} />
+          <input className="w-full bg-transparent text-2xl font-black tracking-tight outline-none placeholder:text-foreground/28 sm:text-4xl" onChange={(event) => handleTitleChange(event.target.value)} placeholder="Заголовок" value={(title === "Untitled note" || title === "Untitled Note" ? "" : title) || ""} />
           {isDrawing && (
             <DrawingCanvas
               onClose={() => setIsDrawing(false)}
@@ -247,7 +254,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
             />
           )}
           {toolbarVisible ? (
-            <div className="sticky top-0 z-10 mt-4 flex flex-nowrap items-center gap-1.5 overflow-x-auto overflow-y-hidden rounded-2xl border border-border bg-surface-strong/92 p-1.5 backdrop-blur-xl">
+            <div className="sticky top-0 z-10 mt-4 flex flex-nowrap items-center gap-1.5 overflow-x-auto no-scrollbar overflow-y-hidden rounded-2xl border border-border bg-surface-strong/92 p-1.5 backdrop-blur-xl">
               <ToolButton active={editor.isActive("bold")} icon={Bold} onClick={() => editor.chain().focus().toggleBold().run()} />
               <ToolButton active={editor.isActive("italic")} icon={Italic} onClick={() => editor.chain().focus().toggleItalic().run()} />
               <ToolButton active={editor.isActive("underline")} icon={Underline} onClick={() => editor.chain().focus().toggleUnderline().run()} />
@@ -264,22 +271,42 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
               <ToolButton icon={FileImage} label="Add image" onClick={() => void handleAttachImage()} />
             </div>
           ) : null}
-          <div className="mt-5 flex min-h-[60vh] flex-1 rounded-[1.5rem] border border-border bg-background/36 p-4 text-lg leading-9 outline-none">
-            <div className="min-h-full flex-1">
+          <div 
+            className="mt-5 flex min-h-[60vh] flex-1 rounded-[1.5rem] border border-border bg-background/36 p-4 text-lg leading-9 outline-none cursor-text focus-within:ring-2 focus-within:ring-accent/25 focus-within:border-accent/80 transition-all"
+            onClick={() => editor.chain().focus().run()}
+          >
+            <div className="min-h-full flex-1 [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[55vh]">
               <EditorContent editor={editor} />
             </div>
           </div>
         </section>
 
-        <footer className="mt-3 flex items-center gap-2 rounded-[1.5rem] border border-border bg-surface/92 p-2 shadow-xl shadow-violet-950/8">
-          <label className="flex min-h-9 flex-1 items-center gap-2 rounded-2xl bg-surface-strong px-3 sm:min-h-11"><Tag className="h-4 w-4 text-accent" /><input className="min-w-0 flex-1 bg-transparent outline-none" defaultValue={userTags.join(", ")} onBlur={(event) => handleTagsBlur(event.target.value)} placeholder="tag1, tag2" /></label>
-          <div className="flex items-center gap-2">
-            <div className="text-xs font-bold text-foreground/48">
-              AI: {aiStatus === 'pending' ? 'Ожидание' : aiStatus === 'analyzing' ? 'Анализ...' : aiStatus === 'error' ? 'Ошибка AI' : 'Готово'}
+        <footer className="mt-3 flex flex-col gap-2 rounded-[1.5rem] border border-border bg-surface/92 p-3 shadow-xl shadow-violet-950/8 sm:flex-row sm:items-center sm:p-2">
+          <label className="flex min-h-11 flex-1 items-center gap-2 rounded-2xl bg-surface-strong px-3 sm:min-h-11">
+            <Tag className="h-5 w-5 text-accent sm:h-4 sm:w-4" />
+            <input 
+              className="min-w-0 flex-1 bg-transparent outline-none" 
+              value={tagsInput}
+              onChange={(event) => setTagsInput(event.target.value)}
+              onBlur={() => handleTagsBlur(tagsInput)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  handleTagsBlur(tagsInput);
+                  event.currentTarget.blur();
+                }
+              }}
+              placeholder="tag1, tag2" 
+            />
+          </label>
+          <div className="flex w-full items-center justify-between sm:w-auto sm:gap-2">
+            <div className="flex flex-col gap-0.5 sm:gap-2 sm:flex-row">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-foreground/48 sm:text-xs">
+                AI: {aiStatus === 'pending' ? 'Ожидание' : aiStatus === 'analyzing' ? 'Анализ...' : aiStatus === 'error' ? 'Ошибка AI' : 'Готово'}
+              </div>
+              <div className="text-[10px] font-bold uppercase tracking-wider text-foreground/48 sm:text-xs">{durableState.error ? "Ошибка" : durableState.isSaving ? "Сохранение..." : editorDirty ? "Несохранено" : "Синхронизировано"}</div>
             </div>
-            <div className="text-xs font-bold text-foreground/48">{durableState.error ? "Ошибка сохранения durable snapshot" : durableState.isSaving ? "Сохраняем durable snapshot..." : editorDirty ? "Есть несохраненные локальные изменения" : "Durable snapshot синхронизирован"}</div>
+            <Button className="h-11 shrink-0 rounded-2xl px-6 font-bold" onClick={handleClose} type="button"><Save className="mr-2 h-5 w-5" />Готово</Button>
           </div>
-          <Button className="h-10 rounded-2xl sm:h-11" onClick={handleClose} type="button"><Save className="mr-2 h-4 w-4" />Готово</Button>
         </footer>
       </div>
     </div>
@@ -288,8 +315,8 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
 
 function ToolButton({ icon: Icon, label, active = false, onClick }: { icon?: ComponentType<{ className?: string }>; label?: string; active?: boolean; onClick: () => void }) {
   return (
-    <button className={`shrink-0 rounded-xl px-2.5 py-1.5 text-xs font-black hover:bg-background sm:px-3 sm:py-2 sm:text-sm ${active ? "bg-background text-accent" : ""}`} onClick={onClick} type="button">
-      {Icon ? <Icon className="h-4 w-4" /> : label}
+    <button className={`shrink-0 rounded-xl px-3 py-2.5 text-sm font-black hover:bg-background sm:px-3 sm:py-2 ${active ? "bg-background text-accent" : ""}`} onClick={onClick} type="button">
+      {Icon ? <Icon className="h-5 w-5 sm:h-4 sm:w-4" /> : label}
     </button>
   );
 }

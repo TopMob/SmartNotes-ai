@@ -78,18 +78,18 @@ export function Header({ copy, view, activeFolder, searchQuery: _searchQuery, fi
   }
 
   return (
-    <header className="top-bar sticky top-0 z-20 px-3 py-3 pb-[3.5rem] shadow-lg shadow-violet-950/5 sm:px-4 md:pb-3 md:py-3">
+    <header className="top-bar sticky top-0 z-20 px-3 py-3 pb-[4rem] shadow-lg shadow-violet-950/5 sm:px-4 md:pb-3 md:py-3">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 shrink-0 items-center gap-2">
-          <button className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-surface-strong text-foreground/72 lg:hidden" onClick={onOpenDrawer} type="button">
-            <MoreHorizontal className="h-5 w-5" />
+          <button className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-surface-strong text-foreground/72 sm:h-10 sm:w-10 lg:hidden" onClick={onOpenDrawer} type="button">
+            <MoreHorizontal className="h-6 w-6 sm:h-5 sm:w-5" />
           </button>
 
           <h1 className="truncate text-xl font-black tracking-tight">{title}</h1>
-          {view === "folder" ? <button className="rounded-full p-2 text-foreground/45 hover:bg-surface-strong" onClick={(event) => onOpenFolderMenu(getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><MoreHorizontal className="h-5 w-5" /></button> : null}
+          {view === "folder" ? <button className="flex h-11 w-11 items-center justify-center rounded-full text-foreground/45 hover:bg-surface-strong sm:h-10 sm:w-10" onClick={(event) => onOpenFolderMenu(getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><MoreHorizontal className="h-6 w-6 sm:h-5 sm:w-5" /></button> : null}
         </div>
 
-        <label className="absolute left-[15px] right-[15px] top-[65px] z-50 flex h-[42px] min-w-0 max-w-none items-center gap-3 rounded-full border border-border bg-surface-strong px-4 shadow-lg md:static md:mx-auto md:flex-1 md:max-w-[560px] md:shadow-inner md:shadow-violet-950/4">
+        <label className="absolute left-[15px] right-[15px] top-[4.5rem] z-50 flex h-11 min-w-0 max-w-none items-center gap-3 rounded-full border border-border bg-surface-strong px-4 shadow-lg md:static md:mx-auto md:flex-1 md:h-10 md:max-w-[560px] md:shadow-inner md:shadow-violet-950/4">
           <Search className="h-5 w-5 shrink-0 text-foreground/38" />
           <input className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-foreground/38" onChange={(event) => useSearchStore.getState().setQuery(event.target.value)} placeholder={copy.shell.search} value={useSearchStore((state) => state.query)} />
           <kbd className="hidden items-center gap-1 rounded-lg border border-border bg-surface px-1.5 py-0.5 text-[10px] font-bold text-foreground/32 md:flex" title="Command Palette">
@@ -99,15 +99,15 @@ export function Header({ copy, view, activeFolder, searchQuery: _searchQuery, fi
         <div className="flex shrink-0 items-center gap-2">
 
           <div className="relative shrink-0" ref={filtersRef}>
-            <button className={`flex h-10 shrink-0 items-center gap-2 rounded-2xl border border-border px-4 text-sm font-bold ${filtersOpen ? "bg-foreground text-background" : "bg-surface-strong text-foreground/72"}`} onClick={onOpenFilters} type="button">
-              <SlidersHorizontal className="h-4 w-4" />
+            <button className={`flex h-11 shrink-0 items-center gap-2 rounded-2xl border border-border px-4 text-sm font-bold sm:h-10 ${filtersOpen ? "bg-foreground text-background" : "bg-surface-strong text-foreground/72"}`} onClick={onOpenFilters} type="button">
+              <SlidersHorizontal className="h-5 w-5 sm:h-4 sm:w-4" />
               <span className="hidden sm:inline">{copy.shell.filters}</span>
             </button>
           </div>
 
           <div className="relative shrink-0" ref={profileRef}>
-            <button className="flex h-10 w-10 items-center justify-center rounded-2xl border border-border bg-surface-strong" onClick={() => setProfileOpen(!profileOpen)} type="button">
-              <UserRound className="h-5 w-5" />
+            <button className="flex h-11 w-11 items-center justify-center rounded-2xl border border-border bg-surface-strong sm:h-10 sm:w-10" onClick={() => setProfileOpen(!profileOpen)} type="button">
+              <UserRound className="h-6 w-6 sm:h-5 sm:w-5" />
             </button>
 
             {profileOpen ? (

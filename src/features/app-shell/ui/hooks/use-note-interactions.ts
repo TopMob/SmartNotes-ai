@@ -4,7 +4,6 @@ import { useCallback } from "react";
 
 import type { Note } from "@/entities/note";
 import { useAuthStore } from "@/features/auth/model/auth-store";
-import { useNoteActions } from "@/features/notes/hooks/use-note-mutations";
 import { createLocalNote } from "@/features/notes/lib/note-utils";
 import { useNoteUiStore } from "@/features/notes/model/note-ui-store";
 
@@ -17,10 +16,10 @@ export function useNoteInteractions(options: {
   setFiltersOpen: (open: boolean) => void;
 }) {
   const { activeFolderId, setEditorOpen, openSheet, setFiltersOpen } = options;
-  const { createNote } = useNoteActions();
   const currentNoteId = useNoteUiStore((state) => state.currentNoteId);
   const setCurrentNoteId = useNoteUiStore((state) => state.setCurrentNoteId);
   const setCurrentNotePageIndex = useNoteUiStore((state) => state.setCurrentNotePageIndex);
+  const setDraftNote = useNoteUiStore((state) => state.setDraftNote);
   const authUser = useAuthStore((state) => state.user);
 
   const openNote = useCallback(
@@ -43,40 +42,22 @@ export function useNoteInteractions(options: {
   );
 
   const createNoteDraft = useCallback(async () => {
-    if (!authUser?.id || authUser.id === "local-user") {
-
-      const note = createLocalNote(
-        { title: "", content: "", folderId: activeFolderId, userTags: [] },
-        authUser?.id ?? "local-user",
-      );
-      void createNote({ title: "", content: "", folderId: activeFolderId, userTags: [] }, authUser?.id ?? "local-user", note);
-      setCurrentNoteId(note.id);
-      setEditorOpen(true);
-      return;
-    }
-
     const note = createLocalNote(
       { title: "", content: "", folderId: activeFolderId, userTags: [] },
-      authUser.id,
+      authUser?.id ?? "local-user",
     );
 
-
+    setDraftNote(note);
     setCurrentNoteId(note.id);
     setEditorOpen(true);
-
-    try {
-      await createNote({ title: "", content: "", folderId: activeFolderId, userTags: [] }, authUser.id, note);
-    } catch {
-
-
-    }
-  }, [activeFolderId, authUser?.id, createNote, setCurrentNoteId, setEditorOpen]);
+  }, [activeFolderId, authUser?.id, setCurrentNoteId, setEditorOpen, setDraftNote]);
 
   const closeEditor = useCallback(() => {
     setEditorOpen(false);
     setCurrentNoteId(null);
     setCurrentNotePageIndex(0);
-  }, [setEditorOpen, setCurrentNoteId, setCurrentNotePageIndex]);
+    setDraftNote(null);
+  }, [setEditorOpen, setCurrentNoteId, setCurrentNotePageIndex, setDraftNote]);
 
   return {
     currentNoteId,

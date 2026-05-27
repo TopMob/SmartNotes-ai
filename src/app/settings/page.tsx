@@ -293,9 +293,9 @@ export default function SettingsPage() {
   }
 
   return (
-    <main className="min-h-screen overflow-x-hidden px-4 py-4 sm:px-6 lg:p-6">
-      <div className="mx-auto grid max-w-7xl min-w-0 gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
-        <aside className="app-surface min-w-0 border border-border p-4 shadow-2xl shadow-violet-950/8 backdrop-blur-2xl lg:sticky lg:top-6 lg:self-start">
+    <main className="h-[100dvh] overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-6 lg:p-6 pb-24">
+      <div className="mx-auto grid max-w-7xl min-w-0 gap-4 lg:grid-cols-[320px_minmax(0,1fr)] pb-12">
+        <aside className="app-surface rounded-[1.6rem] min-w-0 border border-border p-4 shadow-2xl shadow-violet-950/8 backdrop-blur-2xl lg:sticky lg:top-6 lg:self-start">
           <Link className="inline-flex items-center gap-2 rounded-full bg-surface-strong px-4 py-2 text-sm font-bold text-foreground/70 hover:bg-background" href="/">
             <ArrowLeft className="h-4 w-4" />
             {copy.common.back}
@@ -304,14 +304,14 @@ export default function SettingsPage() {
           <h1 className="mt-5 text-2xl lg:text-3xl font-black tracking-tight">{copy.settings.title}</h1>
           <p className="mt-2 text-xs leading-5 text-foreground/58 sm:text-sm sm:leading-6">{copy.settings.description}</p>
 
-          <nav className="mt-6 flex w-full max-w-full gap-2 overflow-x-auto overflow-y-hidden pb-1 no-scrollbar lg:block lg:space-y-2 lg:overflow-visible lg:pb-0">
+          <nav className="mt-6 flex w-full max-w-full gap-2 overflow-x-auto overflow-y-hidden pb-2 no-scrollbar lg:block lg:space-y-2 lg:overflow-visible lg:pb-0">
             {sections.map((section) => {
               const Icon = section.icon;
               const label = copy.settings.sections[section.id];
 
               return (
                 <button
-                  className={`shrink-0 flex items-center gap-2 rounded-xl px-3 py-2 text-left whitespace-nowrap transition lg:w-full sm:min-w-[10rem] sm:p-3 ${activeSection === section.id ? "bg-foreground text-background" : "hover:bg-surface-strong"}`}
+                  className={`shrink-0 flex min-h-11 items-center gap-2 rounded-2xl px-4 py-2.5 text-left whitespace-nowrap transition lg:w-full sm:min-w-[10rem] sm:p-3 ${activeSection === section.id ? "bg-foreground text-background" : "hover:bg-surface-strong"}`}
                   key={section.id}
                   onClick={() => setActiveSection(section.id)}
                   type="button"
@@ -323,20 +323,20 @@ export default function SettingsPage() {
             })}
           </nav>
 
-          <div className="mt-4 w-full min-w-0 rounded-xl border border-border bg-surface-strong p-3 text-xs text-foreground/62 sm:mt-6 sm:rounded-[1.4rem] sm:p-4 sm:text-sm">
+          <div className="mt-4 w-full min-w-0 rounded-[1.4rem] border border-border bg-surface-strong p-3 text-xs text-foreground/62 sm:mt-6 sm:p-4 sm:text-sm">
             <p className="font-black text-foreground">{copy.settings.appearance.pendingSync}</p>
             <p className="mt-2">{settings.updatedAt ? new Date(settings.updatedAt).toLocaleString(lang === "ru" ? "ru-RU" : "en-US") : copy.settings.appearance.noPendingSync}</p>
           </div>
         </aside>
 
-        <section className="app-surface min-w-0 border border-border p-4 shadow-2xl shadow-violet-950/8 backdrop-blur-2xl sm:p-7">
+        <section className="app-surface rounded-[1.6rem] min-w-0 border border-border p-4 shadow-2xl shadow-violet-950/8 backdrop-blur-2xl sm:p-7">
           {activeSection === "appearance" ? (
             <div className="space-y-4">
               <SectionIntro title={copy.settings.appearance.title} text={copy.settings.appearance.subtitle} />
               <Panel title={copy.settings.appearance.themePresets}>
                 <div className="flex flex-wrap gap-2">
                   {themePresets.map((item) => (
-                    <button className={`min-h-9 rounded-xl border px-3 py-1.5 text-xs font-black sm:min-h-11 sm:px-3 sm:py-2 sm:text-sm ${settings.preset === item ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={item} onClick={() => void patchSettings({ preset: item })} type="button">
+                    <button className={`min-h-11 rounded-2xl border px-4 py-2.5 text-xs font-black sm:text-sm ${settings.preset === item ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={item} onClick={() => void patchSettings({ preset: item })} type="button">
                       {item}
                     </button>
                   ))}
@@ -356,13 +356,13 @@ export default function SettingsPage() {
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <label className="block w-full min-w-0 truncate text-sm font-bold text-foreground/72">
                     {copy.settings.appearance.mainBackgroundUrl}
-                    <input className="mt-2 w-full min-w-0 rounded-2xl border border-border bg-background px-3 py-2 text-xs sm:px-4 sm:py-3 sm:text-sm" onChange={(event) => void patchSettings({ mainBackgroundUrl: event.target.value || null })} placeholder="https://..." type="url" value={settings.mainBackgroundUrl ?? ""} />
-                    <button className="mt-2 inline-flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold" onClick={() => void uploadBackground("mainBackgroundUrl")} type="button"><Plus className="h-3.5 w-3.5" />Файл</button>
+                    <input className="mt-2 w-full min-w-0 rounded-2xl border border-border bg-background px-4 py-2.5 text-sm" onChange={(event) => void patchSettings({ mainBackgroundUrl: event.target.value || null })} placeholder="https://..." type="url" value={settings.mainBackgroundUrl ?? ""} />
+                    <button className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-2xl border border-border bg-background px-4 py-2.5 text-xs font-bold sm:text-sm transition hover:bg-surface-strong" onClick={() => void uploadBackground("mainBackgroundUrl")} type="button"><Plus className="h-3.5 w-3.5" />Файл</button>
                   </label>
                   <label className="block w-full min-w-0 truncate text-sm font-bold text-foreground/72">
                     {copy.settings.appearance.sidebarBackgroundUrl}
-                    <input className="mt-2 w-full min-w-0 rounded-2xl border border-border bg-background px-3 py-2 text-xs sm:px-4 sm:py-3 sm:text-sm" onChange={(event) => void patchSettings({ sidebarBackgroundUrl: event.target.value || null })} placeholder="https://..." type="url" value={settings.sidebarBackgroundUrl ?? ""} />
-                    <button className="mt-2 inline-flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold" onClick={() => void uploadBackground("sidebarBackgroundUrl")} type="button"><Plus className="h-3.5 w-3.5" />Файл</button>
+                    <input className="mt-2 w-full min-w-0 rounded-2xl border border-border bg-background px-4 py-2.5 text-sm" onChange={(event) => void patchSettings({ sidebarBackgroundUrl: event.target.value || null })} placeholder="https://..." type="url" value={settings.sidebarBackgroundUrl ?? ""} />
+                    <button className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-2xl border border-border bg-background px-4 py-2.5 text-xs font-bold sm:text-sm transition hover:bg-surface-strong" onClick={() => void uploadBackground("sidebarBackgroundUrl")} type="button"><Plus className="h-3.5 w-3.5" />Файл</button>
                   </label>
                 </div>
               </Panel>
@@ -370,37 +370,37 @@ export default function SettingsPage() {
               <Panel title={copy.settings.appearance.localeAndLayout}>
                 <div className="flex flex-wrap gap-2">
                   {(["ru", "en"] as const).map((item) => (
-                    <button className={`min-h-9 rounded-xl border px-3 py-1.5 text-xs font-black sm:min-h-11 sm:px-3 sm:py-2 sm:text-sm ${settings.lang === item ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={item} onClick={() => void patchSettings({ lang: item })} type="button">
+                    <button className={`min-h-11 rounded-2xl border px-4 py-2.5 text-xs font-black sm:text-sm ${settings.lang === item ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={item} onClick={() => void patchSettings({ lang: item })} type="button">
                       {item.toUpperCase()}
                     </button>
                   ))}
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
                   {(["compact", "full"] as const).map((item) => (
-                    <button className={`min-h-9 rounded-xl border px-3 py-1.5 text-xs font-black sm:min-h-11 sm:px-3 sm:py-2 sm:text-sm ${settings.folderViewMode === item ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={item} onClick={() => void patchSettings({ folderViewMode: item })} type="button">
+                    <button className={`min-h-11 rounded-2xl border px-4 py-2.5 text-xs font-black sm:text-sm ${settings.folderViewMode === item ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={item} onClick={() => void patchSettings({ folderViewMode: item })} type="button">
                       {item}
                     </button>
                   ))}
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
                   {([5, 10, 20, 50] as const).map((item) => (
-                    <button className={`min-h-9 rounded-xl border px-3 py-1.5 text-xs font-black sm:min-h-11 sm:px-3 sm:py-2 sm:text-sm ${settings.notesPerPage === item ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={item} onClick={() => void patchSettings({ notesPerPage: item })} type="button">
+                    <button className={`min-h-11 rounded-2xl border px-4 py-2.5 text-xs font-black sm:text-sm ${settings.notesPerPage === item ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={item} onClick={() => void patchSettings({ notesPerPage: item })} type="button">
                       {item} / page
                     </button>
                   ))}
                 </div>
-                <button className={`mt-4 min-h-9 rounded-2xl border px-3 py-1.5 text-left text-xs font-bold sm:min-h-11 sm:px-3 sm:py-2 sm:text-sm ${settings.reduceMotion ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} onClick={() => void patchSettings({ reduceMotion: !settings.reduceMotion })} type="button">
+                <button className={`mt-4 min-h-11 rounded-2xl border px-4 py-2.5 text-left text-xs font-bold sm:text-sm ${settings.reduceMotion ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} onClick={() => void patchSettings({ reduceMotion: !settings.reduceMotion })} type="button">
                   {settings.reduceMotion ? `${copy.common.on}` : `${copy.common.off}`}
                 </button>
               </Panel>
 
               <Panel title={copy.settings.appearance.customPresets}>
                 <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap">
-                  <input className="w-full min-w-0 rounded-2xl border border-border bg-background px-3 py-2 text-xs sm:min-w-[16rem] sm:flex-1 sm:px-4 sm:py-3 sm:text-sm" onChange={(event) => setPresetName(event.target.value)} placeholder={copy.settings.appearance.customPresets} value={presetName} />
-                  <button className="w-full min-h-9 rounded-2xl bg-accent px-3 py-1.5 text-xs font-bold text-accent-foreground sm:min-h-11 sm:w-auto sm:px-3 sm:py-2 sm:text-sm" onClick={() => { saveCurrentThemePreset(presetName); setPresetName(""); }} type="button">
+                  <input className="w-full min-w-0 rounded-2xl border border-border bg-background px-4 py-2.5 text-sm sm:min-w-[16rem] sm:flex-1" onChange={(event) => setPresetName(event.target.value)} placeholder={copy.settings.appearance.customPresets} value={presetName} />
+                  <button className="w-full min-h-11 rounded-2xl bg-accent px-4 py-2.5 text-sm font-bold text-accent-foreground sm:w-auto transition hover:bg-accent/90" onClick={() => { saveCurrentThemePreset(presetName); setPresetName(""); }} type="button">
                     {copy.settings.appearance.savePreset}
                   </button>
-                  <button className="w-full min-h-9 rounded-2xl border border-border bg-background px-3 py-1.5 text-xs font-bold sm:min-h-11 sm:w-auto sm:px-3 sm:py-2 sm:text-sm" onClick={() => void resetSettings()} type="button">
+                  <button className="w-full min-h-11 rounded-2xl border border-border bg-background px-4 py-2.5 text-sm font-bold sm:w-auto transition hover:bg-surface-strong" onClick={() => void resetSettings()} type="button">
                     {copy.settings.appearance.resetAppearance}
                   </button>
                 </div>
@@ -414,11 +414,11 @@ export default function SettingsPage() {
                             <p className="font-black">{item.name}</p>
                             <p className="mt-1 text-xs text-foreground/52">{item.preset}</p>
                           </div>
-                          <button className="rounded-full bg-background p-2 text-foreground/60" onClick={() => removeCustomPreset(item.id)} type="button">
+                          <button className="rounded-full bg-background h-11 w-11 flex items-center justify-center text-foreground/60 hover:bg-surface-strong transition" onClick={() => removeCustomPreset(item.id)} type="button">
                             <RotateCcw className="h-4 w-4" />
                           </button>
                         </div>
-                        <button className="mt-4 inline-flex min-h-9 items-center gap-2 rounded-xl bg-accent px-3 py-1.5 text-xs font-bold text-accent-foreground sm:min-h-11 sm:px-3 sm:py-2 sm:text-sm" onClick={() => applyCustomPreset(item.id)} type="button">
+                        <button className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-2xl bg-accent px-4 py-2.5 text-sm font-bold text-accent-foreground transition hover:bg-accent/90" onClick={() => applyCustomPreset(item.id)} type="button">
                           {copy.common.apply}
                         </button>
                       </div>
@@ -437,7 +437,7 @@ export default function SettingsPage() {
               <Panel title={copy.settings.editor.tools}>
                 <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                   {editorGroups.map(([key, label]) => (
-                    <button className={`flex w-full min-w-0 items-center justify-between rounded-2xl border px-3 py-2 text-left text-xs font-bold sm:px-3 sm:py-2 sm:text-sm ${settings.editor[key] ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={key} onClick={() => toggleEditorTool(key)} type="button">
+                    <button className={`flex w-full min-w-0 min-h-11 items-center justify-between rounded-2xl border px-4 py-2.5 text-left text-xs font-bold sm:text-sm transition hover:bg-surface-strong ${settings.editor[key] ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={key} onClick={() => toggleEditorTool(key)} type="button">
                       <span className="truncate pr-3">{label}</span>
                       <span>{settings.editor[key] ? copy.settings.editor.on : copy.settings.editor.off}</span>
                     </button>
@@ -457,7 +457,7 @@ export default function SettingsPage() {
                     ["showTagFilter", "Tag filter"],
                     ["showUpdatedPeriodFilter", "Updated period filter"],
                   ] as const).map(([key, label]) => (
-                    <button className={`flex w-full min-w-0 items-center justify-between rounded-2xl border px-3 py-2 text-xs font-bold sm:px-3 sm:py-2 sm:text-sm ${settings.interface[key] ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={key} onClick={() => toggleInterfaceSection(key)} type="button">
+                    <button className={`flex w-full min-w-0 min-h-11 items-center justify-between rounded-2xl border px-4 py-2.5 text-xs font-bold sm:text-sm transition hover:bg-surface-strong ${settings.interface[key] ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={key} onClick={() => toggleInterfaceSection(key)} type="button">
                       <span className="truncate pr-3">{label}</span>
                       <span>{settings.interface[key] ? copy.common.on : copy.common.off}</span>
                     </button>
@@ -472,22 +472,22 @@ export default function SettingsPage() {
               <SectionIntro title={copy.settings.data.title} text={copy.settings.data.subtitle} />
               <Panel title={copy.settings.data.maintenance}>
                 <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                  <button className="flex w-full min-h-11 items-center justify-center gap-2 rounded-2xl border border-border bg-background px-3 py-2 text-xs font-bold sm:text-sm" onClick={() => void handleImportNotes()} type="button">
+                  <button className="flex w-full min-h-11 items-center justify-center gap-2 rounded-2xl border border-border bg-background px-4 py-2.5 text-xs font-bold sm:text-sm transition hover:bg-surface-strong" onClick={() => void handleImportNotes()} type="button">
                     <Upload className="h-4 w-4" />
                     {copy.settings.data.importJson}
                   </button>
-                  <button className="flex w-full min-h-11 items-center justify-center gap-2 rounded-2xl border border-border bg-background px-3 py-2 text-xs font-bold sm:text-sm" onClick={exportAllNotes} type="button">
+                  <button className="flex w-full min-h-11 items-center justify-center gap-2 rounded-2xl border border-border bg-background px-4 py-2.5 text-xs font-bold sm:text-sm transition hover:bg-surface-strong" onClick={exportAllNotes} type="button">
                     <Download className="h-4 w-4" />
                     {copy.settings.data.exportAll}
                   </button>
-                  <button className="flex w-full min-h-11 items-center justify-center gap-2 rounded-2xl border border-border bg-background px-3 py-2 text-xs font-bold sm:text-sm" onClick={exportFolderNotes} type="button">
+                  <button className="flex w-full min-h-11 items-center justify-center gap-2 rounded-2xl border border-border bg-background px-4 py-2.5 text-xs font-bold sm:text-sm transition hover:bg-surface-strong" onClick={exportFolderNotes} type="button">
                     <FileJson className="h-4 w-4" />
                     {copy.settings.data.exportFolder}
                   </button>
-                  <button className="w-full min-h-11 rounded-2xl border border-border bg-background px-3 py-2 text-xs font-bold sm:text-sm" onClick={() => window.location.reload()} type="button">
+                  <button className="w-full min-h-11 rounded-2xl border border-border bg-background px-4 py-2.5 text-xs font-bold sm:text-sm transition hover:bg-surface-strong" onClick={() => window.location.reload()} type="button">
                     {copy.settings.data.resetCache}
                   </button>
-                  <button className="w-full min-h-11 rounded-2xl bg-accent px-3 py-2 text-xs font-bold text-accent-foreground sm:text-sm" onClick={() => void resetSettings()} type="button">
+                  <button className="w-full min-h-11 rounded-2xl bg-accent px-4 py-2.5 text-xs font-bold text-accent-foreground sm:text-sm transition hover:bg-accent/90" onClick={() => void resetSettings()} type="button">
                     {copy.settings.data.resetSettings}
                   </button>
                 </div>
@@ -510,7 +510,7 @@ export default function SettingsPage() {
                   {/* Email */}
                   <div>
                     <p className="mb-1.5 text-xs font-bold text-foreground/60">{copy.settings.profile.email}</p>
-                    <div className="w-full rounded-2xl border border-border bg-background px-3 py-2.5 text-sm text-foreground/70 sm:px-4 sm:py-3">
+                    <div className="w-full min-h-11 rounded-2xl border border-border bg-background px-4 py-2.5 text-sm text-foreground/70 flex items-center">
                       {user?.email ?? "—"}
                     </div>
                   </div>
@@ -519,11 +519,11 @@ export default function SettingsPage() {
                   <div>
                     <p className="mb-1.5 text-xs font-bold text-foreground/60">{copy.settings.profile.uid}</p>
                     <div className="flex items-center gap-2">
-                      <div className="min-w-0 flex-1 truncate rounded-2xl border border-border bg-background px-3 py-2.5 font-mono text-xs text-foreground/60 sm:px-4 sm:py-3">
+                      <div className="min-w-0 flex-1 truncate rounded-2xl border border-border bg-background px-4 py-2.5 font-mono text-xs text-foreground/60 min-h-11 flex items-center">
                         {user?.id ?? "—"}
                       </div>
                       <button
-                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border transition ${uidCopied ? "border-accent bg-accent/10 text-accent" : "border-border bg-background text-foreground/60 hover:bg-surface-strong"}`}
+                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border transition ${uidCopied ? "border-accent bg-accent/10 text-accent" : "border-border bg-background text-foreground/60 hover:bg-surface-strong"}`}
                         onClick={copyUid}
                         title={copy.settings.profile.copy}
                         type="button"
@@ -556,7 +556,7 @@ export default function SettingsPage() {
                     </div>
                     <div className="flex flex-col gap-2">
                       <button
-                        className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-xs font-bold hover:bg-surface-strong"
+                        className="inline-flex min-h-11 items-center gap-2 rounded-2xl border border-border bg-background px-4 py-2.5 text-xs font-bold hover:bg-surface-strong transition"
                         onClick={() => void uploadAvatar()}
                         type="button"
                       >
@@ -565,7 +565,7 @@ export default function SettingsPage() {
                       </button>
                       {avatarUrl ? (
                         <button
-                          className="text-left text-xs font-bold text-rose-500 hover:underline"
+                          className="text-left text-xs font-bold text-rose-500 hover:underline min-h-9 flex items-center"
                           onClick={() => setAvatarUrl("")}
                           type="button"
                         >
@@ -579,7 +579,7 @@ export default function SettingsPage() {
                   <label className="block text-xs font-bold text-foreground/60">
                     {copy.settings.profile.avatarUrl}
                     <input
-                      className="mt-1.5 w-full rounded-2xl border border-border bg-background px-3 py-2.5 text-sm sm:px-4 sm:py-3"
+                      className="mt-1.5 w-full rounded-2xl border border-border bg-background px-4 py-2.5 text-sm min-h-11"
                       onChange={(e) => setAvatarUrl(e.target.value)}
                       placeholder={copy.settings.profile.avatarUrlPlaceholder}
                       type="url"
@@ -592,7 +592,7 @@ export default function SettingsPage() {
                     {copy.settings.profile.displayName}
                     <div className="mt-1.5 flex gap-2">
                       <input
-                        className="min-w-0 flex-1 rounded-2xl border border-border bg-background px-3 py-2.5 text-sm sm:px-4 sm:py-3"
+                        className="min-w-0 flex-1 rounded-2xl border border-border bg-background px-4 py-2.5 text-sm min-h-11"
                         onChange={(e) => setDisplayName(e.target.value)}
                         placeholder={copy.settings.profile.displayNamePlaceholder}
                         type="text"

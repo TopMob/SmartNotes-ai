@@ -81,6 +81,7 @@ export function SmartNotesShell() {
 
   const [tagDraft, setTagDraft] = useState("");
   const editorDirty = useNoteUiStore((state) => state.editorDirty);
+  const draftNote = useNoteUiStore((state) => state.draftNote);
 
 
   const folders = useMemo(() => rawFolders.filter((folder) => !folder.trashedAt && !folder.isHidden), [rawFolders]);
@@ -91,7 +92,10 @@ export function SmartNotesShell() {
     () => Array.from(new Set(notes.flatMap((note: Note) => note.userTags))).sort((left: string, right: string) => left.localeCompare(right)),
     [notes],
   );
-  const currentNote = useMemo(() => notes.find((note: Note) => note.id === currentNoteId) ?? null, [currentNoteId, notes]);
+  const currentNote = useMemo(() => {
+    if (draftNote && draftNote.id === currentNoteId) return draftNote;
+    return notes.find((note: Note) => note.id === currentNoteId) ?? null;
+  }, [currentNoteId, notes, draftNote]);
   const visibleNotes = useMemo(
     () => selectVisibleNotes({ notes, view, activeFolderId, searchQuery, filter: notesFilter }),
     [activeFolderId, notes, notesFilter, searchQuery, view],
@@ -226,7 +230,7 @@ export function SmartNotesShell() {
 
       {/* FAB — shifts left on desktop when AI panel is open */}
       <button
-        className={`btn-fab fixed bottom-5 z-30 flex h-14 w-14 items-center justify-center bg-accent text-accent-foreground shadow-2xl shadow-violet-950/24 transition-[right] duration-300 ${
+        className={`btn-fab fixed bottom-5 z-30 flex h-14 w-14 items-center justify-center rounded-[1.2rem] bg-accent text-accent-foreground shadow-2xl shadow-violet-950/24 transition-[right] duration-300 ${
           aiChatOpen ? "right-[440px] hidden sm:flex" : "right-5"
         }`}
         onClick={createNoteDraft}
@@ -237,13 +241,13 @@ export function SmartNotesShell() {
 
       {/* Mobile FAB — always bottom-right, hidden when AI panel open on mobile */}
       <button
-        className={`btn-fab fixed bottom-5 right-5 z-30 flex h-14 w-14 items-center justify-center bg-accent text-accent-foreground shadow-2xl shadow-violet-950/24 sm:hidden ${
+        className={`btn-fab fixed bottom-5 right-5 z-30 flex h-16 w-16 items-center justify-center rounded-[1.4rem] bg-accent text-accent-foreground shadow-2xl shadow-violet-950/24 sm:hidden ${
           aiChatOpen ? "hidden" : "flex"
         }`}
         onClick={createNoteDraft}
         type="button"
       >
-        <Plus className="h-6 w-6" />
+        <Plus className="h-7 w-7" />
       </button>
 
       {/* AI Notes Chat Panel — Gmail-style slide-in from right ✨ */}
