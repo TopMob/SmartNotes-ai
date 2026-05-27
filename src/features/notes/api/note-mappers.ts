@@ -2,7 +2,7 @@ import type { Note, NoteDraft, NoteLock } from "@/entities/note";
 import type { Database } from "@/shared/api/supabase/types";
 import { stripHtml } from "@/shared/utils/string";
 
-type NoteRow = Database["public"]["Tables"]["notes"]["Row"] & {
+export type NoteRow = Database["public"]["Tables"]["notes"]["Row"] & {
   note_pages?: Database["public"]["Tables"]["note_pages"]["Row"][];
   note_access?: (Database["public"]["Tables"]["note_access"]["Row"] & {
     profiles?: Database["public"]["Tables"]["profiles"]["Row"] | null;

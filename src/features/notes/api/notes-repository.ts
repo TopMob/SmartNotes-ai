@@ -4,7 +4,7 @@ import { useAuthStore } from "@/features/auth/model/auth-store";
 import { localNotesRepository } from "@/features/notes/api/local-notes-repository";
 import { createSupabaseBrowserClient } from "@/shared/api/supabase/client";
 
-import { mapNoteDraftToInsert, mapNotePatchToUpdate, mapNoteRow } from "./note-mappers";
+import { mapNoteDraftToInsert, mapNotePatchToUpdate, mapNoteRow, type NoteRow } from "./note-mappers";
 
 function shouldUseLocal(): boolean {
   const { status, user } = useAuthStore.getState();
@@ -78,7 +78,7 @@ export const notesRepository: NotesRepository = {
 
     const hasMore = data.length > limit;
     const rows = hasMore ? data.slice(0, limit) : data;
-    const notes = (rows as any).map(mapNoteRow);
+    const notes = (rows as unknown as NoteRow[]).map(mapNoteRow);
 
     return {
       data: notes,
@@ -103,7 +103,7 @@ export const notesRepository: NotesRepository = {
       throw error;
     }
 
-    return (data as any).map(mapNoteRow);
+    return (data as unknown as NoteRow[]).map(mapNoteRow);
   },
   async create(note) {
     if (shouldUseLocal()) {
@@ -119,6 +119,20 @@ export const notesRepository: NotesRepository = {
     const { error } = await supabase.from("notes").insert(mapNoteDraftToInsert(note));
 
     if (error) throw error;
+
+    if (note.pages && note.pages.length > 0) {
+      const pageRows = note.pages.map((p, index) => ({
+        id: p.id,
+        note_id: note.id,
+        title: p.title,
+        content: p.content,
+        page_index: index,
+        drawing_data_url: p.drawingDataUrl,
+        drawing_revision: p.drawingRevision,
+      }));
+      const { error: pageError } = await supabase.from("note_pages").insert(pageRows);
+      if (pageError) throw pageError;
+    }
 
     return note;
   },
@@ -136,6 +150,25 @@ export const notesRepository: NotesRepository = {
     const { error } = await supabase.from("notes").update(mapNotePatchToUpdate(patch)).eq("id", noteId);
 
     if (error) throw error;
+
+    if (patch.pages) {
+      const { error: deleteError } = await supabase.from("note_pages").delete().eq("note_id", noteId);
+      if (deleteError) throw deleteError;
+
+      if (patch.pages.length > 0) {
+        const pageRows = patch.pages.map((p, index) => ({
+          id: p.id,
+          note_id: noteId,
+          title: p.title,
+          content: p.content,
+          page_index: index,
+          drawing_data_url: p.drawingDataUrl,
+          drawing_revision: p.drawingRevision,
+        }));
+        const { error: insertError } = await supabase.from("note_pages").insert(pageRows);
+        if (insertError) throw insertError;
+      }
+    }
 
     return { id: noteId, ...patch } as Note;
   },
@@ -160,6 +193,23 @@ export const notesRepository: NotesRepository = {
       const { data, error } = await supabase.from("notes").insert(chunk.map(mapNoteDraftToInsert)).select("*");
 
       if (error) throw error;
+
+      const pageRows = chunk.flatMap((note) =>
+        (note.pages || []).map((p, index) => ({
+          id: p.id,
+          note_id: note.id,
+          title: p.title,
+          content: p.content,
+          page_index: index,
+          drawing_data_url: p.drawingDataUrl,
+          drawing_revision: p.drawingRevision,
+        }))
+      );
+
+      if (pageRows.length > 0) {
+        const { error: pageError } = await supabase.from("note_pages").insert(pageRows);
+        if (pageError) throw pageError;
+      }
 
       created.push(...data.map(mapNoteRow));
     }
