@@ -117,7 +117,12 @@ export async function POST(request: Request) {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${serviceRoleKey}`,
       },
-      body: JSON.stringify({ noteId: body.noteId }),
+      body: JSON.stringify({
+        noteId: body.noteId,
+        openRouterKey: process.env.OPENROUTER_API_KEY || null,
+        openRouterBaseUrl: process.env.OPENROUTER_BASE_URL || null,
+        openRouterModel: process.env.OPENROUTER_MODEL || null,
+      }),
     });
 
     if (!response.ok) {

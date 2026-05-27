@@ -3,15 +3,19 @@ import {
   AlignLeft,
   AlignRight,
   Bold,
+  BookOpen,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  FileImage,
-  Folder,
+  Eraser,
+  Image,
   Italic,
+  Link2,
   List,
+  ListOrdered,
+  Minus,
   MoreHorizontal,
-  Paintbrush,
+  Palette,
   Redo2,
   Save,
   Share2,
@@ -29,7 +33,6 @@ import UnderlineExtension from "@tiptap/extension-underline";
 import ImageExtension from "@tiptap/extension-image";
 import { MathExtension } from "@/features/editor/lib/math-extension";
 import { DrawingCanvas } from "@/features/editor/ui/DrawingCanvas";
-import { AiSummaryCard } from "@/features/editor/ui/AiSummaryCard";
 import { useAiEngineStore } from "@/features/ai-engine/model/ai-store";
 import { useAutoAnalyze } from "@/features/ai-engine/hooks/use-auto-analyze";
 import { useEffect, useRef, useState, type ComponentType } from "react";
@@ -236,11 +239,11 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
     <div className="fixed inset-0 z-50 bg-background/96 backdrop-blur-2xl">
       <div className="mx-auto flex h-full max-w-6xl flex-col px-3 py-3 sm:px-5">
         <header className="flex items-center gap-1 overflow-x-auto no-scrollbar rounded-[1.5rem] border border-border bg-surface/90 p-2 shadow-xl shadow-violet-950/8 sm:gap-2">
-          <button className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={handleClose} type="button"><ChevronLeft className="h-6 w-6 sm:h-5 sm:w-5" /></button>
+          <button title="Назад к списку заметок" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={handleClose} type="button"><ChevronLeft className="h-6 w-6 sm:h-5 sm:w-5" /></button>
           <div className="flex shrink-0 items-center gap-1 rounded-2xl bg-surface-strong px-2 py-1 text-sm font-black">
-            <button className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-background disabled:opacity-35" disabled={currentNotePageIndex === 0} onClick={() => setCurrentNotePageIndex(Math.max(0, currentNotePageIndex - 1))} type="button"><ChevronLeft className="h-5 w-5 sm:h-4 sm:w-4" /></button>
+            <button title="Предыдущая страница" className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-background disabled:opacity-35" disabled={currentNotePageIndex === 0} onClick={() => setCurrentNotePageIndex(Math.max(0, currentNotePageIndex - 1))} type="button"><ChevronLeft className="h-5 w-5 sm:h-4 sm:w-4" /></button>
             <span className="px-1">{currentNotePageIndex + 1}/{pageCount}</span>
-            <button className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-background disabled:opacity-35" disabled={currentNotePageIndex >= pageCount - 1} onClick={() => setCurrentNotePageIndex(Math.min(pageCount - 1, currentNotePageIndex + 1))} type="button"><ChevronRight className="h-5 w-5 sm:h-4 sm:w-4" /></button>
+            <button title="Следующая страница" className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-background disabled:opacity-35" disabled={currentNotePageIndex >= pageCount - 1} onClick={() => setCurrentNotePageIndex(Math.min(pageCount - 1, currentNotePageIndex + 1))} type="button"><ChevronRight className="h-5 w-5 sm:h-4 sm:w-4" /></button>
             <button
               aria-label="Удалить страницу"
               className="flex h-8 w-8 items-center justify-center rounded-lg text-destructive hover:bg-background disabled:opacity-35"
@@ -252,20 +255,19 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
               <Trash2 className="h-5 w-5 sm:h-4 sm:w-4" />
             </button>
           </div>
-          <button className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={(event) => onOpenSheet("pages", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><Folder className="h-6 w-6 sm:h-5 sm:w-5" /></button>
+          <button title="Список страниц" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={(event) => onOpenSheet("pages", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><BookOpen className="h-6 w-6 sm:h-5 sm:w-5" /></button>
           <AccessBadge role={role} />
           <div className="ml-auto flex shrink-0 items-center gap-1">
-             <button className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong disabled:opacity-35 sm:h-10 sm:w-10" disabled={!editor.can().undo()} onClick={() => editor.chain().focus().undo().run()} type="button"><Undo2 className="h-6 w-6 sm:h-5 sm:w-5" /></button>
-            <button className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong disabled:opacity-35 sm:h-10 sm:w-10" disabled={!editor.can().redo()} onClick={() => editor.chain().focus().redo().run()} type="button"><Redo2 className="h-6 w-6 sm:h-5 sm:w-5" /></button>
-            <button className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={(event) => onOpenSheet("share", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><Share2 className="h-6 w-6 sm:h-5 sm:w-5" /></button>
-            <button className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={(event) => onOpenSheet("note", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><MoreHorizontal className="h-6 w-6 sm:h-5 sm:w-5" /></button>
-            <button className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={() => setToolbarVisible(!toolbarVisible)} type="button"><ChevronDown className="h-6 w-6 sm:h-5 sm:w-5" /></button>
+             <button title="Отменить действие" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong disabled:opacity-35 sm:h-10 sm:w-10" disabled={!editor.can().undo()} onClick={() => editor.chain().focus().undo().run()} type="button"><Undo2 className="h-6 w-6 sm:h-5 sm:w-5" /></button>
+            <button title="Повторить действие" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong disabled:opacity-35 sm:h-10 sm:w-10" disabled={!editor.can().redo()} onClick={() => editor.chain().focus().redo().run()} type="button"><Redo2 className="h-6 w-6 sm:h-5 sm:w-5" /></button>
+            <button title="Поделиться заметкой" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={(event) => onOpenSheet("share", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><Share2 className="h-6 w-6 sm:h-5 sm:w-5" /></button>
+            <button title="Действия заметки" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={(event) => onOpenSheet("note", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><MoreHorizontal className="h-6 w-6 sm:h-5 sm:w-5" /></button>
+            <button title="Панель форматирования" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={() => setToolbarVisible(!toolbarVisible)} type="button"><ChevronDown className="h-6 w-6 sm:h-5 sm:w-5" /></button>
           </div>
         </header>
 
         <section className="mt-3 min-h-0 flex-1 overflow-y-auto rounded-[2rem] border border-border bg-surface/88 p-4 shadow-2xl shadow-violet-950/8 sm:p-8">
            <input disabled={role === "viewer"} className="w-full bg-transparent text-2xl font-black tracking-tight outline-none placeholder:text-foreground/28 sm:text-4xl" onChange={(event) => handleTitleChange(event.target.value)} placeholder="Заголовок" value={(title === "Untitled note" || title === "Untitled Note" ? "" : title) || ""} />
-           <AiSummaryCard summary={note.metadata?.summary} aiStatus={aiStatus} />
           {isDrawing && (
             <DrawingCanvas
               onClose={() => setIsDrawing(false)}
@@ -276,21 +278,54 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
             />
           )}
            {toolbarVisible && role !== "viewer" ? (
-            <div className="sticky top-0 z-10 mt-4 flex flex-nowrap items-center gap-1.5 overflow-x-auto no-scrollbar overflow-y-hidden rounded-2xl border border-border bg-surface-strong/92 p-1.5 backdrop-blur-xl">
-              <ToolButton active={editor.isActive("bold")} icon={Bold} onClick={() => editor.chain().focus().toggleBold().run()} />
-              <ToolButton active={editor.isActive("italic")} icon={Italic} onClick={() => editor.chain().focus().toggleItalic().run()} />
-              <ToolButton active={editor.isActive("underline")} icon={Underline} onClick={() => editor.chain().focus().toggleUnderline().run()} />
-              <ToolButton active={editor.isActive("strike")} icon={Strikethrough} onClick={() => editor.chain().focus().toggleStrike().run()} />
-              <ToolButton active={editor.isActive({ textAlign: "left" })} icon={AlignLeft} onClick={() => editor.chain().focus().setTextAlign("left").run()} />
-              <ToolButton active={editor.isActive({ textAlign: "center" })} icon={AlignCenter} onClick={() => editor.chain().focus().setTextAlign("center").run()} />
-              <ToolButton active={editor.isActive({ textAlign: "right" })} icon={AlignRight} onClick={() => editor.chain().focus().setTextAlign("right").run()} />
-              <ToolButton active={editor.isActive("bulletList")} icon={List} onClick={() => editor.chain().focus().toggleBulletList().run()} />
-              <ToolButton label="1." active={editor.isActive("orderedList")} onClick={() => editor.chain().focus().toggleOrderedList().run()} />
-              <ToolButton label="HR" onClick={() => editor.chain().focus().setHorizontalRule().run()} />
-              <ToolButton label="Clear" onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()} />
-              <ToolButton active={editor.isActive("link")} label="Link" onClick={() => { const url = window.prompt("Ссылка"); if (url) { editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run(); } }} />
-              <ToolButton icon={Paintbrush} label="Sketch" onClick={() => setIsDrawing(true)} />
-              <ToolButton icon={FileImage} label="Add image" onClick={() => void handleAttachImage()} />
+            <div className="sticky top-0 z-10 mt-4 flex flex-wrap items-center gap-1.5 rounded-2xl border border-border bg-surface-strong/92 p-1.5 backdrop-blur-xl">
+              {/* Group 1: Text formatting */}
+              <div className="flex items-center gap-1">
+                <ToolButton title="Жирный" active={editor.isActive("bold")} icon={Bold} onClick={() => editor.chain().focus().toggleBold().run()} />
+                <ToolButton title="Курсив" active={editor.isActive("italic")} icon={Italic} onClick={() => editor.chain().focus().toggleItalic().run()} />
+                <ToolButton title="Подчеркнутый" active={editor.isActive("underline")} icon={Underline} onClick={() => editor.chain().focus().toggleUnderline().run()} />
+                <ToolButton title="Зачеркнутый" active={editor.isActive("strike")} icon={Strikethrough} onClick={() => editor.chain().focus().toggleStrike().run()} />
+              </div>
+              
+              <div className="h-6 w-px bg-border mx-1 shrink-0" />
+              
+              {/* Group 2: Alignment */}
+              <div className="flex items-center gap-1">
+                <ToolButton title="Выровнять по левому краю" active={editor.isActive({ textAlign: "left" })} icon={AlignLeft} onClick={() => editor.chain().focus().setTextAlign("left").run()} />
+                <ToolButton title="Выровнять по центру" active={editor.isActive({ textAlign: "center" })} icon={AlignCenter} onClick={() => editor.chain().focus().setTextAlign("center").run()} />
+                <ToolButton title="Выровнять по правому краю" active={editor.isActive({ textAlign: "right" })} icon={AlignRight} onClick={() => editor.chain().focus().setTextAlign("right").run()} />
+              </div>
+              
+              <div className="h-6 w-px bg-border mx-1 shrink-0" />
+              
+              {/* Group 3: Lists */}
+              <div className="flex items-center gap-1">
+                <ToolButton title="Маркированный список" active={editor.isActive("bulletList")} icon={List} onClick={() => editor.chain().focus().toggleBulletList().run()} />
+                <ToolButton title="Нумерованный список" active={editor.isActive("orderedList")} icon={ListOrdered} onClick={() => editor.chain().focus().toggleOrderedList().run()} />
+              </div>
+              
+              <div className="h-6 w-px bg-border mx-1 shrink-0" />
+              
+              {/* Group 4: Links & Elements */}
+              <div className="flex items-center gap-1">
+                <ToolButton title="Вставить ссылку" active={editor.isActive("link")} icon={Link2} onClick={() => { const url = window.prompt("Ссылка"); if (url) { editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run(); } }} />
+                <ToolButton title="Разделительная линия" icon={Minus} onClick={() => editor.chain().focus().setHorizontalRule().run()} />
+              </div>
+              
+              <div className="h-6 w-px bg-border mx-1 shrink-0" />
+              
+              {/* Group 5: Drawing & Media */}
+              <div className="flex items-center gap-1">
+                <ToolButton title="Рисовать" icon={Palette} onClick={() => setIsDrawing(true)} />
+                <ToolButton title="Добавить изображение" icon={Image} onClick={() => void handleAttachImage()} />
+              </div>
+              
+              <div className="h-6 w-px bg-border mx-1 shrink-0" />
+              
+              {/* Group 6: Clean Formatting */}
+              <div className="flex items-center gap-1">
+                <ToolButton title="Очистить форматирование" icon={Eraser} onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()} />
+              </div>
             </div>
           ) : null}
           <div 
@@ -336,9 +371,9 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
   );
 }
 
-function ToolButton({ icon: Icon, label, active = false, onClick }: { icon?: ComponentType<{ className?: string }>; label?: string; active?: boolean; onClick: () => void }) {
+function ToolButton({ icon: Icon, label, title, active = false, onClick }: { icon?: ComponentType<{ className?: string }>; label?: string; title: string; active?: boolean; onClick: () => void }) {
   return (
-    <button className={`shrink-0 rounded-xl px-3 py-2.5 text-sm font-black hover:bg-background sm:px-3 sm:py-2 ${active ? "bg-background text-accent" : ""}`} onClick={onClick} type="button">
+    <button title={title} className={`shrink-0 rounded-xl px-3 py-2.5 text-sm font-black hover:bg-background sm:px-3 sm:py-2 ${active ? "bg-background text-accent" : ""}`} onClick={onClick} type="button">
       {Icon ? <Icon className="h-5 w-5 sm:h-4 sm:w-4" /> : label}
     </button>
   );

@@ -18,6 +18,13 @@ export function useAutoAnalyze(note: Note, content: string) {
   const queryClient = useQueryClient();
   const lastHashRef = useRef<string | null>(null);
 
+  // Synchronize store status with the note's DB status on mount or note change
+  useEffect(() => {
+    if (note) {
+      setStatus(note.aiStatus || "done");
+    }
+  }, [note, setStatus]);
+
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;

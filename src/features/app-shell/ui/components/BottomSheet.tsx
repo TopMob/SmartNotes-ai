@@ -23,6 +23,8 @@ import { getConsoleLogs } from "@/services/console-log-store";
 import { getUiCopy } from "@/shared/lib/i18n";
 import { Button } from "@/shared/ui/button";
 import { SharePrompt } from "@/features/editor-collab/ui/share-prompt";
+import { AiSummaryCard } from "@/features/editor/ui/AiSummaryCard";
+import { useAiEngineStore } from "@/features/ai-engine/model/ai-store";
 
 import { exportNoteAsPdf, exportNoteAsTxt, exportNoteForImport, getNotePlainText, shareFolder, type SheetState, type SheetAnchor, type SheetName } from "./shared";
 
@@ -144,6 +146,8 @@ function NoteActionSheet({ onOpenSheet }: { onOpenSheet?: (name: Exclude<SheetNa
   const note = notes.find((item) => item.id === currentNoteId) ?? null;
   const visibleFolders = useMemo(() => folders.filter((folder) => !folder.trashedAt && !folder.isHidden), [folders]);
 
+  const aiStatus = useAiEngineStore((state) => state.status);
+
   async function toggleNoteLock() {
     if (!note) {
       return false;
@@ -195,6 +199,7 @@ function NoteActionSheet({ onOpenSheet }: { onOpenSheet?: (name: Exclude<SheetNa
 
   return (
     <div className="mt-4 space-y-4 pb-6">
+      <AiSummaryCard summary={note.metadata?.summary} aiStatus={aiStatus} />
       <div className="grid gap-2 sm:grid-cols-2">
         {note.trashedAt ? (
           <>

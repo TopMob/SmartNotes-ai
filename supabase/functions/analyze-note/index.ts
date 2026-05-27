@@ -13,7 +13,8 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { noteId } = await req.json();
+    const body = await req.json();
+    const { noteId, openRouterKey: bodyKey, openRouterBaseUrl: bodyBaseUrl, openRouterModel: bodyModel } = body;
 
     if (!noteId) {
       return new Response(
@@ -53,10 +54,11 @@ Deno.serve(async (req) => {
           .trim();
 
         // 3. Call OpenRouter to analyze the note
-        const openRouterKey = Deno.env.get("OPENROUTER_API_KEY");
-        const openRouterModel = Deno.env.get("OPENROUTER_MODEL") || "openai/gpt-4o-mini";
+        const openRouterKey = bodyKey || Deno.env.get("OPENROUTER_API_KEY");
+        const openRouterBaseUrl = bodyBaseUrl || Deno.env.get("OPENROUTER_BASE_URL") || "https://openrouter.ai/api/v1";
+        const openRouterModel = bodyModel || Deno.env.get("OPENROUTER_MODEL") || "openai/gpt-4o-mini";
         if (!openRouterKey) {
-          throw new Error("OPENROUTER_API_KEY is not set in environment.");
+          throw new Error("OPENROUTER_API_KEY is not set in environment or request body.");
         }
 
         const systemPrompt = `You are a smart note classification AI for the SmartNotes app.
@@ -75,7 +77,7 @@ Rules:
 
         const userPrompt = `Note title: ${note.title || "(no title)"}\nNote content: ${plainText.slice(0, 4000) || "(empty)"}`;
 
-        const openRouterResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        const openRouterResponse = await fetch(`${openRouterBaseUrl}/chat/completions`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
