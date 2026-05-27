@@ -44,7 +44,7 @@ export function TopFiltersPopup({ notesFilter, savedFilters, folders, tagDraft, 
   }
 
   return (
-    <section className="filter-menu pointer-events-auto fixed left-1/2 top-[5.75rem] z-30 w-[min(calc(100vw-1rem),24rem)] max-h-[calc(100dvh-6.75rem)] -translate-x-1/2 overflow-y-auto rounded-[1.4rem] border border-border bg-surface/96 p-3 shadow-2xl shadow-violet-950/16 backdrop-blur-2xl sm:top-[6rem] sm:w-[min(calc(100vw-2rem),24rem)] sm:max-h-[min(70vh,42rem)] sm:p-4 lg:left-auto lg:right-6 lg:top-24 lg:translate-x-0">
+    <section className="filter-menu pointer-events-auto fixed left-1/2 top-[5.75rem] z-30 w-[min(calc(100vw-1rem),24rem)] max-h-[78dvh] -translate-x-1/2 overflow-y-auto rounded-[1.4rem] border border-border bg-surface/96 p-3 shadow-2xl shadow-violet-950/16 backdrop-blur-2xl sm:top-[6rem] sm:w-[min(calc(100vw-2rem),24rem)] sm:max-h-[min(70vh,42rem)] sm:p-4 lg:left-auto lg:right-6 lg:top-24 lg:translate-x-0">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h2 className="text-sm font-black uppercase tracking-[0.2em] text-foreground/54">Фильтры</h2>
         <div className="flex gap-2">
@@ -65,20 +65,20 @@ export function TopFiltersPopup({ notesFilter, savedFilters, folders, tagDraft, 
           </div>
         </div>
       ) : null}
-      <div className="flex flex-wrap justify-center gap-2">
+      <div className="flex flex-wrap justify-center gap-1.5">
         {sortOptions.map((option) => (
-          <button className={`rounded-full border px-3 py-2 text-sm font-bold ${notesFilter.sort === option.value ? "border-accent bg-accent/10 text-accent" : "border-border bg-surface-strong"}`} key={option.value} onClick={() => onSetNotesSort(option.value)} type="button">
+          <button className={`rounded-full border px-2.5 py-1.5 text-xs sm:px-3 sm:py-2 sm:text-sm font-bold ${notesFilter.sort === option.value ? "border-accent bg-accent/10 text-accent" : "border-border bg-surface-strong"}`} key={option.value} onClick={() => onSetNotesSort(option.value)} type="button">
             {option.label}
           </button>
         ))}
       </div>
-      {visibleSections.updatedPeriodFilter ? <div className="mt-3 flex flex-wrap justify-center gap-2">{[7, 30, null].map((days) => (<button className={`rounded-2xl border px-3 py-2 text-center text-sm font-bold ${notesFilter.updatedWindowDays === days ? "border-accent bg-accent/10 text-accent" : "border-border bg-surface-strong"}`} key={String(days)} onClick={() => onSetUpdatedWindowDays(days)} type="button">{days === null ? "За все время" : `${days} дней`}</button>))}</div> : null}
-      <div className="mt-3 flex flex-wrap justify-center gap-2">
-        <button className={`rounded-full border px-3 py-2 text-sm font-bold ${notesFilter.folders.includes(null) ? "border-accent bg-accent/10 text-accent" : "border-border bg-surface-strong"}`} onClick={() => onToggleFolderFilter(null)} type="button">
+      {visibleSections.updatedPeriodFilter ? <div className="mt-3 flex flex-wrap justify-center gap-1.5">{[7, 30, null].map((days) => (<button className={`rounded-2xl border px-2.5 py-1.5 text-center text-xs sm:px-3 sm:py-2 sm:text-sm font-bold ${notesFilter.updatedWindowDays === days ? "border-accent bg-accent/10 text-accent" : "border-border bg-surface-strong"}`} key={String(days)} onClick={() => onSetUpdatedWindowDays(days)} type="button">{days === null ? "За все время" : `${days} дней`}</button>))}</div> : null}
+      <div className="mt-3 flex flex-wrap justify-center gap-1.5">
+        <button className={`rounded-full border px-2.5 py-1.5 text-xs sm:px-3 sm:py-2 sm:text-sm font-bold ${notesFilter.folders.includes(null) ? "border-accent bg-accent/10 text-accent" : "border-border bg-surface-strong"}`} onClick={() => onToggleFolderFilter(null)} type="button">
           Без папки
         </button>
         {folders.map((folder) => (
-          <button className={`rounded-full border px-3 py-2 text-sm font-bold ${notesFilter.folders.includes(folder.id) ? "border-accent bg-accent/10 text-accent" : "border-border bg-surface-strong"}`} key={folder.id} onClick={() => onToggleFolderFilter(folder.id)} type="button">
+          <button className={`rounded-full border px-2.5 py-1.5 text-xs sm:px-3 sm:py-2 sm:text-sm font-bold ${notesFilter.folders.includes(folder.id) ? "border-accent bg-accent/10 text-accent" : "border-border bg-surface-strong"}`} key={folder.id} onClick={() => onToggleFolderFilter(folder.id)} type="button">
             {folder.name}
           </button>
         ))}
@@ -86,7 +86,7 @@ export function TopFiltersPopup({ notesFilter, savedFilters, folders, tagDraft, 
       {visibleSections.tagFilter ? <div className="mt-3 rounded-2xl border border-border bg-surface-strong p-3">
         <label className="block text-sm font-bold text-foreground/66">Тег</label>
         <input className="mt-2 h-11 w-full rounded-xl border border-border bg-background px-3 text-base outline-none" onChange={(event) => onTagDraftChange(event.target.value)} placeholder="Начни вводить тег" value={tagDraft} />
-        {tagSuggestions.length ? <div className="mt-3 flex flex-wrap justify-center gap-2">{tagSuggestions.map((tag) => <button className={`rounded-full border px-3 py-1.5 text-sm font-bold ${notesFilter.tags.includes(tag) ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={tag} onClick={() => onToggleTagFilter(tag)} type="button">#{tag}</button>)}</div> : <p className="mt-3 text-sm text-foreground/52">Совпадений пока нет.</p>}
+        {tagSuggestions.length ? <div className="mt-3 flex flex-wrap justify-center gap-1.5">{tagSuggestions.map((tag) => <button className={`rounded-full border px-2.5 py-1 text-xs sm:px-3 sm:py-1.5 sm:text-sm font-bold ${notesFilter.tags.includes(tag) ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={tag} onClick={() => onToggleTagFilter(tag)} type="button">#{tag}</button>)}</div> : <p className="mt-3 text-sm text-foreground/52">Совпадений пока нет.</p>}
         {tagDraft.trim() ? <button className="mt-3 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm font-bold" onClick={() => onToggleTagFilter(tagDraft.trim())} type="button">Применить тег `#{tagDraft.trim()}`</button> : null}
       </div> : null}
     </section>

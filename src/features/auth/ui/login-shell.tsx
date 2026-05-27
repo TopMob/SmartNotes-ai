@@ -85,7 +85,7 @@ export function LoginShell() {
   }
 
   return (
-    <main className="relative grid min-h-screen place-items-center px-4 py-8 sm:px-6 lg:p-6 overflow-y-auto">
+    <main className="relative flex flex-col min-h-screen justify-start sm:justify-center items-center px-4 py-6 sm:py-12 overflow-y-auto w-full">
       {/* Ambient Glow Backdrops */}
       <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
         <div className="absolute -top-[10%] left-[5%] h-[35rem] w-[35rem] rounded-full bg-accent/8 opacity-20 blur-[120px] sm:opacity-30" />
@@ -97,7 +97,7 @@ export function LoginShell() {
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: "easeOut" }}
-          className="rounded-[2.2rem] border border-border bg-surface/90 p-5 shadow-2xl shadow-violet-950/10 backdrop-blur-2xl sm:p-7"
+          className="rounded-[2rem] sm:rounded-[2.2rem] border border-border bg-surface/90 p-4 shadow-2xl shadow-violet-950/10 backdrop-blur-2xl sm:p-7 w-full"
         >
           <div className="flex items-center gap-4">
             <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/10 text-accent border border-accent/25 shadow-[0_0_20px_rgba(0,242,255,0.1)]">

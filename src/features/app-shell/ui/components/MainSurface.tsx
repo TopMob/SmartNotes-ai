@@ -21,6 +21,7 @@ import { getUiCopy } from "@/shared/lib/i18n";
 import type { AppView } from "@/shared/store/ui-store";
 
 import { NoteCard } from "./NoteCard";
+import { InvitesMainView } from "./InvitesMainView";
 import type { SheetAnchor, SheetName } from "./shared";
 
 type MainSurfaceProps = {
@@ -36,10 +37,19 @@ type MainSurfaceProps = {
   onOpenFolder: (folder: FolderEntity) => void;
   onOpenNote: (noteId: string) => void;
   onOpenSheet: (sheet: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void;
+  onRefreshInvites?: () => void;
 };
 
-export function MainSurface({ copy, view, folders, hiddenFolders, trashedFolders, notes, activeFolder, folderViewMode, notesPerPage, onOpenFolder, onOpenNote, onOpenSheet }: MainSurfaceProps) {
+export function MainSurface({ copy, view, folders, hiddenFolders, trashedFolders, notes, activeFolder, folderViewMode, notesPerPage, onOpenFolder, onOpenNote, onOpenSheet, onRefreshInvites }: MainSurfaceProps) {
   const user = useAuthStore((s) => s.user);
+
+  if (view === "invites") {
+    return (
+      <section className="panel-card min-h-[calc(100vh-4.8rem)] border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl">
+        <InvitesMainView onRefreshInvites={onRefreshInvites} />
+      </section>
+    );
+  }
 
   if (view === "admin_tools") {
     if (!isAdminUser(user?.email)) {

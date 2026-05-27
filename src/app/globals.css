@@ -366,3 +366,12 @@ textarea {
     radial-gradient(circle at 50% 18%, rgba(0, 80, 255, 0.08), transparent 32rem),
     linear-gradient(180deg, #050505 0%, #09090b 100%);
 }
+
+.ProseMirror a {
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.ProseMirror a:hover {
+  opacity: 0.8;
+}

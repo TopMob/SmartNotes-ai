@@ -1,4 +1,4 @@
-import { Heart, MoreHorizontal } from "lucide-react";
+import { Heart, MoreHorizontal, Pin } from "lucide-react";
 import { useState } from "react";
 
 import type { Folder as FolderEntity } from "@/entities/folder";
@@ -44,8 +44,8 @@ export function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: NoteC
       <div className="absolute right-3 top-3 z-10 flex items-start gap-1">
         {view === "trash" ? null : (
           <>
-            <button className={`flex h-9 w-9 items-center justify-center rounded-xl bg-surface/92 text-foreground/56 backdrop-blur hover:bg-background ${note.pinned ? "text-accent" : ""}`} onClick={() => void togglePinned(note.id)} type="button">
-              <PinGlyph active={note.pinned} />
+            <button className={`flex h-9 w-9 items-center justify-center rounded-xl bg-surface/92 backdrop-blur hover:bg-background ${note.pinned ? "text-accent" : "text-foreground/56"}`} onClick={() => void togglePinned(note.id)} type="button">
+              <Pin className={`h-4 w-4 ${note.pinned ? "fill-current" : ""}`} />
             </button>
             <button className={`flex h-9 w-9 items-center justify-center rounded-xl bg-surface/92 backdrop-blur hover:bg-background ${note.favorite ? "text-rose-500" : "text-foreground/56"}`} onClick={() => void toggleFavorite(note.id)} type="button">
               <Heart className={`h-4 w-4 ${note.favorite ? "fill-current" : ""}`} />
@@ -101,10 +101,4 @@ export function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: NoteC
   );
 }
 
-function PinGlyph({ active }: { active: boolean }) {
-  return (
-    <svg aria-hidden="true" className={`h-4 w-4 ${active ? "fill-current" : ""}`} viewBox="0 0 24 24">
-      <path d="M15 3a1 1 0 0 1 .7 1.7l-1.47 1.46 4.61 4.61a1 1 0 0 1 0 1.41l-.7.71a1 1 0 0 1-1.42 0l-1.41-1.42-3.89 3.9v4.25a1 1 0 0 1-1.7.7l-1-1a1 1 0 0 1-.3-.7v-3.25l3.9-3.89-4.62-4.62L5.3 8.7A1 1 0 0 1 3.6 8l1.06-1.06a1 1 0 0 1 1.41 0L10.68 11l3.9-3.9-1.29-1.28A1 1 0 0 1 14 3h1Z" />
-    </svg>
-  );
-}
+

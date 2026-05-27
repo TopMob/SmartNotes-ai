@@ -1,4 +1,4 @@
-import { Archive, Bell, EyeOff, Folder, Heart, Inbox, Lock, Shield, Trash2, X, GripVertical, type LucideIcon } from "lucide-react";
+import { Archive, Bell, EyeOff, Folder, Heart, Inbox, Lock, Shield, Trash2, X, GripVertical, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import React, { useRef } from "react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
@@ -15,7 +15,7 @@ import { isAdminUser } from "@/features/auth/lib/admin-acl";
 
 import { getSheetAnchor, type SheetAnchor, type SheetName } from "./shared";
 
-type ShellNavKey = "notes" | "favorites" | "archive" | "reminders" | "locked" | "trash" | "folders" | "hiddenFolders" | "adminTools";
+type ShellNavKey = "notes" | "favorites" | "archive" | "reminders" | "locked" | "trash" | "folders" | "hiddenFolders" | "adminTools" | "invites";
 
 const navItems: Array<{ key: ShellNavKey; view: AppView; icon: LucideIcon }> = [
   { key: "notes", view: "notes", icon: Inbox },
@@ -26,6 +26,7 @@ const navItems: Array<{ key: ShellNavKey; view: AppView; icon: LucideIcon }> = [
   { key: "trash", view: "trash", icon: Trash2 },
   { key: "folders", view: "folders", icon: Folder },
   { key: "hiddenFolders", view: "hidden_folders", icon: EyeOff },
+  { key: "invites", view: "invites", icon: Users },
 ];
 
 type SidebarProps = {
@@ -35,6 +36,7 @@ type SidebarProps = {
   folderViewMode: "compact" | "full";
   activeFolderId: string | null;
   isDesktop?: boolean;
+  invitesCount?: number;
   onClose: () => void;
   onCreateFolder: (anchor: SheetAnchor) => void;
   onOpenFolder: (folder: FolderEntity) => void;
@@ -67,7 +69,7 @@ function SortableFolderItem({ folder, isActive, folderViewMode, onOpenFolder }: 
   );
 }
 
-export function Sidebar({ copy, currentView, folders, folderViewMode, activeFolderId, isDesktop = false, onClose, onCreateFolder, onOpenFolder, onOpenSheet, onSwitchView }: SidebarProps) {
+export function Sidebar({ copy, currentView, folders, folderViewMode, activeFolderId, isDesktop = false, invitesCount = 0, onClose, onCreateFolder, onOpenFolder, onOpenSheet, onSwitchView }: SidebarProps) {
   const logoClicksRef = useRef(0);
   const developerMode = useUiStore((s) => s.developerMode);
   const toggleDeveloperMode = useUiStore((s) => s.toggleDeveloperMode);
@@ -120,9 +122,16 @@ export function Sidebar({ copy, currentView, folders, folderViewMode, activeFold
               const isActive = currentView === item.view;
 
               return (
-                <button className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-3 text-left text-sm font-bold transition ${isActive ? "border-accent bg-accent/15 text-accent ring-1 ring-accent/50" : "border-transparent text-foreground/70 hover:border-border hover:bg-surface-strong"}`} key={item.key} onClick={() => onSwitchView(item.view)} type="button">
-                  <Icon className="h-[18px] w-[18px]" />
-                  <span>{copy.shell[item.key]}</span>
+                <button className={`flex w-full items-center justify-between rounded-2xl border px-3 py-3 text-left text-sm font-bold transition ${isActive ? "border-accent bg-accent/15 text-accent ring-1 ring-accent/50" : "border-transparent text-foreground/70 hover:border-border hover:bg-surface-strong"}`} key={item.key} onClick={() => onSwitchView(item.view)} type="button">
+                  <span className="flex items-center gap-3">
+                    <Icon className="h-[18px] w-[18px]" />
+                    <span>{copy.shell[item.key]}</span>
+                  </span>
+                  {item.key === "invites" && invitesCount > 0 && (
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent text-[10px] font-black text-background animate-pulse shrink-0">
+                      {invitesCount}
+                    </span>
+                  )}
                 </button>
               );
             })}

@@ -60,7 +60,7 @@ export default function SettingsPage() {
   const userId = useAuthStore((state) => state.user?.id ?? "local-user");
   const { createNote } = useNoteActions();
   const { patchSettings, resetSettings } = useSettingsActions();
-  const { updateProfile, pending: profilePending } = useAuthActions();
+  const { updateProfile, pending: profilePending, loginWithGoogle, logout } = useAuthActions();
 
 
   const [displayName, setDisplayName] = useState(user?.displayName ?? "");
@@ -73,21 +73,21 @@ export default function SettingsPage() {
 
   const editorGroups = useMemo(
     () => [
-      ["toolbarVisible", lang === "ru" ? "Тулбар" : "Toolbar"],
-      ["bold", "Bold"],
-      ["italic", "Italic"],
-      ["underline", "Underline"],
-      ["strike", "Strike"],
-      ["bullets", lang === "ru" ? "Маркеры" : "Bullets"],
-      ["numbered", lang === "ru" ? "Нумерация" : "Numbered"],
-      ["hr", "Divider"],
-      ["alignText", lang === "ru" ? "Выравнивание текста" : "Text align"],
-      ["alignMedia", lang === "ru" ? "Выравнивание медиа" : "Media align"],
-      ["clearFormat", lang === "ru" ? "Очистка форматирования" : "Clear format"],
-      ["undoRedo", lang === "ru" ? "Undo / redo" : "Undo / redo"],
-      ["links", lang === "ru" ? "Ссылки" : "Links"],
-      ["pages", lang === "ru" ? "Страницы" : "Pages"],
-      ["inlineTags", lang === "ru" ? "Inline tags" : "Inline tags"],
+      ["toolbarVisible", lang === "ru" ? "Тулбар форматирования" : "Formatting toolbar"],
+      ["bold", lang === "ru" ? "Жирный шрифт" : "Bold text"],
+      ["italic", lang === "ru" ? "Курсив" : "Italic text"],
+      ["underline", lang === "ru" ? "Подчеркнутый шрифт" : "Underline text"],
+      ["strike", lang === "ru" ? "Зачеркнутый шрифт" : "Strikethrough text"],
+      ["bullets", lang === "ru" ? "Маркированный список" : "Bullet list"],
+      ["numbered", lang === "ru" ? "Нумерация списков" : "Numbered list"],
+      ["hr", lang === "ru" ? "Разделительная линия" : "Horizontal divider"],
+      ["alignText", lang === "ru" ? "Выравнивание текста" : "Text alignment"],
+      ["alignMedia", lang === "ru" ? "Выравнивание медиа" : "Media alignment"],
+      ["clearFormat", lang === "ru" ? "Очистить форматирование" : "Clear formatting"],
+      ["undoRedo", lang === "ru" ? "Отмена / Повтор (Undo / Redo)" : "Undo / Redo controls"],
+      ["links", lang === "ru" ? "Вставка ссылок" : "Insert links"],
+      ["pages", lang === "ru" ? "Многостраничность заметки" : "Note pages"],
+      ["inlineTags", lang === "ru" ? "Тегирование (Inline tags)" : "Inline tag chips"],
     ] as const,
     [lang],
   );
@@ -353,11 +353,11 @@ export default function SettingsPage() {
 
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <label className="flex w-full min-w-0 flex-col overflow-hidden text-sm font-bold text-foreground/72">
-                    UI opacity: {settings.uiOpacity.toFixed(2)}
+                    {lang === "ru" ? `Прозрачность интерфейса: ${settings.uiOpacity.toFixed(2)}` : `UI opacity: ${settings.uiOpacity.toFixed(2)}`}
                     <input className="mt-2 w-full min-w-0" max="1" min="0.4" onChange={(event) => void patchSettings({ uiOpacity: Number(event.target.value) })} step="0.02" type="range" value={settings.uiOpacity} />
                   </label>
                   <label className="flex w-full min-w-0 flex-col overflow-hidden text-sm font-bold text-foreground/72">
-                    Cards opacity: {settings.cardsOpacity.toFixed(2)}
+                    {lang === "ru" ? `Прозрачность карточек: ${settings.cardsOpacity.toFixed(2)}` : `Cards opacity: ${settings.cardsOpacity.toFixed(2)}`}
                     <input className="mt-2 w-full min-w-0" max="1" min="0.4" onChange={(event) => void patchSettings({ cardsOpacity: Number(event.target.value) })} step="0.02" type="range" value={settings.cardsOpacity} />
                   </label>
                 </div>
@@ -387,19 +387,19 @@ export default function SettingsPage() {
                 <div className="mt-4 flex flex-wrap gap-2">
                   {(["compact", "full"] as const).map((item) => (
                     <button className={`min-h-11 rounded-2xl border px-4 py-2.5 text-xs font-black sm:text-sm ${settings.folderViewMode === item ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={item} onClick={() => void patchSettings({ folderViewMode: item })} type="button">
-                      {item}
+                      {item === "compact" ? (lang === "ru" ? "Компактный" : "Compact") : (lang === "ru" ? "Полный" : "Full")}
                     </button>
                   ))}
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
                   {([5, 10, 20, 50] as const).map((item) => (
                     <button className={`min-h-11 rounded-2xl border px-4 py-2.5 text-xs font-black sm:text-sm ${settings.notesPerPage === item ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={item} onClick={() => void patchSettings({ notesPerPage: item })} type="button">
-                      {item} / page
+                      {lang === "ru" ? `${item} на стр.` : `${item} / page`}
                     </button>
                   ))}
                 </div>
                 <button className={`mt-4 min-h-11 rounded-2xl border px-4 py-2.5 text-left text-xs font-bold sm:text-sm ${settings.reduceMotion ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} onClick={() => void patchSettings({ reduceMotion: !settings.reduceMotion })} type="button">
-                  {settings.reduceMotion ? `${copy.common.on}` : `${copy.common.off}`}
+                  {lang === "ru" ? `Сокращение анимации: ${settings.reduceMotion ? "Вкл" : "Выкл"}` : `Reduce motion: ${settings.reduceMotion ? "On" : "Off"}`}
                 </button>
               </Panel>
 
@@ -526,6 +526,15 @@ export default function SettingsPage() {
                        ? "Концепция BYOS (Bring Your Own Storage) позволяет загружать все изображения напрямую в ваш личный Google Drive. Приложение сохраняет только ссылки на файлы. Для включения этой функции войдите в систему с помощью учетной записи Google."
                        : "The BYOS (Bring Your Own Storage) concept allows you to upload all images directly to your personal Google Drive. The app only stores file metadata. To enable this feature, sign in with your Google account."}
                    </p>
+                   {!(googleAuthUser?.app_metadata?.provider === "google" || googleAuthUser?.identities?.some((i) => i.provider === "google")) && (
+                     <button
+                       onClick={() => void loginWithGoogle()}
+                       className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-accent px-4 py-2 text-sm font-bold text-accent-foreground transition hover:bg-accent/90 mt-2"
+                       type="button"
+                     >
+                       {lang === "ru" ? "Подключить Google Диск" : "Connect Google Drive"}
+                     </button>
+                   )}
                  </div>
                </Panel>
              </div>
@@ -568,6 +577,17 @@ export default function SettingsPage() {
                       </button>
                     </div>
                     {uidCopied ? <p className="mt-1 text-xs text-accent">{copy.settings.profile.copied}</p> : null}
+                  </div>
+
+                  {/* Log Out Button */}
+                  <div className="pt-2">
+                    <button
+                      className="w-full min-h-11 rounded-2xl border border-rose-500/30 bg-rose-500/10 text-rose-500 font-bold hover:bg-rose-500/20 transition flex items-center justify-center gap-2"
+                      onClick={() => void logout()}
+                      type="button"
+                    >
+                      {copy.shell.logout || "Выйти"}
+                    </button>
                   </div>
                 </div>
               </Panel>

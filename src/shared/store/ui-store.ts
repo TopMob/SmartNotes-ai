@@ -2,7 +2,7 @@ import { create } from "zustand";
 
 import { DEFAULT_NOTES_FILTER, type NotesFilter, type NotesSort } from "@/features/notes/model/note-selectors";
 
-export type AppView = "notes" | "favorites" | "archive" | "folder" | "folders" | "reminders" | "locked" | "trash" | "hidden_folders" | "admin_tools";
+export type AppView = "notes" | "favorites" | "archive" | "folder" | "folders" | "reminders" | "locked" | "trash" | "hidden_folders" | "admin_tools" | "invites";
 
 type UiState = {
   view: AppView;

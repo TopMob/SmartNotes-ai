@@ -1,4 +1,4 @@
-import { Pencil, Star, X } from "lucide-react";
+import { Pencil, Star, X, Copy, Users, FolderOpen, Bell, Archive, Lock, Unlock, Download, Trash2, type LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import type { Folder as FolderEntity } from "@/entities/folder";
@@ -26,8 +26,9 @@ import { SharePrompt } from "@/features/editor-collab/ui/share-prompt";
 import { AiSummaryCard } from "@/features/editor/ui/AiSummaryCard";
 import { useAiEngineStore } from "@/features/ai-engine/model/ai-store";
 import { getAdminEmails, saveAdminEmails } from "@/features/auth/lib/admin-acl";
+import { collabRepository } from "@/features/editor-collab/api/collab-repository";
 
-import { exportNoteAsPdf, exportNoteAsTxt, exportNoteForImport, getNotePlainText, shareFolder, type SheetState, type SheetAnchor, type SheetName } from "./shared";
+import { exportNoteAsPdf, exportNoteAsTxt, exportNoteAsPng, exportNoteForImport, getNotePlainText, shareFolder, type SheetState, type SheetAnchor, type SheetName } from "./shared";
 
 type BottomSheetProps = {
   sheet: SheetState;
@@ -65,7 +66,9 @@ export function BottomSheet({ sheet, activeFolder, isDesktop, onClose, onOpenShe
                   ? copy.shell.adminTools
                   : name === "share"
                     ? copy.shell.actions.share
-                    : copy.shell.aboutSheet;
+                    : name === "invites"
+                      ? (lang === "ru" ? "Приглашения совместного доступа" : "Collaboration Invites")
+                      : copy.shell.aboutSheet;
   const topSheet = name === "pages";
   const mobileSheet = !isDesktop;
   const folderPopup = name === "folder" && !!anchor && !mobileSheet;
@@ -90,6 +93,7 @@ export function BottomSheet({ sheet, activeFolder, isDesktop, onClose, onOpenShe
         {name === "create-folder" ? <CreateFolderContent copy={copy} onClose={onClose} /> : null}
         {name === "reminder" ? <ReminderContent copy={copy} onClose={onClose} /> : null}
         {name === "share" ? <ShareContent onClose={onClose} /> : null}
+        {name === "invites" ? <InvitesContent copy={copy} /> : null}
       </section>
     );
   }
@@ -143,11 +147,14 @@ async function copyNoteText(note: Note) {
 }
 
 function NoteActionSheet({ copy, onOpenSheet }: { copy: ReturnType<typeof getUiCopy>; onOpenSheet?: (name: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void }) {
+  const { data: settings } = useSettingsQuery();
+  const lang = settings?.lang ?? "ru";
   const { data: notes = [] } = useNotesFlat();
   const { data: folders = [] } = useFoldersQuery();
   const { moveNoteToFolder, patchNote, restoreNote, permanentlyDeleteNote, setArchived, setReminder, trashNote } = useNoteActions();
   const currentNoteId = useNoteUiStore((state) => state.currentNoteId);
   const [folderPickerOpen, setFolderPickerOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const note = notes.find((item) => item.id === currentNoteId) ?? null;
   const visibleFolders = useMemo(() => folders.filter((folder) => !folder.trashedAt && !folder.isHidden), [folders]);
 
@@ -215,30 +222,94 @@ function NoteActionSheet({ copy, onOpenSheet }: { copy: ReturnType<typeof getUiC
   return (
     <div className="mt-4 space-y-4 pb-6">
       <AiSummaryCard summary={note.metadata?.summary as string | undefined} aiStatus={aiStatus} />
-      <div className="grid gap-2 sm:grid-cols-2">
-        {note.trashedAt ? (
-          <>
-            <ActionCard label={copy.shell.actions.restore} onClick={() => void restoreNote(note.id)} />
-            <ActionCard destructive label={copy.shell.actions.permanentDelete} onClick={() => void permanentlyDeleteNote(note.id)} />
-          </>
-        ) : (
-          <>
-            <ActionCard label={dlgs?.reanalyze || "Отметить для повторного анализа"} onClick={() => void patchNote(note.id, { aiStatus: "pending", aiProcessed: false, analyzed: false, aiError: null }, { scheduleAnalysis: false })} />
-            <ActionCard label={note.lock?.hidden ? (dlgs?.lockShow || "Показать по паролю") : note.lock ? (dlgs?.lockHide || "Скрыть снова") : (dlgs?.lockNote || "Заблокировать заметку")} onClick={() => void toggleNoteLock()} />
-            <ActionCard label={note.isArchived ? (dlgs?.unarchive || "Вернуть из архива") : copy.shell.actions.archive} onClick={() => void setArchived(note.id, !note.isArchived)} />
-            <ActionCard destructive label={copy.shell.actions.delete} onClick={() => void trashNote(note.id)} />
-            <ActionCard label={dlgs?.copyText || "Копировать текст"} onClick={() => void copyNoteText(note)} />
-            <ActionCard label={dlgs?.collabAccess || "Совместный доступ (коллаборация)"} onClick={() => onOpenSheet?.("share", null)} />
-            <ActionCard label={dlgs?.moveToFolder || "Переместить в папку"} onClick={() => setFolderPickerOpen((value) => !value)} />
-            <ActionCard label={note.reminderAt ? (dlgs?.clearReminder || "Очистить напоминание") : copy.shell.reminder} onClick={() => { const reminderAt = note.reminderAt ? null : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); void setReminder(note.id, reminderAt); scheduleReminder(note.id, reminderAt); }} />
-            <ActionCard label={dlgs?.downloadForImport || "Скачать файл для импорта"} onClick={() => exportNoteForImport(note)} />
-            <ActionCard label={dlgs?.downloadTxt || "Скачать TXT"} onClick={() => exportNoteAsTxt(note)} />
-            <ActionCard label={dlgs?.exportPdf || "Экспорт PDF"} onClick={() => exportNoteAsPdf(note)} />
-          </>
-        )}
-      </div>
+      
+      {note.trashedAt ? (
+        <div className="grid gap-2 grid-cols-2">
+          <button className="min-h-12 rounded-2xl border border-border bg-surface-strong px-4 py-3 text-sm font-bold hover:bg-background text-center transition" onClick={() => void restoreNote(note.id)} type="button">
+            {copy.shell.actions.restore}
+          </button>
+          <button className="min-h-12 rounded-2xl border border-rose-200 bg-rose-500/6 text-rose-600 hover:bg-rose-500/10 px-4 py-3 text-sm font-bold text-center transition" onClick={() => void permanentlyDeleteNote(note.id)} type="button">
+            {copy.shell.actions.permanentDelete}
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-4 gap-2">
+          <GridActionBtn
+            icon={Copy}
+            label={dlgs?.copyText || "Копировать"}
+            onClick={() => void copyNoteText(note)}
+          />
+          <GridActionBtn
+            icon={Users}
+            label={lang === "ru" ? "Доступ" : "Access"}
+            onClick={() => onOpenSheet?.("share", null)}
+          />
+          <GridActionBtn
+            icon={FolderOpen}
+            label={lang === "ru" ? "Папка" : "Folder"}
+            onClick={() => setFolderPickerOpen((value) => !value)}
+            active={folderPickerOpen}
+          />
+          <GridActionBtn
+            icon={Bell}
+            label={lang === "ru" ? "Напомнить" : "Remind"}
+            onClick={() => {
+              const reminderAt = note.reminderAt ? null : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+              void setReminder(note.id, reminderAt);
+              scheduleReminder(note.id, reminderAt);
+            }}
+            active={!!note.reminderAt}
+          />
+          <GridActionBtn
+            icon={Archive}
+            label={note.isArchived ? (lang === "ru" ? "Вернуть" : "Restore") : (lang === "ru" ? "В архив" : "Archive")}
+            onClick={() => void setArchived(note.id, !note.isArchived)}
+            active={note.isArchived}
+          />
+          <GridActionBtn
+            icon={note.lock ? Lock : Unlock}
+            label={note.lock?.hidden ? (lang === "ru" ? "Показать" : "Show") : note.lock ? (lang === "ru" ? "Скрыть" : "Hide") : (lang === "ru" ? "Защитить" : "Lock")}
+            onClick={() => void toggleNoteLock()}
+            active={!!note.lock}
+          />
+          <GridActionBtn
+            icon={Download}
+            label={lang === "ru" ? "Экспорт" : "Export"}
+            onClick={() => setExportOpen((value) => !value)}
+            active={exportOpen}
+          />
+          <GridActionBtn
+            icon={Trash2}
+            label={copy.shell.actions.delete || "Удалить"}
+            onClick={() => void trashNote(note.id)}
+            destructive
+          />
+        </div>
+      )}
 
-      {folderPickerOpen ? (
+      {exportOpen && !note.trashedAt && (
+        <div className="rounded-[1.5rem] border border-border bg-surface-strong p-3.5 space-y-2">
+          <div className="text-[10px] font-black uppercase tracking-[0.18em] text-foreground/42">
+            {lang === "ru" ? "Варианты экспорта" : "Export options"}
+          </div>
+          <div className="grid gap-2 grid-cols-2">
+            <button className="flex items-center gap-2 rounded-xl bg-background border border-border p-2.5 text-xs font-bold hover:bg-surface-strong text-left" onClick={() => exportNoteAsTxt(note)} type="button">
+              📄 Download TXT
+            </button>
+            <button className="flex items-center gap-2 rounded-xl bg-background border border-border p-2.5 text-xs font-bold hover:bg-surface-strong text-left" onClick={() => exportNoteAsPdf(note)} type="button">
+              📕 Export PDF
+            </button>
+            <button className="flex items-center gap-2 rounded-xl bg-background border border-border p-2.5 text-xs font-bold hover:bg-surface-strong text-left" onClick={() => exportNoteAsPng(note)} type="button">
+              🖼️ Download PNG
+            </button>
+            <button className="flex items-center gap-2 rounded-xl bg-background border border-border p-2.5 text-xs font-bold hover:bg-surface-strong text-left" onClick={() => exportNoteForImport(note)} type="button">
+              💾 JSON (Import)
+            </button>
+          </div>
+        </div>
+      )}
+
+      {folderPickerOpen && !note.trashedAt && (
         <div className="rounded-[1.5rem] border border-border bg-surface-strong p-4">
           <div className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-foreground/42">{copy.shell.folders}</div>
           <div className="grid gap-2 sm:grid-cols-2">
@@ -248,17 +319,52 @@ function NoteActionSheet({ copy, onOpenSheet }: { copy: ReturnType<typeof getUiC
             ))}
           </div>
         </div>
-      ) : null}
+      )}
 
-      <div className="grid gap-2 rounded-[1.5rem] border border-border bg-surface-strong p-4 sm:grid-cols-2">
-        <div className="rounded-2xl bg-background px-4 py-3 text-sm font-semibold text-foreground/72">
-          {(dlgs?.yourAccess || "Ваш доступ: ") + (note.access.length ? note.access[0].role : (dlgs?.accessLocal || "локальный"))}
-        </div>
-        <div className="rounded-2xl bg-background px-4 py-3 text-sm font-semibold text-foreground/72">
-          {(dlgs?.aiStatusLabel || "Статус анализа: ") + (note.aiStatus === "done" ? copy.shell.status.aiDone : note.aiStatus === "pending" ? copy.shell.status.aiPending : note.aiStatus === "analyzing" ? copy.shell.status.aiAnalyzing : copy.shell.status.aiError)}
-        </div>
+      <div className="rounded-[1.5rem] border border-border bg-surface-strong p-3 flex items-center justify-between text-sm font-bold text-foreground/72">
+        <span>{dlgs?.yourAccess || "Ваш доступ:"}</span>
+        <span className="rounded-lg bg-background border border-border px-3 py-1 text-xs text-accent">
+          {note.ownerId === "local-user" || !note.access || note.access.length === 0
+            ? (lang === "ru" ? "Владелец" : "Owner")
+            : note.access[0].role === "owner"
+              ? (lang === "ru" ? "Владелец" : "Owner")
+              : note.access[0].role === "editor"
+                ? (lang === "ru" ? "Редактор" : "Editor")
+                : (lang === "ru" ? "Читатель" : "Reader")}
+        </span>
       </div>
     </div>
+  );
+}
+
+function GridActionBtn({ 
+  icon: Icon, 
+  label, 
+  onClick, 
+  active = false, 
+  destructive = false 
+}: { 
+  icon: LucideIcon; 
+  label: string; 
+  onClick: () => void; 
+  active?: boolean; 
+  destructive?: boolean; 
+}) {
+  return (
+    <button
+      onClick={onClick}
+      type="button"
+      className={`flex flex-col items-center justify-center rounded-2xl border p-2.5 text-center transition-all min-h-[72px] ${
+        destructive 
+          ? "border-rose-500/20 bg-rose-500/5 text-rose-500 hover:bg-rose-500/10" 
+          : active 
+            ? "border-accent bg-accent/10 text-accent" 
+            : "border-border bg-surface-strong hover:bg-background text-foreground/80 hover:text-foreground"
+      }`}
+    >
+      <Icon className="h-5 w-5 mb-1.5 shrink-0" />
+      <span className="text-[11px] font-black tracking-tight leading-tight line-clamp-1">{label}</span>
+    </button>
   );
 }
 
@@ -412,6 +518,13 @@ function AboutContent({ copy }: { copy: ReturnType<typeof getUiCopy> }) {
   const [feedback, setFeedback] = useState("");
   const dlgs = copy.shell.dialogs;
 
+  const developers = [
+    { name: "Александров Арсений", role: "Frontend & UI/UX" },
+    { name: "Малышев Егор", role: "Backend & Systems" },
+    { name: "Миняев Иван", role: "AI Integration" },
+    { name: "Копаев Иван", role: "Product Manager" },
+  ];
+
   function handleFeedbackSubmit() {
     publish("feedbackSubmitted", {
       rating,
@@ -434,15 +547,46 @@ function AboutContent({ copy }: { copy: ReturnType<typeof getUiCopy> }) {
       {tab === "about" ? (
         <section className="rounded-[1.5rem] border border-border bg-surface-strong p-5">
           <p className="text-xs font-black uppercase tracking-[0.2em] text-accent">{copy.shell.aboutSheet || "О нас"}</p>
-          <h3 className="mt-3 text-2xl font-black">SmartNotes</h3>
-          <ul className="mt-4 space-y-2 text-sm text-foreground/70">
-            <li>Александров Арсений</li>
-            <li>Малышев Егор</li>
-            <li>Миняев Иван</li>
-            <li>Копаев Иван</li>
-          </ul>
-          <h3 className="mt-3 text-2xl font-black">{copy.shell.about || "Обратная связь"}</h3>
-          <a className="mt-4 inline-flex font-black text-accent hover:underline" href="https://t.me/SmartNotesInfo_bot" rel="noreferrer" target="_blank">@SmartNotesInfo_bot</a>
+          <h3 className="mt-2 text-2.5xl font-black">SmartNotes</h3>
+          
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            {developers.map((dev) => (
+              <div key={dev.name} className="flex items-center gap-3 rounded-2xl border border-border bg-surface/50 p-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent/10 font-black text-accent text-xs">
+                  {dev.name.split(" ").map(n => n[0]).join("")}
+                </span>
+                <div>
+                  <p className="text-sm font-black text-foreground leading-tight">{dev.name}</p>
+                  <p className="text-[10px] font-bold text-foreground/48 mt-0.5">{dev.role}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="h-px bg-border my-4" />
+
+          <h4 className="text-xs font-black uppercase tracking-[0.2em] text-foreground/42">Обратная связь</h4>
+          <a
+            className="mt-2.5 flex items-center justify-between gap-3 rounded-2xl border border-border bg-surface/50 p-3 hover:bg-surface transition group"
+            href="https://t.me/SmartNotesInfo_bot"
+            rel="noreferrer"
+            target="_blank"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-500/10 text-sky-500">
+                <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15.68-.82 3.82-1.16 5.44-.14.68-.42.91-.66.93-.53.05-1.01-.27-1.42-.54-.64-.42-1-.69-1.62-1.1-.71-.47-.25-.73.15-1.16.1-.11 1.93-1.77 1.97-1.92.01-.02.01-.09-.03-.13-.04-.04-.1-.03-.15-.02-.06.01-1.07.68-3.03 2-.29.2-.55.3-.77.29-.25-.01-.73-.15-1.08-.27-.44-.14-.79-.22-.76-.46.02-.13.2-.26.54-.4 2.11-.92 7.02-3.01 8.02-3.4.95-.37 1.76-.11 1.76.62z" />
+                </svg>
+              </span>
+              <div>
+                <p className="text-sm font-black text-foreground">Telegram Bot</p>
+                <p className="text-xs text-foreground/48">@SmartNotesInfo_bot</p>
+              </div>
+            </div>
+            <svg className="h-4 w-4 text-foreground/30 group-hover:text-foreground/60 transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <path d="M9 5l7 7-7 7" />
+            </svg>
+          </a>
         </section>
       ) : (
         <section className="rounded-[1.5rem] border border-border bg-surface-strong p-5">
@@ -647,3 +791,100 @@ function ShareContent({ onClose }: { onClose: () => void }) {
     />
   );
 }
+
+type HeaderInvite = {
+  id: string;
+  noteId: string;
+  noteTitle: string;
+  inviterEmail: string;
+  inviterName: string | null;
+  role: "owner" | "editor" | "viewer";
+  token: string;
+  expiresAt: string | null;
+  createdAt: string;
+};
+
+function InvitesContent({ copy }: { copy: ReturnType<typeof getUiCopy> }) {
+  const { data: settings } = useSettingsQuery();
+  const lang = settings?.lang ?? "ru";
+  const user = useAuthStore((state) => state.user);
+  const [myInvites, setMyInvites] = useState<HeaderInvite[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user?.email) {
+      setLoading(false);
+      return;
+    }
+    collabRepository.fetchMyPendingInvites(user.email).then((list) => {
+      setMyInvites(list);
+      setLoading(false);
+    });
+  }, [user?.email]);
+
+  async function handleAcceptInvite(invite: HeaderInvite) {
+    if (!user) return;
+    try {
+      await collabRepository.acceptInviteByToken(invite.token, user.id);
+      setMyInvites((prev) => prev.filter((i) => i.id !== invite.id));
+      window.location.reload();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function handleRejectInvite(invite: HeaderInvite) {
+    try {
+      await collabRepository.rejectInviteByToken(invite.token);
+      setMyInvites((prev) => prev.filter((i) => i.id !== invite.id));
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  const dlgs = copy.shell.dialogs;
+
+  if (loading) {
+    return <div className="mt-4 py-8 text-center text-sm text-foreground/50">{lang === "ru" ? "Загрузка приглашений..." : "Loading invites..."}</div>;
+  }
+
+  return (
+    <div className="mt-4 space-y-3">
+      {myInvites.length > 0 ? (
+        <div className="space-y-2">
+          {myInvites.map((invite) => (
+            <div key={invite.id} className="rounded-2xl border border-border bg-surface-strong/70 p-3.5 text-sm">
+              <p className="font-bold text-foreground leading-snug">
+                {(dlgs?.collabInviteNote || "Заметка") + ": \"" + invite.noteTitle + "\""}
+              </p>
+              <p className="text-xs text-foreground/48 mt-1">
+                {(dlgs?.collabInviteFrom || "От") + ": " + invite.inviterEmail}
+              </p>
+              <div className="flex gap-2 mt-3.5">
+                <button
+                  onClick={() => handleAcceptInvite(invite)}
+                  className="flex-1 rounded-xl bg-accent py-2 text-xs font-black text-background hover:opacity-90 transition"
+                  type="button"
+                >
+                  {dlgs?.collabAccept || "Принять"}
+                </button>
+                <button
+                  onClick={() => handleRejectInvite(invite)}
+                  className="rounded-xl bg-background border border-border px-3 py-2 text-xs font-bold text-foreground/64 hover:bg-surface-strong transition"
+                  type="button"
+                >
+                  {dlgs?.collabReject || "Отклонить"}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-[1.2rem] border border-dashed border-border bg-surface-strong p-6 text-center text-sm text-foreground/56">
+          {lang === "ru" ? "У вас нет ожидающих приглашений." : "You have no pending invites."}
+        </div>
+      )}
+    </div>
+  );
+}
+

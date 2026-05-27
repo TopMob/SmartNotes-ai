@@ -1,7 +1,7 @@
 "use client";
 
 import { Plus } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { Folder as FolderEntity } from "@/entities/folder";
 import type { Note } from "@/entities/note";
@@ -14,6 +14,8 @@ import { useSettingsQuery } from "@/features/settings/hooks/use-settings-query";
 import { getUiCopy } from "@/shared/lib/i18n";
 import { type AppView, useUiStore } from "@/shared/store/ui-store";
 import { EditorErrorBoundary } from "@/shared/ui/error-boundary";
+import { collabRepository } from "@/features/editor-collab/api/collab-repository";
+import { useAuthStore } from "@/features/auth/model/auth-store";
 
 import { BottomSheet } from "./components/BottomSheet";
 import { EditorOverlay } from "./components/EditorOverlay";
@@ -32,6 +34,26 @@ export function SmartNotesShell() {
   const { data: rawFolders = [] } = useFoldersQuery();
   const { data: notes = [] } = useNotesFlat();
   const { data: settings } = useSettingsQuery();
+  const user = useAuthStore((state) => state.user);
+  const [invitesCount, setInvitesCount] = useState(0);
+
+  const loadInvites = useCallback(() => {
+    if (user?.email) {
+      void collabRepository.fetchMyPendingInvites(user.email).then((list) => {
+        setInvitesCount(list.length);
+      });
+    }
+  }, [user?.email]);
+
+  useEffect(() => {
+    if (!user?.email) {
+      setInvitesCount(0);
+      return;
+    }
+    loadInvites();
+    const interval = setInterval(loadInvites, 30000);
+    return () => clearInterval(interval);
+  }, [user?.email, loadInvites]);
 
 
   const view = useUiStore((state) => state.view);
@@ -121,35 +143,7 @@ export function SmartNotesShell() {
   }, [reduceMotion]);
 
 
-  const preset = settings?.preset ?? "paper";
-  useEffect(() => {
-    const root = document.documentElement;
-    if (preset === "paper") {
-      delete root.dataset.theme;
-    } else {
-      root.dataset.theme = preset;
-    }
-    return () => { delete root.dataset.theme; };
-  }, [preset]);
-
-
-  const uiOpacity = settings?.uiOpacity ?? 0.88;
-  const cardsOpacity = settings?.cardsOpacity ?? 0.92;
-  const mainBg = settings?.mainBackgroundUrl ?? null;
-  const sidebarBg = settings?.sidebarBackgroundUrl ?? null;
-  useEffect(() => {
-    const root = document.documentElement;
-    root.style.setProperty("--ui-opacity", String(uiOpacity));
-    root.style.setProperty("--cards-opacity", String(cardsOpacity));
-    root.style.setProperty(
-      "--main-background-url",
-      mainBg ? `url(${mainBg})` : "none",
-    );
-    root.style.setProperty(
-      "--sidebar-background-url",
-      sidebarBg ? `url(${sidebarBg})` : "none",
-    );
-  }, [uiOpacity, cardsOpacity, mainBg, sidebarBg]);
+  // Note: Global themes and opacities are applied via ThemeBridge in providers.tsx
 
 
   function toggleSidebar() {
@@ -184,12 +178,12 @@ export function SmartNotesShell() {
       <div className="relative flex min-h-0 flex-1 overflow-x-hidden">
         {desktopSidebarVisible ? (
           <div className="hidden lg:block">
-            <Sidebar copy={copy} currentView={view} folderViewMode={folderViewMode} folders={folders} activeFolderId={activeFolderId} isDesktop onClose={() => setDesktopSidebarOpen(false)} onCreateFolder={(anchor) => shellState.openSheet("create-folder", anchor)} onOpenFolder={openFolder} onOpenSheet={shellState.openSheet} onSwitchView={openView} />
+            <Sidebar copy={copy} currentView={view} folderViewMode={folderViewMode} folders={folders} activeFolderId={activeFolderId} isDesktop invitesCount={invitesCount} onClose={() => setDesktopSidebarOpen(false)} onCreateFolder={(anchor) => shellState.openSheet("create-folder", anchor)} onOpenFolder={openFolder} onOpenSheet={shellState.openSheet} onSwitchView={openView} />
           </div>
         ) : null}
 
         <div className="main-content min-w-0 flex-1">
-          <Header copy={copy} activeFolder={activeFolder} filtersOpen={shellState.filtersOpen} filtersRef={shellState.filtersRef} onOpenDrawer={toggleSidebar} onOpenFilters={() => shellState.setFiltersOpen((value) => !value)} onOpenFolderMenu={(anchor) => shellState.openSheet("folder", anchor)} profileOpen={shellState.profileOpen} profileRef={shellState.profileRef} searchQuery={searchQuery} setProfileOpen={shellState.setProfileOpen} setSearchQuery={setSearchQuery} view={view} />
+          <Header copy={copy} activeFolder={activeFolder} filtersOpen={shellState.filtersOpen} filtersRef={shellState.filtersRef} onOpenDrawer={toggleSidebar} onOpenFilters={() => shellState.setFiltersOpen((value) => !value)} onOpenFolderMenu={(anchor) => shellState.openSheet("folder", anchor)} searchQuery={searchQuery} setSearchQuery={setSearchQuery} view={view} />
 
           {shellState.filtersOpen ? (
             <TopFiltersPopup
@@ -215,7 +209,7 @@ export function SmartNotesShell() {
             />
           ) : null}
 
-          <MainSurface copy={copy} activeFolder={activeFolder} folderViewMode={folderViewMode} folders={folders} hiddenFolders={hiddenFolders} notes={visibleNotes} notesPerPage={notesPerPage} onOpenFolder={openFolder} onOpenNote={(id) => openNote(id, notes)} onOpenSheet={shellState.openSheet} trashedFolders={trashedFolders} view={view} />
+          <MainSurface copy={copy} activeFolder={activeFolder} folderViewMode={folderViewMode} folders={folders} hiddenFolders={hiddenFolders} notes={visibleNotes} notesPerPage={notesPerPage} onOpenFolder={openFolder} onOpenNote={(id) => openNote(id, notes)} onOpenSheet={shellState.openSheet} trashedFolders={trashedFolders} view={view} onRefreshInvites={loadInvites} />
         </div>
       </div>
 
@@ -223,32 +217,36 @@ export function SmartNotesShell() {
         <div className="fixed inset-0 z-40 lg:hidden">
           <button aria-label="Закрыть меню" className="absolute inset-0 bg-black/50 backdrop-blur-md" onClick={closeMobileSidebar} type="button" />
           <div className="absolute inset-y-0 left-0 w-[85vw] max-w-[320px]">
-            <Sidebar copy={copy} currentView={view} folderViewMode={folderViewMode} folders={folders} activeFolderId={activeFolderId} onClose={closeMobileSidebar} onCreateFolder={(anchor) => shellState.openSheet("create-folder", anchor)} onOpenFolder={openFolder} onOpenSheet={shellState.openSheet} onSwitchView={openView} />
+            <Sidebar copy={copy} currentView={view} folderViewMode={folderViewMode} folders={folders} activeFolderId={activeFolderId} invitesCount={invitesCount} onClose={closeMobileSidebar} onCreateFolder={(anchor) => shellState.openSheet("create-folder", anchor)} onOpenFolder={openFolder} onOpenSheet={shellState.openSheet} onSwitchView={openView} />
           </div>
         </div>
       ) : null}
 
       {/* FAB — shifts left on desktop when AI panel is open */}
-      <button
-        className={`btn-fab fixed bottom-5 z-30 flex h-14 w-14 items-center justify-center rounded-[1.2rem] bg-accent text-accent-foreground shadow-2xl shadow-violet-950/24 transition-[right] duration-300 ${
-          aiChatOpen ? "right-[440px] hidden sm:flex" : "right-5"
-        }`}
-        onClick={createNoteDraft}
-        type="button"
-      >
-        <Plus className="h-6 w-6" />
-      </button>
+      {(view === "notes" || view === "folder") && (
+        <button
+          className={`btn-fab fixed bottom-5 z-30 flex h-14 w-14 items-center justify-center rounded-[1.2rem] bg-accent text-accent-foreground shadow-2xl shadow-violet-950/24 transition-[right] duration-300 ${
+            aiChatOpen ? "right-[440px] hidden sm:flex" : "right-5"
+          }`}
+          onClick={createNoteDraft}
+          type="button"
+        >
+          <Plus className="h-6 w-6" />
+        </button>
+      )}
 
       {/* Mobile FAB — always bottom-right, hidden when AI panel open on mobile */}
-      <button
-        className={`btn-fab fixed bottom-5 right-5 z-30 flex h-16 w-16 items-center justify-center rounded-[1.4rem] bg-accent text-accent-foreground shadow-2xl shadow-violet-950/24 sm:hidden ${
-          aiChatOpen ? "hidden" : "flex"
-        }`}
-        onClick={createNoteDraft}
-        type="button"
-      >
-        <Plus className="h-7 w-7" />
-      </button>
+      {(view === "notes" || view === "folder") && (
+        <button
+          className={`btn-fab fixed bottom-5 right-5 z-30 flex h-16 w-16 items-center justify-center rounded-[1.4rem] bg-accent text-accent-foreground shadow-2xl shadow-violet-950/24 sm:hidden ${
+            aiChatOpen ? "hidden" : "flex"
+          }`}
+          onClick={createNoteDraft}
+          type="button"
+        >
+          <Plus className="h-7 w-7" />
+        </button>
+      )}
 
       {/* AI Notes Chat Panel — Gmail-style slide-in from right ✨ */}
       <AiChatPanel onOpenNote={(id) => openNote(id, notes)} />

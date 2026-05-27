@@ -112,16 +112,10 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
   const [isDrawing, setIsDrawing] = useState(false);
   const isHydratedRef = useRef(false);
 
-  const tagString = userTags.join(", ");
-  const [tagsInput, setTagsInput] = useState(tagString);
-
-  useEffect(() => {
-    setTagsInput(tagString);
-  }, [tagString]);
-
-  // Autocomplete tag suggestions
+  const [tagDraftVal, setTagDraftVal] = useState("");
   const [tagInputFocused, setTagInputFocused] = useState(false);
   const { data: allNotes = [] } = useNotesFlat();
+
   const allExistingTags = useMemo(() => {
     const tagsSet = new Set<string>();
     allNotes.forEach((n) => {
@@ -132,38 +126,60 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
     return Array.from(tagsSet);
   }, [allNotes]);
 
-  const lastTagTyped = useMemo(() => {
-    const parts = tagsInput.split(",");
-    return parts[parts.length - 1].trim();
-  }, [tagsInput]);
-
-  const currentTagsList = useMemo(() => {
-    return tagsInput.split(",").map((t) => t.trim()).filter(Boolean);
-  }, [tagsInput]);
+  const lastTagTyped = tagDraftVal.trim();
 
   const tagSuggestions = useMemo(() => {
     if (!lastTagTyped) return [];
     return allExistingTags.filter(
       (tag) =>
         tag.toLowerCase().startsWith(lastTagTyped.toLowerCase()) &&
-        !currentTagsList.includes(tag)
+        !userTags.includes(tag)
     );
-  }, [lastTagTyped, allExistingTags, currentTagsList]);
-
-  const handleTagsBlur = useCallback((value: string) => {
-    if (role === "viewer") return;
-    const tags = value.split(",").map((tag) => tag.trim()).filter(Boolean);
-    setUserTags(tags);
-    markEditorDirty(true);
-  }, [role, setUserTags, markEditorDirty]);
+  }, [lastTagTyped, allExistingTags, userTags]);
 
   const selectTagSuggestion = useCallback((suggestion: string) => {
-    const parts = tagsInput.split(",");
-    parts[parts.length - 1] = ` ${suggestion}`;
-    const nextTagsInput = parts.join(",") + ", ";
-    setTagsInput(nextTagsInput);
-    handleTagsBlur(nextTagsInput);
-  }, [tagsInput, handleTagsBlur]);
+    if (role === "viewer") return;
+    if (!userTags.includes(suggestion)) {
+      const next = [...userTags, suggestion];
+      setUserTags(next);
+      markEditorDirty(true);
+    }
+    setTagDraftVal("");
+  }, [role, userTags, setUserTags, markEditorDirty]);
+
+  const handleTagInputBlur = useCallback(() => {
+    setTimeout(() => setTagInputFocused(false), 250);
+    if (role === "viewer") return;
+    const trimmed = tagDraftVal.trim().replace(/^#/, "");
+    if (trimmed) {
+      if (!userTags.includes(trimmed)) {
+        const next = [...userTags, trimmed];
+        setUserTags(next);
+        markEditorDirty(true);
+      }
+      setTagDraftVal("");
+    }
+  }, [role, tagDraftVal, userTags, setUserTags, markEditorDirty]);
+
+  const handleTagInputKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (role === "viewer") return;
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      const trimmed = tagDraftVal.trim().replace(/^#/, "");
+      if (trimmed) {
+        if (!userTags.includes(trimmed)) {
+          const next = [...userTags, trimmed];
+          setUserTags(next);
+          markEditorDirty(true);
+        }
+        setTagDraftVal("");
+      }
+    } else if (e.key === "Backspace" && !tagDraftVal && userTags.length > 0) {
+      const next = userTags.slice(0, -1);
+      setUserTags(next);
+      markEditorDirty(true);
+    }
+  }, [role, tagDraftVal, userTags, setUserTags, markEditorDirty]);
 
   const { flush } = useDurableNoteSave();
 
@@ -331,8 +347,8 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
 
   return (
     <div className="fixed inset-0 z-50 bg-background/96 backdrop-blur-2xl">
-      <div className="mx-auto flex h-full max-w-6xl flex-col px-3 py-3 sm:px-5">
-        <header className="flex items-center gap-1 overflow-x-auto no-scrollbar rounded-[1.5rem] border border-border bg-surface/90 p-2 shadow-xl shadow-violet-950/8 sm:gap-2">
+      <div className="mx-auto flex h-full max-w-6xl flex-col px-0 py-2 sm:px-5 sm:py-3">
+        <header className="mx-3 sm:mx-0 flex items-center gap-1 overflow-x-auto no-scrollbar rounded-[1.5rem] border border-border bg-surface/90 p-2 shadow-xl shadow-violet-950/8 sm:gap-2">
           <button title="Назад к списку заметок" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={handleClose} type="button"><ChevronLeft className="h-6 w-6 sm:h-5 sm:w-5" /></button>
           <div className="flex shrink-0 items-center gap-1 rounded-2xl bg-surface-strong px-2 py-1 text-sm font-black">
             <button title="Предыдущая страница" className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-background disabled:opacity-35" disabled={currentNotePageIndex === 0} onClick={() => setCurrentNotePageIndex(Math.max(0, currentNotePageIndex - 1))} type="button"><ChevronLeft className="h-5 w-5 sm:h-4 sm:w-4" /></button>
@@ -365,9 +381,15 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
           onScroll={(e) => {
             localStorage.setItem(`scroll_${note.id}_${currentNotePageIndex}`, String(e.currentTarget.scrollTop));
           }}
-          className="mt-3 min-h-0 flex-1 overflow-y-auto rounded-[2rem] border border-border bg-surface/88 p-4 shadow-2xl shadow-violet-950/8 sm:p-8"
+          className="mt-3 min-h-0 flex-1 overflow-y-auto rounded-none sm:rounded-[2rem] border-x-0 sm:border border-border bg-surface/88 p-2 sm:p-8 shadow-none sm:shadow-2xl shadow-violet-950/8"
         >
-           <input disabled={role === "viewer"} className="w-full bg-transparent text-2xl font-black tracking-tight outline-none placeholder:text-foreground/28 sm:text-4xl" onChange={(event) => handleTitleChange(event.target.value)} placeholder={lang === "ru" ? "Заголовок" : "Title"} value={(title === "Untitled note" || title === "Untitled Note" ? "" : title) || ""} />
+           <input 
+             disabled={role === "viewer"} 
+             className="w-full rounded-2xl border border-border bg-surface-strong/60 px-4 py-3 text-2xl font-black tracking-tight outline-none focus:border-accent/80 focus:ring-2 focus:ring-accent/25 transition-all placeholder:text-foreground/28 sm:text-4xl disabled:opacity-60" 
+             onChange={(event) => handleTitleChange(event.target.value)} 
+             placeholder={lang === "ru" ? "Заголовок" : "Title"} 
+             value={(title === "Untitled note" || title === "Untitled Note" ? "" : title) || ""} 
+           />
           {isDrawing && (
             <DrawingCanvas
               onClose={() => setIsDrawing(false)}
@@ -408,7 +430,27 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
               
               {/* Group 4: Links & Elements */}
               <div className="flex items-center gap-1">
-                <ToolButton title={lang === "ru" ? "Вставить ссылку" : "Insert link"} active={editor.isActive("link")} icon={Link2} onClick={() => { const url = window.prompt(lang === "ru" ? "Ссылка" : "URL"); if (url) { editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run(); } }} />
+                <ToolButton 
+                  title={lang === "ru" ? "Вставить ссылку" : "Insert link"} 
+                  active={editor.isActive("link")} 
+                  icon={Link2} 
+                  onClick={() => {
+                    const { from, to } = editor.state.selection;
+                    const isTextSelected = from !== to;
+                    if (isTextSelected) {
+                      const url = window.prompt(lang === "ru" ? "Ссылка" : "URL");
+                      if (url) {
+                        editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
+                      }
+                    } else {
+                      const url = window.prompt(lang === "ru" ? "Ссылка" : "URL");
+                      if (url) {
+                        const text = window.prompt(lang === "ru" ? "Текст ссылки" : "Link text") || url;
+                        editor.chain().focus().insertContent(`<a href="${url}">${text}</a>`).run();
+                      }
+                    }
+                  }} 
+                />
                 <ToolButton title={lang === "ru" ? "Разделительная линия" : "Horizontal rule"} icon={Minus} onClick={() => editor.chain().focus().setHorizontalRule().run()} />
               </div>
               
@@ -429,7 +471,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
             </div>
           ) : null}
           <div 
-            className="mt-5 flex min-h-[60vh] flex-1 rounded-[1.5rem] border border-border bg-background/36 p-4 text-lg leading-9 outline-none cursor-text focus-within:ring-2 focus-within:ring-accent/25 focus-within:border-accent/80 transition-all"
+            className="mt-4 sm:mt-5 flex min-h-[60vh] flex-1 rounded-none sm:rounded-[1.5rem] border-0 sm:border border-border bg-transparent sm:bg-background/36 p-1 sm:p-5 mx-0 text-lg leading-9 outline-none cursor-text focus-within:ring-0 sm:focus-within:ring-2 sm:focus-within:ring-accent/25 sm:focus-within:border-accent/80 transition-all"
             onClick={() => editor.chain().focus().run()}
           >
             <div className="min-h-full flex-1 [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[55vh]">
@@ -438,29 +480,39 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
           </div>
         </section>
 
-        <footer className="mt-3 flex flex-col gap-3 rounded-[1.5rem] border border-border bg-surface/92 p-3 shadow-xl shadow-violet-950/8 sm:flex-row sm:items-center sm:p-2">
+        <footer className="mx-3 sm:mx-0 mt-3 flex flex-col gap-3 rounded-[1.5rem] border border-border bg-surface/92 p-3 shadow-xl shadow-violet-950/8 sm:flex-row sm:items-center sm:p-2">
           <div className="relative flex-1">
-            <label className="flex min-h-11 w-full items-center gap-2 rounded-2xl bg-surface-strong px-3 sm:min-h-11">
-              <Tag className="h-5 w-5 text-accent sm:h-4 sm:w-4" />
+            <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-surface-strong px-3 py-1.5 border border-border min-h-11">
+              <Tag className="h-4 w-4 text-accent shrink-0" />
+              {userTags.map((tag) => (
+                <span key={tag} className="inline-flex items-center gap-1.5 rounded-lg bg-accent/10 border border-accent/20 px-2.5 py-1 text-xs font-bold text-accent">
+                  #{tag}
+                  {role !== "viewer" && (
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        const nextTags = userTags.filter((t) => t !== tag);
+                        setUserTags(nextTags);
+                        markEditorDirty(true);
+                      }} 
+                      className="hover:text-foreground text-accent/60 transition-colors text-sm font-black"
+                    >
+                      &times;
+                    </button>
+                  )}
+                </span>
+              ))}
               <input 
                 disabled={role === "viewer"}
-                className="min-w-0 flex-1 bg-transparent text-sm outline-none" 
-                value={tagsInput}
-                onChange={(event) => setTagsInput(event.target.value)}
+                className="min-w-[120px] flex-1 bg-transparent text-sm outline-none py-1 text-foreground placeholder:text-foreground/32" 
+                value={tagDraftVal}
+                onChange={(event) => setTagDraftVal(event.target.value)}
                 onFocus={() => setTagInputFocused(true)}
-                onBlur={() => {
-                  setTimeout(() => setTagInputFocused(false), 250);
-                  handleTagsBlur(tagsInput);
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    handleTagsBlur(tagsInput);
-                    event.currentTarget.blur();
-                  }
-                }}
-                placeholder={lang === "ru" ? "тег1, тег2" : "tag1, tag2"} 
+                onBlur={handleTagInputBlur}
+                onKeyDown={handleTagInputKeyDown}
+                placeholder={userTags.length === 0 ? (lang === "ru" ? "Добавить тег..." : "Add tag...") : ""} 
               />
-            </label>
+            </div>
             {tagInputFocused && tagSuggestions.length > 0 && (
               <div className="absolute bottom-full left-0 mb-2 max-h-40 w-full overflow-y-auto rounded-2xl border border-border bg-surface p-2 shadow-2xl backdrop-blur-2xl z-50">
                 <div className="flex flex-wrap gap-1.5">
