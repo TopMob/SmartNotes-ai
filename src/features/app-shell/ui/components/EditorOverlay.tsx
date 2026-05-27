@@ -294,8 +294,6 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
     markEditorDirty(true);
   }
 
-
-
   async function handleAttachImage() {
     const picker = document.createElement("input");
     picker.type = "file";
@@ -308,10 +306,45 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
         return;
       }
 
+      // Create a temporary object URL for instant local preview
+      const localUrl = URL.createObjectURL(file);
+
+      // Insert image immediately
+      if (editor) {
+        editor.chain().focus().setImage({ src: localUrl }).run();
+      }
+
+      const googleAuthUser = user as unknown as {
+        app_metadata?: { provider?: string };
+        identities?: Array<{ provider: string }>;
+      } | null;
+      const isGoogleUser = googleAuthUser?.app_metadata?.provider === "google" || googleAuthUser?.identities?.some((i) => i.provider === "google") || false;
+
       try {
-        const media = await uploadMediaFile(file, note.id);
+        const media = await uploadMediaFile(file, note.id, isGoogleUser);
         attachMedia(note.id, media);
-        if (media.url) editor?.chain().focus().setImage({ src: media.url }).run();
+
+        // Replace optimistic preview with actual uploaded URL
+        if (media.url && editor) {
+          let replaced = false;
+          editor.state.doc.descendants((node, pos) => {
+            if (node.type.name === "image" && node.attrs.src === localUrl) {
+              editor.view.dispatch(
+                editor.state.tr.setNodeMarkup(pos, undefined, {
+                  ...node.attrs,
+                  src: media.url,
+                })
+              );
+              replaced = true;
+              return false; // stop iteration
+            }
+          });
+
+          if (!replaced) {
+            editor.chain().focus().setImage({ src: media.url }).run();
+          }
+        }
+
         setMediaDiagnostic({
           provider: media.provider,
           degraded: media.provider === "local-inline",
@@ -320,7 +353,20 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
             : `Uploaded ${file.name} successfully to Google Drive via proxy.`,
         });
       } catch (error) {
+        // Remove optimistic image preview on failure
+        if (editor) {
+          editor.state.doc.descendants((node, pos) => {
+            if (node.type.name === "image" && node.attrs.src === localUrl) {
+              editor.view.dispatch(
+                editor.state.tr.delete(pos, pos + node.nodeSize)
+              );
+              return false; // stop iteration
+            }
+          });
+        }
         window.alert(error instanceof Error ? error.message : "Не удалось добавить изображение.");
+      } finally {
+        URL.revokeObjectURL(localUrl);
       }
     };
 

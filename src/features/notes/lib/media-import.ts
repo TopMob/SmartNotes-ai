@@ -22,7 +22,7 @@ export async function createLocalInlineMediaDescriptor(file: File): Promise<Medi
   };
 }
 
-export async function uploadMediaFile(file: File, noteId: string): Promise<MediaDescriptor> {
+export async function uploadMediaFile(file: File, noteId: string, isGoogleUser?: boolean): Promise<MediaDescriptor> {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("noteId", noteId);
@@ -35,9 +35,15 @@ export async function uploadMediaFile(file: File, noteId: string): Promise<Media
 
     if (response.ok) {
       return (await response.json()) as MediaDescriptor;
+    } else {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.error || `Upload failed with status ${response.status}`);
     }
   } catch (error) {
-    console.warn("Failed to upload via Google Drive proxy, falling back to local-inline:", error);
+    console.warn("Failed to upload via Google Drive proxy:", error);
+    if (isGoogleUser) {
+      throw error;
+    }
   }
 
   return createLocalInlineMediaDescriptor(file);

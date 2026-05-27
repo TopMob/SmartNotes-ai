@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { requireSupabaseUrl, requireSupabasePublishableKey } from "@/shared/api/supabase/env";
+import { getGoogleAccessToken } from "@/shared/api/google-drive/google-drive-helper";
 
 export const runtime = "nodejs";
 
@@ -14,7 +15,7 @@ export async function GET(request: Request) {
   }
 
   let userId: string | null = null;
-  let providerToken: string | null = null;
+  let activeToken: string | null = null;
 
   try {
     const cookieStore = await cookies();
@@ -25,8 +26,12 @@ export async function GET(request: Request) {
     );
     const { data: { session } } = await supabase.auth.getSession();
     userId = session?.user?.id ?? null;
-    providerToken = session?.provider_token ?? null;
-  } catch {
+    const sessionProviderToken = session?.provider_token ?? null;
+    const sessionProviderRefreshToken = session?.provider_refresh_token ?? null;
+
+    activeToken = await getGoogleAccessToken(sessionProviderToken, sessionProviderRefreshToken);
+  } catch (err) {
+    console.error("Error retrieving Supabase session in download route:", err);
     userId = null;
   }
 
@@ -34,7 +39,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!providerToken) {
+  if (!activeToken) {
     return NextResponse.json({ error: "Google credentials not available. Please sign in with Google." }, { status: 400 });
   }
 
@@ -42,7 +47,7 @@ export async function GET(request: Request) {
     // 1. Fetch metadata first to get correct filename and mimeType (optional but nice)
     const metadataResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name,mimeType,size`, {
       headers: {
-        Authorization: `Bearer ${providerToken}`,
+        Authorization: `Bearer ${activeToken}`,
       },
     });
 
@@ -60,7 +65,7 @@ export async function GET(request: Request) {
     // 2. Fetch the actual file contents
     const driveResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
       headers: {
-        Authorization: `Bearer ${providerToken}`,
+        Authorization: `Bearer ${activeToken}`,
       },
     });
 

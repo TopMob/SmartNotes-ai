@@ -20,20 +20,32 @@ export async function middleware(request: NextRequest) {
   const isAuthenticated = getUserResult?.data?.user != null || isGuest;
 
 
+  let activeResponse = response;
+
   if (isAuthenticated && pathname === "/login") {
     const homeUrl = request.nextUrl.clone();
     homeUrl.pathname = "/";
-    return NextResponse.redirect(homeUrl);
-  }
-
-
-  if (!isAuthenticated && !isPublic) {
+    activeResponse = NextResponse.redirect(homeUrl);
+  } else if (!isAuthenticated && !isPublic) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
-    return NextResponse.redirect(loginUrl);
+    activeResponse = NextResponse.redirect(loginUrl);
   }
 
-  return response;
+  if (!isAuthenticated) {
+    activeResponse.cookies.delete("sb-provider-token");
+    activeResponse.cookies.delete("sb-provider-refresh-token");
+  }
+
+  if (activeResponse !== response) {
+    response.cookies.getAll().forEach((cookie) => {
+      if (cookie.name !== "sb-provider-token" && cookie.name !== "sb-provider-refresh-token") {
+        activeResponse.cookies.set(cookie.name, cookie.value);
+      }
+    });
+  }
+
+  return activeResponse;
 }
 
 export const config = {

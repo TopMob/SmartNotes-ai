@@ -39,11 +39,31 @@ export async function GET(request: NextRequest) {
     },
   });
 
-  const { error } = await supabase.auth.exchangeCodeForSession(code);
+  const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
     console.error("[auth/callback] exchangeCodeForSession failed:", error.message);
     return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(error.message)}`, request.url));
+  }
+
+  if (data?.session?.provider_token) {
+    response.cookies.set("sb-provider-token", data.session.provider_token, {
+      path: "/",
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: data.session.expires_in ?? 3500,
+    });
+  }
+
+  if (data?.session?.provider_refresh_token) {
+    response.cookies.set("sb-provider-refresh-token", data.session.provider_refresh_token, {
+      path: "/",
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 365, // 1 year
+    });
   }
 
   return response;
