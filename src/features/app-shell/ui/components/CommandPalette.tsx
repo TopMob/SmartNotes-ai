@@ -183,8 +183,17 @@ export function CommandPalette({ onOpenNote, onCreateNote }: CommandPaletteProps
       }
       if (e.key === "Escape") setOpen(false);
     }
+
+    function onOpenEvent() {
+      setOpen(true);
+    }
+
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener("open-command-palette", onOpenEvent);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("open-command-palette", onOpenEvent);
+    };
   }, []);
 
 

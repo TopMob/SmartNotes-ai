@@ -16,6 +16,9 @@ import { type AppView, useUiStore } from "@/shared/store/ui-store";
 import { EditorErrorBoundary } from "@/shared/ui/error-boundary";
 import { collabRepository } from "@/features/editor-collab/api/collab-repository";
 import { useAuthStore } from "@/features/auth/model/auth-store";
+import { isGuestUser, readGuestSessionWithoutCleanup } from "@/features/auth/lib/guest-session";
+import { useAuthActions } from "@/features/auth/hooks/use-auth-actions";
+import { Button } from "@/shared/ui/button";
 
 import { BottomSheet } from "./components/BottomSheet";
 import { EditorOverlay } from "./components/EditorOverlay";
@@ -276,6 +279,96 @@ export function SmartNotesShell() {
       {!shellState.editorOpen || !currentNote ? <BottomSheet activeFolder={activeFolder} editorDirty={editorDirty} isDesktop={shellState.isDesktop} sheet={shellState.sheet} onClose={handleCloseSheet} onCloseWithoutClear={() => shellState.setSheet(null)} onOpenSheet={shellState.openSheet} onOpenEditor={() => shellState.setEditorOpen(true)} onCloseEditor={closeEditor} /> : null}
       
       <LockManager />
+      <GuestSessionManager />
     </main>
+  );
+}
+
+function GuestSessionManager() {
+  const user = useAuthStore((state) => state.user);
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  const { logout } = useAuthActions();
+
+  useEffect(() => {
+    if (!isGuestUser(user)) return;
+
+    // Check immediately
+    const session = readGuestSessionWithoutCleanup();
+    if (!session) {
+      setTimeLeft(0);
+    } else {
+      setTimeLeft(Math.max(0, session.expiresAt - Date.now()));
+    }
+
+    const interval = setInterval(() => {
+      const session = readGuestSessionWithoutCleanup();
+      if (!session) {
+        setTimeLeft(0);
+        return;
+      }
+      const remaining = Math.max(0, session.expiresAt - Date.now());
+      setTimeLeft(remaining);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [user]);
+
+  if (!isGuestUser(user) || timeLeft === null) return null;
+
+  const showBanner = timeLeft > 0 && timeLeft <= 120000; // 2 minutes
+  const showBlockingModal = timeLeft <= 0;
+
+  const minutes = Math.floor(timeLeft / 60000);
+  const seconds = Math.floor((timeLeft % 60000) / 1000);
+  const formattedTime = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+
+  const handleRegister = () => {
+    window.location.assign("/login?mode=register");
+  };
+
+  const handleDiscard = async () => {
+    await logout();
+  };
+
+  return (
+    <>
+      {showBanner && (
+        <div className="fixed top-0 inset-x-0 z-[100] bg-amber-500 text-amber-950 px-4 py-2.5 text-center text-xs font-black shadow-lg flex items-center justify-center gap-2 animate-in slide-in-from-top duration-300">
+          <span>⚠️ Гостевой режим завершится через {formattedTime}. Сохраните прогресс!</span>
+          <button 
+            onClick={handleRegister} 
+            className="rounded-lg bg-amber-950 text-amber-500 px-3 py-1 text-[10px] font-black uppercase hover:bg-amber-900 transition"
+          >
+            Зарегистрироваться
+          </button>
+        </div>
+      )}
+
+      {showBlockingModal && (
+        <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-xl flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-[2.2rem] border border-border bg-surface-strong p-6 shadow-2xl text-center">
+            <span className="text-3xl">⏳</span>
+            <h2 className="mt-4 text-2xl font-black tracking-tight text-foreground">Время гостевой сессии истекло!</h2>
+            <p className="mt-3 text-sm leading-relaxed text-foreground/64 font-medium">
+              Чтобы ваши заметки не удалились локально, зарегистрируйтесь прямо сейчас. Мы автоматически перенесем все созданные записи в ваш новый личный аккаунт.
+            </p>
+            <div className="mt-6 flex flex-col gap-2.5">
+              <Button 
+                onClick={handleRegister} 
+                className="w-full rounded-xl h-12 transition-all font-black text-sm"
+              >
+                Сохранить заметки и Зарегистрироваться
+              </Button>
+              <button 
+                onClick={handleDiscard} 
+                className="w-full rounded-xl h-11 text-xs font-bold text-rose-500 hover:bg-rose-500/10 transition-all"
+              >
+                Удалить и выйти
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

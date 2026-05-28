@@ -107,7 +107,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
     }
   }, [note.id, currentNotePageIndex, status]);
 
-  const { page: currentPage, pageCount, addPage: _addPage, removePage, setPageContent } = useNoteCollabPage(currentNotePageIndex);
+  const { page: currentPage, pages, pageCount, addPage: _addPage, removePage, setPageContent } = useNoteCollabPage(currentNotePageIndex);
   const { title, userTags, setTitle, setUserTags } = useNoteTitleTags();
   const snapshotRef = useRef(serializeEditorSnapshot(note));
   const editorDirty = useNoteUiStore((state) => state.editorDirty);
@@ -405,21 +405,50 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
       <div className="mx-auto flex h-full max-w-6xl flex-col px-0 py-2 sm:px-5 sm:py-3">
         <header className="mx-3 sm:mx-0 flex items-center gap-1 overflow-x-auto no-scrollbar rounded-[1.5rem] border border-border bg-surface/90 p-2 shadow-xl shadow-violet-950/8 sm:gap-2">
           <button title="Назад к списку заметок" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={handleClose} type="button"><ChevronLeft className="h-6 w-6 sm:h-5 sm:w-5" /></button>
-          <div className="flex shrink-0 items-center gap-1 rounded-2xl bg-surface-strong px-2 py-1 text-sm font-black">
-            <button title="Предыдущая страница" className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-background disabled:opacity-35" disabled={currentNotePageIndex === 0} onClick={() => setCurrentNotePageIndex(Math.max(0, currentNotePageIndex - 1))} type="button"><ChevronLeft className="h-5 w-5 sm:h-4 sm:w-4" /></button>
-            <span className="px-1">{currentNotePageIndex + 1}/{pageCount}</span>
-            <button title="Следующая страница" className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-background disabled:opacity-35" disabled={currentNotePageIndex >= pageCount - 1} onClick={() => setCurrentNotePageIndex(Math.min(pageCount - 1, currentNotePageIndex + 1))} type="button"><ChevronRight className="h-5 w-5 sm:h-4 sm:w-4" /></button>
-            <button
-              aria-label="Удалить страницу"
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-destructive hover:bg-background disabled:opacity-35"
-              disabled={pageCount <= 1 || role === "viewer"}
-              onClick={handleDeletePage}
-              title="Удалить страницу"
-              type="button"
-            >
-              <Trash2 className="h-5 w-5 sm:h-4 sm:w-4" />
-            </button>
+          
+          {/* Scrollable Tabs */}
+          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar max-w-[50%] shrink-0">
+            {pages.slice(0, 3).map((p, idx) => {
+              const isActive = currentNotePageIndex === idx;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => setCurrentNotePageIndex(idx)}
+                  className={`flex h-8 items-center gap-1.5 rounded-lg px-2 text-[11px] font-bold shrink-0 transition-all border ${
+                    isActive 
+                      ? "bg-accent/10 border-accent/20 text-accent font-black" 
+                      : "bg-surface-strong/60 border-transparent hover:bg-background text-foreground/72"
+                  }`}
+                  type="button"
+                >
+                  <span className="truncate max-w-[70px]" title={p.title}>{p.title}</span>
+                </button>
+              );
+            })}
+            {pageCount > 3 && (
+              <button
+                onClick={(event) => onOpenSheet("pages", getSheetAnchor(event.currentTarget.getBoundingClientRect()))}
+                className="flex h-8 items-center gap-1.5 rounded-lg bg-surface-strong/80 hover:bg-background border border-border px-2 text-xs font-black text-accent shrink-0 transition-all"
+                type="button"
+              >
+                +{pageCount - 3}
+              </button>
+            )}
+            {role !== "viewer" && pageCount < 10 && (
+              <button
+                onClick={() => {
+                  const next = _addPage();
+                  setCurrentNotePageIndex(pageCount); // go to new page
+                }}
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-strong/40 hover:bg-background border border-dashed border-border shrink-0 text-foreground/45 hover:text-foreground transition-all"
+                title={lang === "ru" ? "Добавить страницу" : "Add page"}
+                type="button"
+              >
+                +
+              </button>
+            )}
           </div>
+
           <button title="Список страниц" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={(event) => onOpenSheet("pages", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><BookOpen className="h-6 w-6 sm:h-5 sm:w-5" /></button>
           <AccessBadge role={role} />
           <div className="ml-auto flex shrink-0 items-center gap-1">
@@ -440,7 +469,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
         >
            <input 
              disabled={role === "viewer"} 
-             className="w-full rounded-2xl border border-border bg-surface-strong/60 px-4 py-3 text-2xl font-black tracking-tight outline-none focus:border-accent/80 focus:ring-2 focus:ring-accent/25 transition-all placeholder:text-foreground/28 sm:text-4xl disabled:opacity-60" 
+             className="w-full border-0 bg-transparent px-0 py-2 text-2xl font-black tracking-tight outline-none focus:ring-0 placeholder:text-foreground/28 sm:text-4xl disabled:opacity-60" 
              onChange={(event) => handleTitleChange(event.target.value)} 
              placeholder={lang === "ru" ? "Заголовок" : "Title"} 
              value={(title === "Untitled note" || title === "Untitled Note" ? "" : title) || ""} 
@@ -455,9 +484,9 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
             />
           )}
            {toolbarVisible && role !== "viewer" ? (
-            <div className="sticky top-0 z-10 mt-4 flex flex-wrap items-center gap-1.5 rounded-2xl border border-border bg-surface-strong/92 p-1.5 backdrop-blur-xl">
+            <div className="sticky top-0 z-10 mt-4 flex flex-nowrap overflow-x-auto no-scrollbar scroll-smooth snap-x md:flex-wrap md:overflow-visible items-center gap-1.5 rounded-2xl border border-border bg-surface-strong/92 p-1.5 backdrop-blur-xl">
               {/* Group 1: Text formatting */}
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 shrink-0">
                 <ToolButton title={lang === "ru" ? "Жирный" : "Bold"} active={editor.isActive("bold")} icon={Bold} onClick={() => editor.chain().focus().toggleBold().run()} />
                 <ToolButton title={lang === "ru" ? "Курсив" : "Italic"} active={editor.isActive("italic")} icon={Italic} onClick={() => editor.chain().focus().toggleItalic().run()} />
                 <ToolButton title={lang === "ru" ? "Подчеркнутый" : "Underline"} active={editor.isActive("underline")} icon={Underline} onClick={() => editor.chain().focus().toggleUnderline().run()} />
@@ -467,7 +496,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
               <div className="h-6 w-px bg-border mx-1 shrink-0" />
               
               {/* Group 2: Alignment */}
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 shrink-0">
                 <ToolButton title={lang === "ru" ? "Выровнять по левому краю" : "Align left"} active={editor.isActive({ textAlign: "left" })} icon={AlignLeft} onClick={() => editor.chain().focus().setTextAlign("left").run()} />
                 <ToolButton title={lang === "ru" ? "Выровнять по центру" : "Align center"} active={editor.isActive({ textAlign: "center" })} icon={AlignCenter} onClick={() => editor.chain().focus().setTextAlign("center").run()} />
                 <ToolButton title={lang === "ru" ? "Выровнять по правому краю" : "Align right"} active={editor.isActive({ textAlign: "right" })} icon={AlignRight} onClick={() => editor.chain().focus().setTextAlign("right").run()} />
@@ -476,7 +505,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
               <div className="h-6 w-px bg-border mx-1 shrink-0" />
               
               {/* Group 3: Lists */}
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 shrink-0">
                 <ToolButton title={lang === "ru" ? "Маркированный список" : "Bullet list"} active={editor.isActive("bulletList")} icon={List} onClick={() => editor.chain().focus().toggleBulletList().run()} />
                 <ToolButton title={lang === "ru" ? "Нумерованный список" : "Ordered list"} active={editor.isActive("orderedList")} icon={ListOrdered} onClick={() => editor.chain().focus().toggleOrderedList().run()} />
               </div>
@@ -484,7 +513,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
               <div className="h-6 w-px bg-border mx-1 shrink-0" />
               
               {/* Group 4: Links & Elements */}
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 shrink-0">
                 <ToolButton 
                   title={lang === "ru" ? "Вставить ссылку" : "Insert link"} 
                   active={editor.isActive("link")} 
@@ -512,7 +541,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
               <div className="h-6 w-px bg-border mx-1 shrink-0" />
               
               {/* Group 5: Drawing & Media */}
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 shrink-0">
                 <ToolButton title={lang === "ru" ? "Рисовать" : "Draw"} icon={Palette} onClick={() => setIsDrawing(true)} />
                 <ToolButton title={lang === "ru" ? "Добавить изображение" : "Add image"} icon={Image} onClick={() => void handleAttachImage()} />
               </div>
@@ -520,7 +549,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
               <div className="h-6 w-px bg-border mx-1 shrink-0" />
               
               {/* Group 6: Clean Formatting */}
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 shrink-0">
                 <ToolButton title={lang === "ru" ? "Очистить форматирование" : "Clear formatting"} icon={Eraser} onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()} />
               </div>
             </div>
@@ -589,57 +618,55 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
             )}
           </div>
           <div className="flex w-full items-center justify-between sm:w-auto sm:gap-4">
-            <div className="flex items-center gap-2">
-              {/* AI Badge */}
-              {aiStatus === "analyzing" && (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-500/10 px-2.5 py-1 text-xs font-bold text-violet-500 border border-violet-500/20 animate-pulse">
-                  <Sparkles className="h-3.5 w-3.5 animate-spin" />
-                  <span>{lang === "ru" ? "AI Анализ..." : "AI Analyzing..."}</span>
-                </span>
-              )}
-              {aiStatus === "pending" && (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-bold text-amber-500 border border-amber-500/20">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  <span>{lang === "ru" ? "AI Ожидание" : "AI Pending"}</span>
-                </span>
-              )}
-              {aiStatus === "done" && (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-bold text-emerald-500 border border-emerald-500/20">
-                  <Check className="h-3.5 w-3.5" />
-                  <span>{lang === "ru" ? "AI Готово" : "AI Analyzed"}</span>
-                </span>
-              )}
-              {aiStatus === "error" && (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/10 px-2.5 py-1 text-xs font-bold text-rose-500 border border-rose-500/20">
-                  <Sparkles className="h-3.5 w-3.5 text-rose-500" />
-                  <span>{lang === "ru" ? "Ошибка AI" : "AI Error"}</span>
-                </span>
-              )}
+            <div className="flex items-center gap-1.5">
+              {/* AI Indicator */}
+              <div 
+                title={
+                  aiStatus === "analyzing" ? (lang === "ru" ? "AI Анализ..." : "AI Analyzing...") :
+                  aiStatus === "pending" ? (lang === "ru" ? "Ожидание AI" : "AI Pending") :
+                  aiStatus === "done" ? (lang === "ru" ? "AI Анализ завершен" : "AI Analyzed") :
+                  (lang === "ru" ? "Ошибка AI" : "AI Error")
+                }
+                className={`flex h-9 w-9 items-center justify-center rounded-xl border transition-all ${
+                  aiStatus === "analyzing" ? "border-violet-500/20 bg-violet-500/10 text-violet-400 animate-pulse" :
+                  aiStatus === "pending" ? "border-amber-500/20 bg-amber-500/10 text-amber-500" :
+                  aiStatus === "done" ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-400" :
+                  "border-rose-500/20 bg-rose-500/10 text-rose-400"
+                }`}
+              >
+                <Sparkles className={`h-4 w-4 ${aiStatus === "analyzing" ? "animate-spin" : ""}`} />
+              </div>
 
-              {/* Sync / Saving Badge */}
-              {durableState.error ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/10 px-2.5 py-1 text-xs font-bold text-rose-500 border border-rose-500/20">
-                  <CloudOff className="h-3.5 w-3.5" />
-                  <span>{lang === "ru" ? "Ошибка сохранения" : "Sync Error"}</span>
-                </span>
-              ) : durableState.isSaving ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-500/10 px-2.5 py-1 text-xs font-bold text-blue-500 border border-blue-500/20">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  <span>{lang === "ru" ? "Сохранение..." : "Saving..."}</span>
-                </span>
-              ) : editorDirty ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2.5 py-1 text-xs font-bold text-amber-500 border border-amber-500/20 animate-pulse">
-                  <Cloud className="h-3.5 w-3.5" />
-                  <span>{lang === "ru" ? "Несохранено" : "Unsaved"}</span>
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-bold text-emerald-500 border border-emerald-500/20">
-                  <Cloud className="h-3.5 w-3.5" />
-                  <span>{lang === "ru" ? "Синхронизировано" : "Synced"}</span>
-                </span>
-              )}
+              {/* Sync Indicator */}
+              <div 
+                title={
+                  durableState.error ? (lang === "ru" ? "Ошибка сохранения" : "Sync Error") :
+                  durableState.isSaving ? (lang === "ru" ? "Сохранение..." : "Saving...") :
+                  editorDirty ? (lang === "ru" ? "Несохранено" : "Unsaved") :
+                  (lang === "ru" ? "Синхронизировано" : "Synced")
+                }
+                className={`flex h-9 w-9 items-center justify-center rounded-xl border transition-all ${
+                  durableState.error ? "border-rose-500/20 bg-rose-500/10 text-rose-400" :
+                  durableState.isSaving ? "border-blue-500/20 bg-blue-500/10 text-blue-400" :
+                  editorDirty ? "border-amber-500/20 bg-amber-500/10 text-amber-500 animate-pulse" :
+                  "border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
+                }`}
+              >
+                {durableState.error ? <CloudOff className="h-4 w-4" /> :
+                 durableState.isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> :
+                 editorDirty ? <Cloud className="h-4 w-4" /> :
+                 <Check className="h-4 w-4" />}
+              </div>
             </div>
-            <Button className="h-11 shrink-0 rounded-2xl px-6 font-bold" onClick={handleClose} type="button"><Save className="mr-2 h-5 w-5" />{copy.shell.actions.saveDone || "Done"}</Button>
+            <Button 
+              className="h-11 shrink-0 rounded-2xl px-4 sm:px-6 font-bold" 
+              onClick={handleClose} 
+              type="button"
+              title={lang === "ru" ? "Сохранить и закрыть" : "Save and Close"}
+            >
+              <Check className="h-5 w-5 sm:mr-2" />
+              <span className="hidden sm:inline">{lang === "ru" ? "Сохранить" : "Save"}</span>
+            </Button>
           </div>
         </footer>
       </div>

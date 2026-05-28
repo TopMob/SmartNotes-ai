@@ -15,7 +15,8 @@ function readStringArray(value: unknown) {
 }
 
 export function parseImportedNoteFile(text: string, ownerId: string) {
-  const parsed = JSON.parse(text) as ImportedNotePayload;
+  const textCleaned = text.replace(/^\uFEFF/, "");
+  const parsed = JSON.parse(textCleaned) as ImportedNotePayload;
   const title = readString(parsed.title);
   const content = readString(parsed.content);
   const userTags = readStringArray(parsed.userTags);
@@ -49,7 +50,8 @@ export function parseImportedNoteFile(text: string, ownerId: string) {
 }
 
 export function parseImportedNotesFile(text: string, ownerId: string) {
-  const parsed = JSON.parse(text) as unknown;
+  const textCleaned = text.replace(/^\uFEFF/, "");
+  const parsed = JSON.parse(textCleaned) as unknown;
   const items = Array.isArray(parsed)
     ? parsed
     : typeof parsed === "object" && parsed !== null && "notes" in parsed && Array.isArray((parsed as { notes: unknown }).notes)

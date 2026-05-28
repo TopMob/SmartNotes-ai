@@ -47,7 +47,7 @@ export async function middleware(request: NextRequest) {
   if (activeResponse !== response) {
     response.cookies.getAll().forEach((cookie) => {
       if (cookie.name !== "sb-provider-token" && cookie.name !== "sb-provider-refresh-token") {
-        activeResponse.cookies.set(cookie.name, cookie.value);
+        activeResponse.cookies.set(cookie);
       }
     });
   }

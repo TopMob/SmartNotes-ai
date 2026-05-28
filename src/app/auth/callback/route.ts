@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
 
 
 
+  const isHttps = request.nextUrl.protocol === "https:";
   const response = NextResponse.redirect(new URL(safeNext, request.url));
 
   const supabase = createServerClient<Database>(url, publishableKey, {
@@ -33,7 +34,10 @@ export async function GET(request: NextRequest) {
       setAll(cookiesToSet) {
         for (const cookie of cookiesToSet) {
           request.cookies.set(cookie.name, cookie.value);
-          response.cookies.set(cookie.name, cookie.value, cookie.options);
+          response.cookies.set(cookie.name, cookie.value, {
+            ...cookie.options,
+            secure: isHttps,
+          });
         }
       },
     },
@@ -45,8 +49,6 @@ export async function GET(request: NextRequest) {
     console.error("[auth/callback] exchangeCodeForSession failed:", error.message);
     return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(error.message)}`, request.url));
   }
-
-  const isHttps = request.nextUrl.protocol === "https:";
 
   if (data?.session?.provider_token) {
     response.cookies.set("sb-provider-token", data.session.provider_token, {

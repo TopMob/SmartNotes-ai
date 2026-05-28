@@ -56,7 +56,7 @@ export function Header({
                       : copy.shell.notes;
 
   return (
-    <header className="top-bar sticky top-0 z-20 px-3 py-3 pb-[4rem] shadow-lg shadow-violet-950/5 sm:px-4 md:pb-3 md:py-3">
+    <header className="top-bar sticky top-0 z-20 px-3 py-3 shadow-lg shadow-violet-950/5 sm:px-4 md:py-3">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 shrink-0 items-center gap-2">
           <button
@@ -66,6 +66,15 @@ export function Header({
             aria-label="Открыть меню"
           >
             <Menu className="h-6 w-6 sm:h-5 sm:w-5" />
+          </button>
+
+          <button
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-surface-strong text-foreground/72 sm:h-10 sm:w-10 md:hidden"
+            onClick={() => window.dispatchEvent(new CustomEvent("open-command-palette"))}
+            type="button"
+            aria-label="Поиск"
+          >
+            <Search className="h-6 w-6 sm:h-5 sm:w-5" />
           </button>
 
           <h1 className="truncate text-xl font-black tracking-tight">{title}</h1>
@@ -80,7 +89,7 @@ export function Header({
           ) : null}
         </div>
 
-        <label className="absolute left-[15px] right-[15px] top-[4.5rem] z-50 flex h-11 min-w-0 max-w-none items-center gap-3 rounded-full border border-border bg-surface-strong px-4 shadow-lg md:static md:mx-auto md:flex-1 md:h-10 md:max-w-[560px] md:shadow-inner md:shadow-violet-950/4">
+        <label className="hidden md:flex md:static md:mx-auto md:flex-1 md:h-10 md:max-w-[560px] md:shadow-inner md:shadow-violet-950/4 items-center gap-3 rounded-full border border-border bg-surface-strong px-4">
           <Search className="h-5 w-5 shrink-0 text-foreground/38" />
           <input
             type="search"

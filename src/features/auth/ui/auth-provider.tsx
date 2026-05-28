@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 
 import { bootstrapProfile } from "@/features/auth/api/profile-bootstrap";
 import { fetchAuthRuntimeConfig } from "@/features/auth/api/runtime-config";
-import { clearGuestSession, readGuestSession } from "@/features/auth/lib/guest-session";
+import { clearGuestSession, readGuestSession, readGuestSessionWithoutCleanup } from "@/features/auth/lib/guest-session";
 import { initGoogleOneTap } from "@/features/auth/lib/google-one-tap";
 import { signInWithGoogleIdToken } from "@/features/auth/api/auth-client";
 import { mapAuthUser } from "@/features/auth/lib/map-auth-user";
@@ -58,7 +58,29 @@ async function syncSession(session: Session | null) {
   }
 
   await bootstrapProfile(supabase, session.user);
-  store.setAuthState({ status: "authenticated", user: mapAuthUser(session.user) });
+  
+  // Migrate guest data to the newly authenticated user!
+  const mappedUser = mapAuthUser(session.user);
+  try {
+    const guestSession = readGuestSessionWithoutCleanup();
+    if (guestSession && guestSession.user.id !== mappedUser.id) {
+      const guestId = guestSession.user.id;
+      const storage = typeof window !== "undefined" ? window.localStorage : null;
+      if (storage) {
+        const guestNotes = storage.getItem(`smartnotes:local:notes:${guestId}`);
+        const guestFolders = storage.getItem(`smartnotes:local:folders:${guestId}`);
+        const guestSettings = storage.getItem(`smartnotes:local:settings:${guestId}`);
+        if (guestNotes) storage.setItem(`smartnotes:local:notes:${mappedUser.id}`, guestNotes);
+        if (guestFolders) storage.setItem(`smartnotes:local:folders:${mappedUser.id}`, guestFolders);
+        if (guestSettings) storage.setItem(`smartnotes:local:settings:${mappedUser.id}`, guestSettings);
+      }
+      clearGuestSession(guestId);
+    }
+  } catch (err) {
+    console.error("Failed to migrate guest session:", err);
+  }
+
+  store.setAuthState({ status: "authenticated", user: mappedUser });
 }
 
 export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
@@ -96,15 +118,6 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
         }
 
         if (activateGuestSession(runtimeConfig)) {
-          const session = readGuestSession();
-
-          if (session) {
-            guestExpiryId = window.setTimeout(() => {
-              clearGuestSession(session.user.id);
-              useAuthStore.getState().setAuthState({ status: "anonymous", user: null });
-            }, Math.max(0, session.expiresAt - Date.now()));
-          }
-
           setReady(true);
           return;
         }

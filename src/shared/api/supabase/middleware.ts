@@ -12,6 +12,8 @@ export function updateSupabaseSession(request: NextRequest, response: NextRespon
     return null;
   }
 
+  const isHttps = request.nextUrl.protocol === "https:";
+
   const supabase = createServerClient<Database>(url, publishableKey, {
     cookies: {
       getAll() {
@@ -20,7 +22,10 @@ export function updateSupabaseSession(request: NextRequest, response: NextRespon
       setAll(cookiesToSet) {
         for (const cookie of cookiesToSet) {
           request.cookies.set(cookie.name, cookie.value);
-          response.cookies.set(cookie.name, cookie.value, cookie.options);
+          response.cookies.set(cookie.name, cookie.value, {
+            ...cookie.options,
+            secure: isHttps,
+          });
         }
       },
     },

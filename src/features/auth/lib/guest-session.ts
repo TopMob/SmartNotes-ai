@@ -93,7 +93,7 @@ export function clearGuestSession(userId?: string) {
   storage.removeItem("smartnotes:reminders");
 }
 
-function readGuestSessionWithoutCleanup() {
+export function readGuestSessionWithoutCleanup() {
   const storage = safeLocalStorage();
   const raw = storage?.getItem(GUEST_SESSION_KEY);
 

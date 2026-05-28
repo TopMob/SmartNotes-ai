@@ -11,7 +11,7 @@ import { useLockStore } from "../model/lock-store";
 type LockModalProps = {
   note: Note;
   isOpen: boolean;
-  onClose: () => void;
+  onClose: (success?: boolean) => void;
 };
 
 export function LockModal({ note, isOpen, onClose }: LockModalProps) {
@@ -47,7 +47,7 @@ export function LockModal({ note, isOpen, onClose }: LockModalProps) {
       const lockData = await createNoteLock(password);
       await patchNote(note.id, { lock: lockData });
       unlockNote(note.id); // unlock it immediately for the current session
-      onClose();
+      onClose(true);
     } catch (err) {
       setError("Не удалось установить пароль");
     } finally {
@@ -68,7 +68,7 @@ export function LockModal({ note, isOpen, onClose }: LockModalProps) {
       }
       await patchNote(note.id, { lock: null });
       lockNoteStore(note.id); // clean up store
-      onClose();
+      onClose(true);
     } catch (err) {
       setError("Не удалось снять защиту");
     } finally {
@@ -79,12 +79,12 @@ export function LockModal({ note, isOpen, onClose }: LockModalProps) {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-md transition-opacity" onClick={loading ? undefined : onClose} />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-md transition-opacity" onClick={loading ? undefined : () => onClose()} />
 
       <div className="relative w-full max-w-sm overflow-hidden rounded-[2rem] border border-border bg-surface-strong p-6 shadow-2xl animate-in zoom-in-95 duration-200">
         <button
           className="absolute right-4 top-4 rounded-full p-2 text-foreground/50 transition hover:bg-background hover:text-foreground"
-          onClick={onClose}
+          onClick={() => onClose()}
           disabled={loading}
           type="button"
         >

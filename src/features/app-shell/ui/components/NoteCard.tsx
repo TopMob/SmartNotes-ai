@@ -70,7 +70,7 @@ export function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: NoteC
       </div>
 
       <button className="block w-full text-left" onClick={() => onOpenNote(note.id)} type="button">
-        <h3 className="pr-20 text-base font-black tracking-tight sm:text-lg mt-0">
+        <h3 className="pr-20 text-base font-black tracking-tight sm:text-lg mt-0 truncate" title={note.title}>
           {note.title}
         </h3>
         <p className={`mt-2 line-clamp-3 text-sm leading-6 text-foreground/60 ${note.lock?.hidden && !isUnlocked ? "select-none" : ""}`}>

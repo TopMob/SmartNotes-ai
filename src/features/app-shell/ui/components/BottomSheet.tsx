@@ -1,4 +1,4 @@
-import { Pencil, Star, X, Copy, Users, FolderOpen, Bell, Archive, Lock, Unlock, Download, Trash2, type LucideIcon } from "lucide-react";
+import { Pencil, Star, X, Copy, Users, FolderOpen, Bell, Archive, Lock, Unlock, Download, Trash2, ArrowUp, ArrowDown, Eye, EyeOff, FileText, type LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import type { Folder as FolderEntity } from "@/entities/folder";
@@ -86,7 +86,7 @@ export function BottomSheet({ sheet, activeFolder, isDesktop, onClose, onCloseWi
           <h2 className="min-w-0 truncate text-xl font-black">{title}</h2>
           <button className="rounded-full p-2 hover:bg-surface-strong" onClick={onClose} type="button"><X className="h-5 w-5" /></button>
         </div>
-        {name === "folder" ? <FolderActionList copy={copy} activeFolder={activeFolder} /> : null}
+        {name === "folder" ? <FolderActionList copy={copy} activeFolder={activeFolder} onClose={onClose} /> : null}
         {name === "note" ? <NoteActionSheet copy={copy} onOpenSheet={onOpenSheet} onClose={onClose} onCloseEditor={onCloseEditor} /> : null}
         {name === "pages" ? <PagesContent copy={copy} /> : null}
         {name === "lock" ? <LockContent copy={copy} onClose={onCloseWithoutClear || onClose} onOpenEditor={onOpenEditor} /> : null}
@@ -202,9 +202,9 @@ function NoteActionSheet({ copy, onOpenSheet, onClose, onCloseEditor }: { copy: 
             icon={Bell}
             label={lang === "ru" ? "Напомнить" : "Remind"}
             onClick={() => {
-              const reminderAt = note.reminderAt ? null : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-              void setReminder(note.id, reminderAt);
-              scheduleReminder(note.id, reminderAt);
+              if (onOpenSheet) {
+                onOpenSheet("reminder", null);
+              }
             }}
             active={!!note.reminderAt}
           />
@@ -246,16 +246,16 @@ function NoteActionSheet({ copy, onOpenSheet, onClose, onCloseEditor }: { copy: 
           </div>
           <div className="grid gap-2 grid-cols-2">
             <button className="flex items-center gap-2 rounded-xl bg-background border border-border p-2.5 text-xs font-bold hover:bg-surface-strong text-left" onClick={() => exportNoteAsTxt(note)} type="button">
-              📄 Download TXT
+              📄 {lang === "ru" ? "Скачать TXT" : "Download TXT"}
             </button>
             <button className="flex items-center gap-2 rounded-xl bg-background border border-border p-2.5 text-xs font-bold hover:bg-surface-strong text-left" onClick={() => exportNoteAsPdf(note)} type="button">
-              📕 Export PDF
+              📕 {lang === "ru" ? "Экспорт в PDF" : "Export PDF"}
             </button>
             <button className="flex items-center gap-2 rounded-xl bg-background border border-border p-2.5 text-xs font-bold hover:bg-surface-strong text-left" onClick={() => exportNoteAsPng(note)} type="button">
-              🖼️ Download PNG
+              🖼️ {lang === "ru" ? "Скачать PNG" : "Download PNG"}
             </button>
             <button className="flex items-center gap-2 rounded-xl bg-background border border-border p-2.5 text-xs font-bold hover:bg-surface-strong text-left" onClick={() => exportNoteForImport(note)} type="button">
-              💾 JSON (Import)
+              💾 {lang === "ru" ? "Экспорт в JSON" : "JSON (Export)"}
             </button>
           </div>
         </div>
@@ -265,9 +265,9 @@ function NoteActionSheet({ copy, onOpenSheet, onClose, onCloseEditor }: { copy: 
         <div className="rounded-[1.5rem] border border-border bg-surface-strong p-4">
           <div className="mb-3 text-xs font-black uppercase tracking-[0.18em] text-foreground/42">{copy.shell.folders}</div>
           <div className="grid gap-2 sm:grid-cols-2">
-            <ActionCard label={copy.shell.prompts.emptyFolder || "Без папки"} onClick={() => { void moveNoteToFolder(note.id, null); setFolderPickerOpen(false); }} />
+            <ActionCard active={note.folderId === null} label={copy.shell.prompts.emptyFolder || "Без папки"} onClick={() => { void moveNoteToFolder(note.id, null); setFolderPickerOpen(false); onClose(); }} />
             {visibleFolders.map((folder) => (
-              <ActionCard key={folder.id} label={folder.name} onClick={() => { void moveNoteToFolder(note.id, folder.id); setFolderPickerOpen(false); }} />
+              <ActionCard active={note.folderId === folder.id} key={folder.id} label={folder.name} onClick={() => { void moveNoteToFolder(note.id, folder.id); setFolderPickerOpen(false); onClose(); }} />
             ))}
           </div>
         </div>
@@ -286,7 +286,12 @@ function NoteActionSheet({ copy, onOpenSheet, onClose, onCloseEditor }: { copy: 
         </span>
       </div>
 
-      <LockModal note={note} isOpen={lockModalOpen} onClose={() => setLockModalOpen(false)} />
+      <LockModal note={note} isOpen={lockModalOpen} onClose={(success) => {
+        setLockModalOpen(false);
+        if (success === true) {
+          onClose();
+        }
+      }} />
     </div>
   );
 }
@@ -322,15 +327,15 @@ function GridActionBtn({
   );
 }
 
-function ActionCard({ label, onClick, destructive = false }: { label: string; onClick: () => void; destructive?: boolean }) {
+function ActionCard({ label, onClick, active = false, destructive = false }: { label: string; onClick: () => void; active?: boolean; destructive?: boolean }) {
   return (
-    <button className={`min-h-12 rounded-2xl border px-4 py-3 text-left text-sm font-bold transition sm:min-h-11 ${destructive ? "border-rose-200 bg-rose-500/6 text-rose-600 hover:bg-rose-500/10" : "border-border bg-surface-strong hover:bg-background"}`} onClick={onClick} type="button">
+    <button className={`min-h-12 rounded-2xl border px-4 py-3 text-left text-sm font-bold transition sm:min-h-11 ${active ? "border-accent bg-accent/15 text-accent font-black shadow-md shadow-accent/10" : destructive ? "border-rose-200 bg-rose-500/6 text-rose-600 hover:bg-rose-500/10" : "border-border bg-surface-strong hover:bg-background text-foreground/80 hover:text-foreground"}`} onClick={onClick} type="button">
       {label}
     </button>
   );
 }
 
-function FolderActionList({ copy, activeFolder }: { copy: ReturnType<typeof getUiCopy>; activeFolder: FolderEntity | null }) {
+function FolderActionList({ copy, activeFolder, onClose }: { copy: ReturnType<typeof getUiCopy>; activeFolder: FolderEntity | null; onClose: () => void }) {
   const { hideFolder, moveFolder, renameFolder, trashFolder, unhideFolder, updateFolderDescription } = useFolderActions();
 
   if (!activeFolder) {
@@ -357,6 +362,7 @@ function FolderActionList({ copy, activeFolder }: { copy: ReturnType<typeof getU
     }
 
     void trashFolder(folder.id);
+    onClose();
   }
 
   function handleDescription() {
@@ -372,14 +378,55 @@ function FolderActionList({ copy, activeFolder }: { copy: ReturnType<typeof getU
   }
 
   return (
-    <div className="mt-4 space-y-2">
-      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={() => void shareFolder(folder)} type="button">{copy.shell.actions.share}</button>
-      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={handleRename} type="button">{copy.shell.actions.rename}</button>
-      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={handleDescription} type="button">{dlgs?.folderDescriptionPrompt || "Изменить описание"}</button>
-      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={() => void moveFolder(folder.id, -1)} type="button">{copy.shell.actions.move} ↑</button>
-      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={() => void moveFolder(folder.id, 1)} type="button">{copy.shell.actions.move} ↓</button>
-      {folder.isHidden ? <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={() => void unhideFolder(folder.id)} type="button">{copy.shell.actions.unhide}</button> : <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left hover:bg-surface-strong" onClick={() => void hideFolder(folder.id)} type="button">{copy.shell.actions.hide}</button>}
-      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left text-rose-500 hover:bg-surface-strong" onClick={handleDelete} type="button">{copy.shell.actions.delete}</button>
+    <div className="mt-4 space-y-1">
+      {/* Block 1: Info & Management */}
+      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left text-sm font-bold hover:bg-surface-strong" onClick={handleRename} type="button">
+        <Pencil className="h-4 w-4 text-foreground/64" />
+        {copy.shell.actions.rename}
+      </button>
+      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left text-sm font-bold hover:bg-surface-strong" onClick={handleDescription} type="button">
+        <FileText className="h-4 w-4 text-foreground/64" />
+        {dlgs?.folderDescriptionPrompt || "Изменить описание"}
+      </button>
+
+      <div className="h-px bg-border my-2" />
+
+      {/* Block 2: Positioning & Visibility */}
+      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left text-sm font-bold hover:bg-surface-strong" onClick={() => void moveFolder(folder.id, -1)} type="button">
+        <ArrowUp className="h-4 w-4 text-foreground/64" />
+        {copy.shell.actions.move} ↑
+      </button>
+      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left text-sm font-bold hover:bg-surface-strong" onClick={() => void moveFolder(folder.id, 1)} type="button">
+        <ArrowDown className="h-4 w-4 text-foreground/64" />
+        {copy.shell.actions.move} ↓
+      </button>
+      {folder.isHidden ? (
+        <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left text-sm font-bold hover:bg-surface-strong" onClick={() => void unhideFolder(folder.id)} type="button">
+          <Eye className="h-4 w-4 text-foreground/64" />
+          {copy.shell.actions.unhide}
+        </button>
+      ) : (
+        <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left text-sm font-bold hover:bg-surface-strong" onClick={() => void hideFolder(folder.id)} type="button">
+          <EyeOff className="h-4 w-4 text-foreground/64" />
+          {copy.shell.actions.hide}
+        </button>
+      )}
+
+      <div className="h-px bg-border my-2" />
+
+      {/* Block 3: Access & Sharing */}
+      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left text-sm font-bold hover:bg-surface-strong" onClick={() => void shareFolder(folder)} type="button">
+        <Users className="h-4 w-4 text-foreground/64" />
+        {copy.shell.actions.share}
+      </button>
+
+      <div className="h-px bg-border my-2" />
+
+      {/* Block 4: Destruction */}
+      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left text-sm font-bold text-rose-500 hover:bg-rose-500/10" onClick={handleDelete} type="button">
+        <Trash2 className="h-4 w-4 text-rose-500" />
+        {copy.shell.actions.delete}
+      </button>
     </div>
   );
 }
@@ -425,7 +472,16 @@ function PagesContent({ copy }: { copy: ReturnType<typeof getUiCopy> }) {
               <span className="min-w-0 flex-1 truncate font-bold">{page.title}</span>
             </button>
             <button className="rounded-xl p-2 text-foreground/60 hover:bg-background" onClick={() => renamePage(page.id, page.title)} type="button"><Pencil className="h-4 w-4" /></button>
-            {pages.length > 1 ? <button className="rounded-xl px-3 py-2 text-xs font-bold text-rose-500 hover:bg-background" onClick={() => removePage(page.id)} type="button">{copy.shell.actions.removePage || "Удалить"}</button> : null}
+            {pages.length > 1 ? (
+              <button 
+                className="rounded-xl p-2 text-rose-500 hover:bg-background hover:text-rose-600 transition" 
+                onClick={() => removePage(page.id)} 
+                type="button"
+                title={copy.shell.actions.removePage || "Удалить"}
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            ) : null}
           </div>
         ))}
       </div>
