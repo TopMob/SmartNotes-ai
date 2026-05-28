@@ -3,7 +3,7 @@
 import { Lock, Unlock, Loader2, X } from "lucide-react";
 import { useState } from "react";
 
-import { createNoteLock } from "../lib/lock-service";
+import { createNoteLock, verifyNoteLock } from "../lib/lock-service";
 import { useNoteActions } from "@/features/notes/hooks/use-note-mutations";
 import type { Note } from "@/entities/note";
 import { useLockStore } from "../model/lock-store";
@@ -58,8 +58,14 @@ export function LockModal({ note, isOpen, onClose }: LockModalProps) {
   }
 
   async function handleRemovePassword() {
+    setError("");
     setLoading(true);
     try {
+      const isValid = await verifyNoteLock(note.lock!, password);
+      if (!isValid) {
+        setError("Неверный пароль");
+        return;
+      }
       await patchNote(note.id, { lock: null });
       lockNoteStore(note.id); // clean up store
       onClose();
@@ -67,6 +73,7 @@ export function LockModal({ note, isOpen, onClose }: LockModalProps) {
       setError("Не удалось снять защиту");
     } finally {
       setLoading(false);
+      setPassword("");
     }
   }
 
@@ -99,16 +106,26 @@ export function LockModal({ note, isOpen, onClose }: LockModalProps) {
         </div>
 
         {isLocked ? (
-          <div className="space-y-4">
-            {error && <p className="text-xs font-bold text-rose-500 text-center">{error}</p>}
-            <button
-              onClick={() => void handleRemovePassword()}
+          <form onSubmit={(e) => { e.preventDefault(); void handleRemovePassword(); }} className="space-y-4">
+            <input
+              type="password"
+              className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm focus:border-accent focus:ring-1 focus:ring-accent outline-none"
+              placeholder="Введите текущий пароль"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               disabled={loading}
+            />
+
+            {error && <p className="text-xs font-bold text-rose-500 text-center">{error}</p>}
+
+            <button
+              type="submit"
+              disabled={loading || !password}
               className="w-full flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-rose-500/10 px-4 text-sm font-bold text-rose-500 transition hover:bg-rose-500/20 disabled:opacity-50"
             >
               {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Снять пароль"}
             </button>
-          </div>
+          </form>
         ) : (
           <form onSubmit={handleSetPassword} className="space-y-4">
             <input

@@ -28,7 +28,7 @@ export function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: NoteC
   const isShared = (note.access && note.access.length > 0) || (note.ownerId && note.ownerId !== currentUserId && currentUserId !== "local-user" && currentUserId !== undefined);
   const isUnlocked = useLockStore((state) => state.unlockedNotes.has(note.id));
 
-  const previewText = note.lock?.hidden && !isUnlocked ? maskLockedPreview(note.id) : stripHtml(note.content);
+  const previewText = note.lock && !isUnlocked ? maskLockedPreview(note.id) : stripHtml(note.content);
   const reminderLabel = note.reminderAt
     ? new Date(note.reminderAt).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
     : null;
@@ -56,7 +56,14 @@ export function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: NoteC
         )}
 
         <div className="relative">
-          <button className="flex h-9 w-9 items-center justify-center rounded-xl bg-surface/92 text-foreground/56 backdrop-blur hover:bg-background" onClick={(event) => { setCurrentNoteId(note.id); onOpenSheet("note", getSheetAnchor(event.currentTarget.getBoundingClientRect())); }} type="button">
+          <button className="flex h-9 w-9 items-center justify-center rounded-xl bg-surface/92 text-foreground/56 backdrop-blur hover:bg-background" onClick={(event) => {
+            if (note.lock && !isUnlocked) {
+              onOpenNote(note.id);
+            } else {
+              setCurrentNoteId(note.id);
+              onOpenSheet("note", getSheetAnchor(event.currentTarget.getBoundingClientRect()));
+            }
+          }} type="button">
             <MoreHorizontal className="h-4 w-4" />
           </button>
         </div>
@@ -78,7 +85,7 @@ export function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: NoteC
             {isShared ? <span className="rounded-full bg-violet-500/10 px-2.5 py-1 text-violet-400">👥 Collab</span> : null}
           </div>
         )}
-        {(!note.lock?.hidden || isUnlocked) && note.userTags.length > 0 && (
+        {(!note.lock || isUnlocked) && note.userTags.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-2">
             {note.userTags.slice(0, 5).map((tag) => (
               <span className="rounded-full border border-border px-3.5 py-1 text-xs font-semibold text-foreground/56" key={tag}>

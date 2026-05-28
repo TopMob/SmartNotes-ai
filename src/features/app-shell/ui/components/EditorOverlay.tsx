@@ -88,7 +88,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
   const role = isOwner ? "owner" : (userAccess?.role ?? "viewer");
 
   const isUnlocked = useLockStore((state) => state.unlockedNotes.has(note.id));
-  const needsPassword = note.lock && note.lock.hidden && !isUnlocked;
+  const needsPassword = note.lock && !isUnlocked;
 
   const { data: settings } = useSettingsQuery();
   const lang = settings?.lang ?? "ru";

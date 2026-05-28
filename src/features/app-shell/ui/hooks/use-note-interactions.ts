@@ -34,7 +34,7 @@ export function useNoteInteractions(options: {
       setFiltersOpen(false);
 
       const isUnlocked = useLockStore.getState().unlockedNotes.has(noteId);
-      if (note.lock?.hidden && !isUnlocked) {
+      if (note.lock && !isUnlocked) {
         openSheet("lock");
         return;
       }
