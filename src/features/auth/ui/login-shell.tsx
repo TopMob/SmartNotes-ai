@@ -49,9 +49,13 @@ export function LoginShell() {
     if (searchParams.get("mode") === "register") {
       setMode("register");
     }
-    const err = searchParams.get("error");
+    let err = searchParams.get("error");
+    if (!err && typeof window !== "undefined" && window.location.hash) {
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      err = hashParams.get("error_description") || hashParams.get("error");
+    }
     if (err) {
-      setUrlError(decodeURIComponent(err));
+      setUrlError(decodeURIComponent(err.replace(/\+/g, " ")));
     }
   }, []);
 
