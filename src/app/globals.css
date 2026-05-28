@@ -342,7 +342,6 @@ textarea {
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* Reduce motion override (via data attribute set by JS) */
 :root[data-motion="reduce"] *,
 :root[data-motion="reduce"] *::before,
 :root[data-motion="reduce"] *::after {
@@ -350,6 +349,7 @@ textarea {
   transition-duration: 0.01ms !important;
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;
+  backdrop-filter: none !important;
 }
 
 /* Paper theme — explicit (same as :root defaults, useful for reset) */
