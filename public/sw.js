@@ -33,12 +33,13 @@ self.addEventListener("fetch", (event) => {
   // Only cache GET requests
   if (event.request.method !== "GET") return;
 
-  // Skip chrome-extension, supabase API, OpenRouter, and API routes
   const url = new URL(event.request.url);
+  // Skip chrome-extension, cross-origin, API, webpack-hmr, and HTML navigations
   if (
     url.origin !== self.location.origin ||
     url.pathname.startsWith("/api/") ||
-    url.pathname.startsWith("/_next/webpack-hmr")
+    url.pathname.startsWith("/_next/") ||
+    event.request.mode === "navigate"
   ) {
     return;
   }
