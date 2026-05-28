@@ -1,4 +1,7 @@
 import { cookies } from "next/headers";
+import { createServerClient } from "@supabase/ssr";
+import { requireSupabaseUrl, requireSupabasePublishableKey } from "@/shared/api/supabase/env";
+import type { Database } from "@/shared/api/supabase/types";
 
 export async function refreshGoogleAccessToken(refreshToken: string): Promise<string | null> {
   const clientId = process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
@@ -41,27 +44,102 @@ export async function getGoogleAccessToken(
   sessionProviderRefreshToken: string | null
 ): Promise<string | null> {
   const cookieStore = await cookies();
-  const providerToken = cookieStore.get("sb-provider-token")?.value ?? sessionProviderToken ?? null;
-  const providerRefreshToken = cookieStore.get("sb-provider-refresh-token")?.value ?? sessionProviderRefreshToken ?? null;
 
-  if (!providerToken) {
-    if (providerRefreshToken) {
-      const newToken = await refreshGoogleAccessToken(providerRefreshToken);
-      if (newToken) {
-        cookieStore.set("sb-provider-token", newToken, {
-          path: "/",
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production" && !process.env.NEXT_PUBLIC_SITE_URL?.startsWith("http://localhost"),
-          sameSite: "lax",
-          maxAge: 3500, // Google access tokens expire in 3600 seconds
-        });
-        return newToken;
+  const supabase = createServerClient<Database>(
+    requireSupabaseUrl(),
+    requireSupabasePublishableKey(),
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(cookiesToSet) {
+          try {
+            for (const cookie of cookiesToSet) {
+              cookieStore.set(cookie.name, cookie.value, cookie.options);
+            }
+          } catch (e) {
+            // Silently catch cookieStore set error in server components
+          }
+        }
       }
+    }
+  );
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    console.error("getGoogleAccessToken: User is not authenticated");
+    return null;
+  }
+
+  const { data: integration, error: integrationError } = await supabase
+    .from("user_google_integrations")
+    .select("*")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (integrationError) {
+    console.error("getGoogleAccessToken: Error fetching user integration", integrationError);
+  }
+
+  let activeRefreshToken = integration?.refresh_token ?? sessionProviderRefreshToken ?? cookieStore.get("sb-provider-refresh-token")?.value ?? null;
+  let activeAccessToken = integration?.access_token ?? sessionProviderToken ?? cookieStore.get("sb-provider-token")?.value ?? null;
+
+  if (!activeRefreshToken) {
+    const { data: { session } } = await supabase.auth.getSession();
+    activeRefreshToken = session?.provider_refresh_token ?? null;
+    activeAccessToken = session?.provider_token ?? null;
+  }
+
+  if (!activeRefreshToken) {
+    console.warn("getGoogleAccessToken: No Google refresh token found for user", user.id);
+    if (activeAccessToken) {
+      return activeAccessToken;
     }
     return null;
   }
 
-  return providerToken;
+  const newAccessToken = await refreshGoogleAccessToken(activeRefreshToken);
+  if (!newAccessToken) {
+    console.error("getGoogleAccessToken: Failed to refresh Google access token");
+    return activeAccessToken;
+  }
+
+  const { error: upsertError } = await supabase
+    .from("user_google_integrations")
+    .upsert({
+      user_id: user.id,
+      provider: "google",
+      access_token: newAccessToken,
+      refresh_token: activeRefreshToken,
+      last_refreshed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "user_id" });
+
+  if (upsertError) {
+    console.error("getGoogleAccessToken: Failed to upsert tokens into database", upsertError);
+  }
+
+  try {
+    cookieStore.set("sb-provider-token", newAccessToken, {
+      path: "/",
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production" && !process.env.NEXT_PUBLIC_SITE_URL?.startsWith("http://localhost"),
+      sameSite: "lax",
+      maxAge: 3500,
+    });
+    cookieStore.set("sb-provider-refresh-token", activeRefreshToken, {
+      path: "/",
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production" && !process.env.NEXT_PUBLIC_SITE_URL?.startsWith("http://localhost"),
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 365,
+    });
+  } catch (e) {
+    // Ignore cookie write failures inside RSC
+  }
+
+  return newAccessToken;
 }
 
 export async function getOrCreateFolder(

@@ -694,6 +694,50 @@ export type Database = {
           },
         ]
       }
+      user_google_integrations: {
+        Row: {
+          user_id: string
+          provider: string
+          access_token: string | null
+          refresh_token: string
+          scope: string | null
+          token_type: string | null
+          last_refreshed_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          provider?: string
+          access_token?: string | null
+          refresh_token: string
+          scope?: string | null
+          token_type?: string | null
+          last_refreshed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          provider?: string
+          access_token?: string | null
+          refresh_token?: string
+          scope?: string | null
+          token_type?: string | null
+          last_refreshed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_google_integrations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never

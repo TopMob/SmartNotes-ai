@@ -79,5 +79,45 @@ export async function GET(request: NextRequest) {
     });
   }
 
+  if (data?.session?.user) {
+    const providerToken = data.session.provider_token;
+    const providerRefreshToken = data.session.provider_refresh_token;
+
+    if (providerToken || providerRefreshToken) {
+      try {
+        const { data: existing } = await supabase
+          .from("user_google_integrations")
+          .select("refresh_token")
+          .eq("user_id", data.session.user.id)
+          .maybeSingle();
+
+        const finalRefreshToken = providerRefreshToken || existing?.refresh_token;
+
+        if (finalRefreshToken) {
+          const { error: upsertError } = await supabase
+            .from("user_google_integrations")
+            .upsert(
+              {
+                user_id: data.session.user.id,
+                provider: "google",
+                access_token: providerToken ?? null,
+                refresh_token: finalRefreshToken,
+                scope: data.session.user?.app_metadata?.provider ?? null,
+                last_refreshed_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              },
+              { onConflict: "user_id" }
+            );
+
+          if (upsertError) {
+            console.error("[auth/callback] Failed to upsert user_google_integrations:", upsertError.message);
+          }
+        }
+      } catch (dbErr) {
+        console.error("[auth/callback] Database error during token upsert:", dbErr);
+      }
+    }
+  }
+
   return response;
 }
