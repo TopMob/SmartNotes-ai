@@ -108,8 +108,9 @@ export function LockModal({ note, isOpen, onClose }: LockModalProps) {
         {isLocked ? (
           <form onSubmit={(e) => { e.preventDefault(); void handleRemovePassword(); }} className="space-y-4">
             <input
-              type="password"
-              autoComplete="new-password"
+              type="text"
+              style={{ WebkitTextSecurity: "disc" } as React.CSSProperties}
+              autoComplete="off"
               className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm focus:border-accent focus:ring-1 focus:ring-accent outline-none"
               placeholder="Введите текущий пароль"
               value={password}
@@ -130,8 +131,9 @@ export function LockModal({ note, isOpen, onClose }: LockModalProps) {
         ) : (
           <form onSubmit={handleSetPassword} className="space-y-4">
             <input
-              type="password"
-              autoComplete="new-password"
+              type="text"
+              style={{ WebkitTextSecurity: "disc" } as React.CSSProperties}
+              autoComplete="off"
               className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm focus:border-accent focus:ring-1 focus:ring-accent outline-none"
               placeholder="Придумайте пароль"
               value={password}
@@ -139,8 +141,9 @@ export function LockModal({ note, isOpen, onClose }: LockModalProps) {
               disabled={loading}
             />
             <input
-              type="password"
-              autoComplete="new-password"
+              type="text"
+              style={{ WebkitTextSecurity: "disc" } as React.CSSProperties}
+              autoComplete="off"
               className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm focus:border-accent focus:ring-1 focus:ring-accent outline-none"
               placeholder="Повторите пароль"
               value={confirmPassword}

@@ -11,6 +11,7 @@ const sortOptions: Array<{ label: string; value: NotesSort }> = [
 ];
 
 type TopFiltersPopupProps = {
+  popupRef: React.RefObject<HTMLDivElement | null>;
   notesFilter: NotesFilter;
   savedFilters: Array<{ id: string; name: string; filter: NotesFilter }>;
   folders: FolderEntity[];
@@ -32,7 +33,7 @@ type TopFiltersPopupProps = {
   };
 };
 
-export function TopFiltersPopup({ notesFilter, savedFilters, folders, tagDraft, tagSuggestions, onApplySavedFilter, onDeleteSavedFilter, onSaveCurrentFilter, onSetNotesSort, onToggleFolderFilter, onToggleTagFilter, onSetUpdatedWindowDays, onResetFilters, onTagDraftChange, visibleSections = { savedFilters: true, tagFilter: true, updatedPeriodFilter: true } }: TopFiltersPopupProps) {
+export function TopFiltersPopup({ popupRef, notesFilter, savedFilters, folders, tagDraft, tagSuggestions, onApplySavedFilter, onDeleteSavedFilter, onSaveCurrentFilter, onSetNotesSort, onToggleFolderFilter, onToggleTagFilter, onSetUpdatedWindowDays, onResetFilters, onTagDraftChange, visibleSections = { savedFilters: true, tagFilter: true, updatedPeriodFilter: true } }: TopFiltersPopupProps) {
   function saveFilter() {
     const name = window.prompt("Название фильтра", "Мой фильтр")?.trim();
 
@@ -44,7 +45,7 @@ export function TopFiltersPopup({ notesFilter, savedFilters, folders, tagDraft, 
   }
 
   return (
-    <section className="filter-menu pointer-events-auto fixed left-1/2 top-[5.75rem] z-30 w-[min(calc(100vw-1rem),24rem)] max-h-[78dvh] -translate-x-1/2 overflow-y-auto rounded-[1.4rem] border border-border bg-surface/96 p-3 shadow-2xl shadow-violet-950/16 backdrop-blur-2xl sm:top-[6rem] sm:w-[min(calc(100vw-2rem),24rem)] sm:max-h-[min(70vh,42rem)] sm:p-4 lg:left-auto lg:right-6 lg:top-24 lg:translate-x-0">
+    <section ref={popupRef} className="filter-menu pointer-events-auto fixed left-1/2 top-[5.75rem] z-30 w-[min(calc(100vw-1rem),24rem)] max-h-[78dvh] -translate-x-1/2 overflow-y-auto rounded-[1.4rem] border border-border bg-surface/96 p-3 shadow-2xl shadow-violet-950/16 backdrop-blur-2xl sm:top-[6rem] sm:w-[min(calc(100vw-2rem),24rem)] sm:max-h-[min(70vh,42rem)] sm:p-4 lg:left-auto lg:right-6 lg:top-24 lg:translate-x-0">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h2 className="text-sm font-black uppercase tracking-[0.2em] text-foreground/54">Фильтры</h2>
         <div className="flex gap-2">

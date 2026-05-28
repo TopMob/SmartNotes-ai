@@ -14,12 +14,9 @@ import { useNoteActions } from "@/features/notes/hooks/use-note-mutations";
 import { useNotesFlat } from "@/features/notes/hooks/use-notes-query";
 import { useNoteUiStore } from "@/features/notes/model/note-ui-store";
 import { useSettingsQuery } from "@/features/settings/hooks/use-settings-query";
-import { getMediaDiagnostic, listCollabDiagnostics } from "@/services/diagnostics/runtime-diagnostics";
 import { publish } from "@/services/event-bus";
 import { requestNotificationPermission } from "@/services/notifications/notification-service";
 import { scheduleReminder } from "@/services/reminders/reminder-service";
-import { clearAiAnalysisQueue, listPendingAiAnalysis } from "@/services/ai/ai-queue";
-import { listSyncQueue } from "@/services/sync/sync-queue";
 import { getConsoleLogs } from "@/services/console-log-store";
 import { getUiCopy } from "@/shared/lib/i18n";
 import { Button } from "@/shared/ui/button";
@@ -519,7 +516,7 @@ function LockContent({ copy, onClose, onOpenEditor }: { copy: ReturnType<typeof 
     onOpenEditor?.();
   }
 
-  return <div className="mt-4 space-y-3"><p className="text-sm leading-6 text-foreground/58">{dlgs?.lockDescription || "Контент заметки скрыт до локальной verify-проверки. Preview уже замаскирован в карточке."}</p><input autoComplete="new-password" className="h-10 w-full rounded-2xl border border-border bg-surface-strong px-4 outline-none sm:h-12" name={`lock_${currentNoteId.slice(0, 6)}`} onChange={(event) => setPassword(event.target.value)} placeholder={dlgs?.lockEnterPassword || "Пароль заметки"} type="password" value={password} />{error ? <p className="text-sm font-bold text-rose-500">{error}</p> : null}<Button className="h-10 w-full rounded-2xl sm:h-11" onClick={() => void handleUnlock()} type="button">{dlgs?.lockButton || "Unlock"}</Button></div>;
+  return <div className="mt-4 space-y-3"><p className="text-sm leading-6 text-foreground/58">{dlgs?.lockDescription || "Контент заметки скрыт до локальной verify-проверки. Preview уже замаскирован в карточке."}</p><input type="text" style={{ WebkitTextSecurity: "disc" } as React.CSSProperties} autoComplete="off" className="h-10 w-full rounded-2xl border border-border bg-surface-strong px-4 outline-none sm:h-12" name={`lock_${currentNoteId.slice(0, 6)}`} onChange={(event) => setPassword(event.target.value)} placeholder={dlgs?.lockEnterPassword || "Пароль заметки"} value={password} />{error ? <p className="text-sm font-bold text-rose-500">{error}</p> : null}<Button className="h-10 w-full rounded-2xl sm:h-11" onClick={() => void handleUnlock()} type="button">{dlgs?.lockButton || "Unlock"}</Button></div>;
 }
 
 function AboutContent({ copy }: { copy: ReturnType<typeof getUiCopy> }) {

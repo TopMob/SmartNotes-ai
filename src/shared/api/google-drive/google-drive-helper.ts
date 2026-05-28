@@ -41,7 +41,7 @@ export async function getGoogleAccessToken(
   sessionProviderRefreshToken: string | null
 ): Promise<string | null> {
   const cookieStore = await cookies();
-  let providerToken = cookieStore.get("sb-provider-token")?.value ?? sessionProviderToken ?? null;
+  const providerToken = cookieStore.get("sb-provider-token")?.value ?? sessionProviderToken ?? null;
   const providerRefreshToken = cookieStore.get("sb-provider-refresh-token")?.value ?? sessionProviderRefreshToken ?? null;
 
   if (!providerToken) {
@@ -93,8 +93,7 @@ export async function getOrCreateFolder(
     return searchData.files[0].id;
   }
 
-  // Create folder
-  const createMetadata: Record<string, any> = {
+  const createMetadata: Record<string, unknown> = {
     name,
     mimeType: "application/vnd.google-apps.folder",
   };

@@ -10,6 +10,15 @@ export async function GET(request: NextRequest) {
   const next = searchParams.get("next");
   const safeNext = next && next.startsWith("/") ? next : "/";
 
+  const errorName = searchParams.get("error");
+  const errorDescription = searchParams.get("error_description");
+
+  if (errorName || errorDescription) {
+    const destination = new URL("/login", request.url);
+    destination.searchParams.set("error", errorDescription || errorName || "oauth_error");
+    return NextResponse.redirect(destination);
+  }
+
   if (!code) {
     return NextResponse.redirect(new URL("/login?error=missing_code", request.url));
   }

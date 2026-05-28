@@ -53,8 +53,9 @@ export function LockPrompt({ noteId, lock, onCancel }: LockPromptProps) {
 
         <form onSubmit={handleSubmit} className="space-y-4 text-left">
           <input
-            type="password"
-            autoComplete="new-password"
+            type="text"
+            style={{ WebkitTextSecurity: "disc" } as React.CSSProperties}
+            autoComplete="off"
             autoFocus
             className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-sm focus:border-accent focus:ring-1 focus:ring-accent outline-none"
             placeholder="Ваш пароль..."
