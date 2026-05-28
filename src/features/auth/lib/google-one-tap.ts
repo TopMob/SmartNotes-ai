@@ -53,6 +53,7 @@ export async function initGoogleOneTap(
     auto_select: false,
     cancel_on_tap_outside: true,
     context: "signin",
+    use_fedcm_for_prompt: true,
   });
 
   google.accounts.id.prompt((notification) => {

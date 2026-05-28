@@ -7,8 +7,6 @@ import { useFolderActions } from "@/features/folders/hooks/use-folder-mutations"
 import { useFoldersQuery } from "@/features/folders/hooks/use-folders-query";
 import { useNoteActions } from "@/features/notes/hooks/use-note-mutations";
 import { selectPinnedGroups } from "@/features/notes/model/note-selectors";
-import { useSearchStore } from "@/features/search";
-import { calculateScore } from "@/features/search/lib/search-engine";
 import { useAuthStore } from "@/features/auth/model/auth-store";
 import { isAdminUser, getAdminEmails, saveAdminEmails } from "@/features/auth/lib/admin-acl";
 
@@ -194,66 +192,7 @@ function NotesView({ copy, title: _title, notes, notesPerPage, emptyText: _empty
   const [displayLimit, setDisplayLimit] = useState<number>(notesPerPage);
   const visibleFolders = useMemo(() => folders.filter((folder) => !folder.trashedAt && !folder.isHidden), [folders]);
 
-  const searchState = useSearchStore();
-
-
-  const filteredNotes = useMemo(() => {
-    let result = notes;
-
-    // 1. Text Query (Search Engine Detail)
-    if (searchState.query.trim()) {
-      result = result
-        .map(note => ({ note, score: calculateScore(note, searchState.query) }))
-        .filter(item => item.score > 0)
-        .sort((a, b) => b.score - a.score)
-        .map(item => item.note);
-    }
-
-    // 2. Tags
-    if (searchState.tags.length > 0) {
-      result = result.filter(n =>
-        searchState.tags.some((tag: string) => n.userTags.includes(tag) || n.hiddenTags.includes(tag))
-      );
-    }
-
-    // 3. Folders
-    if (searchState.folders.length > 0) {
-      result = result.filter(n => {
-        if (searchState.folders.includes("none") && !n.folderId) return true;
-        return n.folderId && searchState.folders.includes(n.folderId);
-      });
-    }
-
-    // 4. Updated Window
-    if (searchState.updatedWindowDays !== null) {
-      const cutoff = Date.now() - (searchState.updatedWindowDays * 24 * 60 * 60 * 1000);
-      result = result.filter(n => new Date(n.updatedAt).getTime() >= cutoff);
-    }
-
-    // Sort
-    result = [...result].sort((a, b) => {
-      switch (searchState.sort) {
-        case "alphabetical":
-          return a.title.localeCompare(b.title);
-        case "relevance":
-          return (b.aiRelevance || 0) - (a.aiRelevance || 0);
-        case "importance":
-          return (b.aiRelevance || 0) - (a.aiRelevance || 0);
-        case "textLength":
-          return b.content.length - a.content.length;
-        case "manual":
-          return ((a as Record<string, unknown>).manualOrder as number || 0) - ((b as Record<string, unknown>).manualOrder as number || 0);
-        case "updatedAt":
-        default:
-          return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
-      }
-    });
-
-    return result;
-  }, [notes, searchState]);
-
-
-  const { pinned, unpinned } = useMemo(() => selectPinnedGroups(filteredNotes), [filteredNotes]);
+  const { pinned, unpinned } = useMemo(() => selectPinnedGroups(notes), [notes]);
 
 
   const pinnedVisible = pinned.slice(0, displayLimit);

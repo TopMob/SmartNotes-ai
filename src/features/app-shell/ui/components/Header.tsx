@@ -6,7 +6,6 @@ import type React from "react";
 import type { Folder as FolderEntity } from "@/entities/folder";
 import { getUiCopy } from "@/shared/lib/i18n";
 import { type AppView } from "@/shared/store/ui-store";
-import { useSearchStore } from "@/features/search";
 
 import { getSheetAnchor, type SheetAnchor } from "./shared";
 
@@ -27,13 +26,13 @@ export function Header({
   copy,
   view,
   activeFolder,
-  searchQuery: _searchQuery,
+  searchQuery,
   filtersOpen,
   filtersRef,
   onOpenDrawer,
   onOpenFilters,
   onOpenFolderMenu,
-  setSearchQuery: _setSearchQuery,
+  setSearchQuery,
 }: HeaderProps) {
   const title =
     view === "folder" && activeFolder
@@ -86,12 +85,12 @@ export function Header({
           <input
             type="search"
             autoComplete="off"
-            name="search_query_input"
-            id="search_query_input"
+            name="note_search_field"
+            id="note_search_field"
             className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-foreground/38"
-            onChange={(event) => useSearchStore.getState().setQuery(event.target.value)}
+            onChange={(event) => setSearchQuery(event.target.value)}
             placeholder={copy.shell.search}
-            value={useSearchStore((state) => state.query)}
+            value={searchQuery}
           />
           <kbd
             className="hidden items-center gap-1 rounded-lg border border-border bg-surface px-1.5 py-0.5 text-[10px] font-bold text-foreground/32 md:flex"

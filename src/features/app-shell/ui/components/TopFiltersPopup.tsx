@@ -67,27 +67,46 @@ export function TopFiltersPopup({ notesFilter, savedFilters, folders, tagDraft, 
       ) : null}
       <div className="flex flex-wrap justify-center gap-1.5">
         {sortOptions.map((option) => (
-          <button className={`rounded-full border px-2.5 py-1.5 text-xs sm:px-3 sm:py-2 sm:text-sm font-bold ${notesFilter.sort === option.value ? "border-accent bg-accent/10 text-accent" : "border-border bg-surface-strong"}`} key={option.value} onClick={() => onSetNotesSort(option.value)} type="button">
+          <button className={`rounded-full border px-2.5 py-1.5 text-xs sm:px-3 sm:py-2 sm:text-sm font-bold transition-all duration-200 ${notesFilter.sort === option.value ? "border-accent bg-accent text-accent-foreground font-black shadow-md shadow-accent/10" : "border-border bg-surface-strong text-foreground/72 hover:border-foreground/20"}`} key={option.value} onClick={() => onSetNotesSort(option.value)} type="button">
             {option.label}
           </button>
         ))}
       </div>
-      {visibleSections.updatedPeriodFilter ? <div className="mt-3 flex flex-wrap justify-center gap-1.5">{[7, 30, null].map((days) => (<button className={`rounded-2xl border px-2.5 py-1.5 text-center text-xs sm:px-3 sm:py-2 sm:text-sm font-bold ${notesFilter.updatedWindowDays === days ? "border-accent bg-accent/10 text-accent" : "border-border bg-surface-strong"}`} key={String(days)} onClick={() => onSetUpdatedWindowDays(days)} type="button">{days === null ? "За все время" : `${days} дней`}</button>))}</div> : null}
+      {visibleSections.updatedPeriodFilter ? <div className="mt-3 flex flex-wrap justify-center gap-1.5">{[7, 30, null].map((days) => (<button className={`rounded-2xl border px-2.5 py-1.5 text-center text-xs sm:px-3 sm:py-2 sm:text-sm font-bold transition-all duration-200 ${notesFilter.updatedWindowDays === days ? "border-accent bg-accent text-accent-foreground font-black shadow-md shadow-accent/10" : "border-border bg-surface-strong text-foreground/72 hover:border-foreground/20"}`} key={String(days)} onClick={() => onSetUpdatedWindowDays(days)} type="button">{days === null ? "За все время" : `${days} дней`}</button>))}</div> : null}
       <div className="mt-3 flex flex-wrap justify-center gap-1.5">
-        <button className={`rounded-full border px-2.5 py-1.5 text-xs sm:px-3 sm:py-2 sm:text-sm font-bold ${notesFilter.folders.includes(null) ? "border-accent bg-accent/10 text-accent" : "border-border bg-surface-strong"}`} onClick={() => onToggleFolderFilter(null)} type="button">
+        <button className={`rounded-full border px-2.5 py-1.5 text-xs sm:px-3 sm:py-2 sm:text-sm font-bold transition-all duration-200 ${notesFilter.folders.includes(null) ? "border-accent bg-accent text-accent-foreground font-black shadow-md shadow-accent/10" : "border-border bg-surface-strong text-foreground/72 hover:border-foreground/20"}`} onClick={() => onToggleFolderFilter(null)} type="button">
           Без папки
         </button>
         {folders.map((folder) => (
-          <button className={`rounded-full border px-2.5 py-1.5 text-xs sm:px-3 sm:py-2 sm:text-sm font-bold ${notesFilter.folders.includes(folder.id) ? "border-accent bg-accent/10 text-accent" : "border-border bg-surface-strong"}`} key={folder.id} onClick={() => onToggleFolderFilter(folder.id)} type="button">
+          <button className={`rounded-full border px-2.5 py-1.5 text-xs sm:px-3 sm:py-2 sm:text-sm font-bold transition-all duration-200 ${notesFilter.folders.includes(folder.id) ? "border-accent bg-accent text-accent-foreground font-black shadow-md shadow-accent/10" : "border-border bg-surface-strong text-foreground/72 hover:border-foreground/20"}`} key={folder.id} onClick={() => onToggleFolderFilter(folder.id)} type="button">
             {folder.name}
           </button>
         ))}
       </div>
       {visibleSections.tagFilter ? <div className="mt-3 rounded-2xl border border-border bg-surface-strong p-3">
-        <label className="block text-sm font-bold text-foreground/66">Тег</label>
-        <input className="mt-2 h-11 w-full rounded-xl border border-border bg-background px-3 text-base outline-none" onChange={(event) => onTagDraftChange(event.target.value)} placeholder="Начни вводить тег" value={tagDraft} />
-        {tagSuggestions.length ? <div className="mt-3 flex flex-wrap justify-center gap-1.5">{tagSuggestions.map((tag) => <button className={`rounded-full border px-2.5 py-1 text-xs sm:px-3 sm:py-1.5 sm:text-sm font-bold ${notesFilter.tags.includes(tag) ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={tag} onClick={() => onToggleTagFilter(tag)} type="button">#{tag}</button>)}</div> : <p className="mt-3 text-sm text-foreground/52">Совпадений пока нет.</p>}
-        {tagDraft.trim() ? <button className="mt-3 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm font-bold" onClick={() => onToggleTagFilter(tagDraft.trim())} type="button">Применить тег `#{tagDraft.trim()}`</button> : null}
+        <label className="block text-sm font-bold text-foreground/66">Теги</label>
+        <input className="mt-2 h-11 w-full rounded-xl border border-border bg-background px-3 text-base outline-none transition-all focus:border-accent" onChange={(event) => onTagDraftChange(event.target.value)} placeholder="Начни вводить тег" value={tagDraft} />
+        
+        {notesFilter.tags.length > 0 ? (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {notesFilter.tags.map((tag) => (
+              <span key={tag} className="inline-flex items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-xs font-bold text-accent-foreground shadow-sm shadow-accent/10">
+                #{tag}
+                <button
+                  type="button"
+                  onClick={() => onToggleTagFilter(tag)}
+                  className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full hover:bg-black/10 focus:outline-none font-bold"
+                  aria-label={`Убрать тег ${tag}`}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        ) : null}
+
+        {tagSuggestions.length ? <div className="mt-3 flex flex-wrap justify-center gap-1.5">{tagSuggestions.map((tag) => <button className={`rounded-full border px-2.5 py-1 text-xs sm:px-3 sm:py-1.5 sm:text-sm font-bold transition-all duration-200 ${notesFilter.tags.includes(tag) ? "border-accent bg-accent text-accent-foreground font-black shadow-md shadow-accent/10" : "border-border bg-background text-foreground/72 hover:border-foreground/20"}`} key={tag} onClick={() => onToggleTagFilter(tag)} type="button">#{tag}</button>)}</div> : <p className="mt-3 text-sm text-foreground/52">Совпадений пока нет.</p>}
+        {tagDraft.trim() ? <button className="mt-3 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm font-bold hover:bg-surface" onClick={() => onToggleTagFilter(tagDraft.trim())} type="button">Применить тег `#{tagDraft.trim()}`</button> : null}
       </div> : null}
     </section>
   );

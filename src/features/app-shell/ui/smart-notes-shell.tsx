@@ -172,6 +172,13 @@ export function SmartNotesShell() {
     closeMobileSidebar();
   }
 
+  const handleCloseSheet = useCallback(() => {
+    if (shellState.sheet?.name === "lock") {
+      useNoteUiStore.getState().setCurrentNoteId(null);
+    }
+    shellState.setSheet(null);
+  }, [shellState]);
+
   const desktopSidebarVisible = shellState.isDesktop && (desktopSidebarPinned || desktopSidebarOpen);
 
   return (
@@ -262,11 +269,11 @@ export function SmartNotesShell() {
         <EditorErrorBoundary>
           <NoteCollabSessionProvider key={currentNote.id} note={currentNote}>
             <EditorOverlay note={currentNote} onClose={closeEditor} onOpenSheet={shellState.openSheet} toolbarVisible={shellState.toolbarVisible} setToolbarVisible={shellState.setToolbarVisible} />
-            <BottomSheet activeFolder={activeFolder} editorDirty={editorDirty} isDesktop={shellState.isDesktop} sheet={shellState.sheet} onClose={() => shellState.setSheet(null)} onOpenSheet={shellState.openSheet} onOpenEditor={() => shellState.setEditorOpen(true)} onCloseEditor={closeEditor} />
+            <BottomSheet activeFolder={activeFolder} editorDirty={editorDirty} isDesktop={shellState.isDesktop} sheet={shellState.sheet} onClose={handleCloseSheet} onCloseWithoutClear={() => shellState.setSheet(null)} onOpenSheet={shellState.openSheet} onOpenEditor={() => shellState.setEditorOpen(true)} onCloseEditor={closeEditor} />
           </NoteCollabSessionProvider>
         </EditorErrorBoundary>
       ) : null}
-      {!shellState.editorOpen || !currentNote ? <BottomSheet activeFolder={activeFolder} editorDirty={editorDirty} isDesktop={shellState.isDesktop} sheet={shellState.sheet} onClose={() => shellState.setSheet(null)} onOpenSheet={shellState.openSheet} onOpenEditor={() => shellState.setEditorOpen(true)} onCloseEditor={closeEditor} /> : null}
+      {!shellState.editorOpen || !currentNote ? <BottomSheet activeFolder={activeFolder} editorDirty={editorDirty} isDesktop={shellState.isDesktop} sheet={shellState.sheet} onClose={handleCloseSheet} onCloseWithoutClear={() => shellState.setSheet(null)} onOpenSheet={shellState.openSheet} onOpenEditor={() => shellState.setEditorOpen(true)} onCloseEditor={closeEditor} /> : null}
       
       <LockManager />
     </main>

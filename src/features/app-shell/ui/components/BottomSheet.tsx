@@ -37,12 +37,13 @@ type BottomSheetProps = {
   editorDirty: boolean;
   isDesktop: boolean;
   onClose: () => void;
+  onCloseWithoutClear?: () => void;
   onOpenSheet?: (name: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void;
   onOpenEditor?: () => void;
   onCloseEditor?: () => void;
 };
 
-export function BottomSheet({ sheet, activeFolder, isDesktop, onClose, onOpenSheet, onOpenEditor, onCloseEditor }: BottomSheetProps) {
+export function BottomSheet({ sheet, activeFolder, isDesktop, onClose, onCloseWithoutClear, onOpenSheet, onOpenEditor, onCloseEditor }: BottomSheetProps) {
   const { data: settings } = useSettingsQuery();
   const lang = settings?.lang ?? "ru";
   const copy = getUiCopy(lang);
@@ -88,7 +89,7 @@ export function BottomSheet({ sheet, activeFolder, isDesktop, onClose, onOpenShe
         {name === "folder" ? <FolderActionList copy={copy} activeFolder={activeFolder} /> : null}
         {name === "note" ? <NoteActionSheet copy={copy} onOpenSheet={onOpenSheet} onClose={onClose} onCloseEditor={onCloseEditor} /> : null}
         {name === "pages" ? <PagesContent copy={copy} /> : null}
-        {name === "lock" ? <LockContent copy={copy} onClose={() => { onClose(); useNoteUiStore.getState().setCurrentNoteId(null); }} onOpenEditor={onOpenEditor} /> : null}
+        {name === "lock" ? <LockContent copy={copy} onClose={onCloseWithoutClear || onClose} onOpenEditor={onOpenEditor} /> : null}
         {name === "about" ? <AboutContent copy={copy} /> : null}
         {name === "create-folder" ? <CreateFolderContent copy={copy} onClose={onClose} /> : null}
         {name === "reminder" ? <ReminderContent copy={copy} onClose={onClose} /> : null}
@@ -462,7 +463,7 @@ function LockContent({ copy, onClose, onOpenEditor }: { copy: ReturnType<typeof 
     onOpenEditor?.();
   }
 
-  return <div className="mt-4 space-y-3"><p className="text-sm leading-6 text-foreground/58">{dlgs?.lockDescription || "Контент заметки скрыт до локальной verify-проверки. Preview уже замаскирован в карточке."}</p><input autoComplete="off" className="h-10 w-full rounded-2xl border border-border bg-surface-strong px-4 outline-none sm:h-12" name={`lock_${currentNoteId.slice(0, 6)}`} onChange={(event) => setPassword(event.target.value)} placeholder={dlgs?.lockEnterPassword || "Пароль заметки"} type="password" value={password} />{error ? <p className="text-sm font-bold text-rose-500">{error}</p> : null}<Button className="h-10 w-full rounded-2xl sm:h-11" onClick={() => void handleUnlock()} type="button">{dlgs?.lockButton || "Unlock"}</Button></div>;
+  return <div className="mt-4 space-y-3"><p className="text-sm leading-6 text-foreground/58">{dlgs?.lockDescription || "Контент заметки скрыт до локальной verify-проверки. Preview уже замаскирован в карточке."}</p><input autoComplete="new-password" className="h-10 w-full rounded-2xl border border-border bg-surface-strong px-4 outline-none sm:h-12" name={`lock_${currentNoteId.slice(0, 6)}`} onChange={(event) => setPassword(event.target.value)} placeholder={dlgs?.lockEnterPassword || "Пароль заметки"} type="password" value={password} />{error ? <p className="text-sm font-bold text-rose-500">{error}</p> : null}<Button className="h-10 w-full rounded-2xl sm:h-11" onClick={() => void handleUnlock()} type="button">{dlgs?.lockButton || "Unlock"}</Button></div>;
 }
 
 function AboutContent({ copy }: { copy: ReturnType<typeof getUiCopy> }) {
