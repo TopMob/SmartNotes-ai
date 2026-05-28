@@ -19,7 +19,7 @@ export function LockModal({ note, isOpen, onClose }: LockModalProps) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { updateNote } = useNoteActions();
+  const { patchNote } = useNoteActions();
   const unlockNote = useLockStore((s) => s.unlockNote);
   const lockNoteStore = useLockStore((s) => s.lockNote);
 
@@ -45,7 +45,7 @@ export function LockModal({ note, isOpen, onClose }: LockModalProps) {
 
     try {
       const lockData = await createNoteLock(password);
-      await updateNote(note.id, { lock: lockData });
+      await patchNote(note.id, { lock: lockData });
       unlockNote(note.id); // unlock it immediately for the current session
       onClose();
     } catch (err) {
@@ -60,7 +60,7 @@ export function LockModal({ note, isOpen, onClose }: LockModalProps) {
   async function handleRemovePassword() {
     setLoading(true);
     try {
-      await updateNote(note.id, { lock: null });
+      await patchNote(note.id, { lock: null });
       lockNoteStore(note.id); // clean up store
       onClose();
     } catch (err) {

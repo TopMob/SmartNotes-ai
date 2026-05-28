@@ -24,6 +24,7 @@ import { getUiCopy } from "@/shared/lib/i18n";
 import { Button } from "@/shared/ui/button";
 import { SharePrompt } from "@/features/editor-collab/ui/share-prompt";
 import { AiSummaryCard } from "@/features/editor/ui/AiSummaryCard";
+import { verifyNoteLock } from "@/features/lock-center/lib/lock-service";
 import { useAiEngineStore } from "@/features/ai-engine/model/ai-store";
 import { collabRepository } from "@/features/editor-collab/api/collab-repository";
 

@@ -63,7 +63,7 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
   const userId = useAuthStore((state) => state.user?.id ?? "local-user");
   const { createNote } = useNoteActions();
   const { patchSettings, resetSettings } = useSettingsActions();
-  const { updateProfile, pending: profilePending, loginWithGoogle, logout } = useAuthActions();
+  const { updateProfile, pending: profilePending, loginWithGoogle, connectGoogleDrive, logout } = useAuthActions();
 
   const [displayName, setDisplayName] = useState(user?.displayName ?? "");
   const [avatarUrl, setAvatarUrl] = useState(user?.photoURL ?? "");
@@ -555,7 +555,7 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                      </button>
                    ) : (
                      <button
-                       onClick={() => void loginWithGoogle()}
+                       onClick={() => void connectGoogleDrive()}
                        className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-accent px-4 py-2 text-sm font-bold text-accent-foreground transition hover:bg-accent/90 mt-2"
                        type="button"
                      >

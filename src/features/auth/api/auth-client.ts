@@ -50,23 +50,28 @@ export async function signUpWithEmail(payload: EmailAuthPayload) {
   return data;
 }
 
-export async function signInWithGoogle() {
+export async function signInWithGoogle(requestDriveAccess: boolean = false) {
   const supabase = createSupabaseBrowserClient();
 
   if (!supabase) {
     throw new Error("Supabase runtime config не задан. Google-вход недоступен в локальном режиме.");
   }
 
+  const options: any = {
+    redirectTo: getAuthRedirectTo(),
+  };
+
+  if (requestDriveAccess) {
+    options.scopes = "https://www.googleapis.com/auth/drive.file";
+    options.queryParams = {
+      access_type: "offline",
+      prompt: "consent",
+    };
+  }
+
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
-    options: {
-      redirectTo: getAuthRedirectTo(),
-      scopes: "https://www.googleapis.com/auth/drive.file",
-      queryParams: {
-        access_type: "offline",
-        prompt: "consent",
-      },
-    },
+    options,
   });
 
   if (error) {

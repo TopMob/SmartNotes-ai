@@ -1,5 +1,5 @@
 import { Brain, Folder, Heart, RotateCcw, Shield, Sparkles } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 
 import type { Folder as FolderEntity } from "@/entities/folder";
 import type { Note } from "@/entities/note";

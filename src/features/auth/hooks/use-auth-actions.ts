@@ -48,7 +48,13 @@ export function useAuthActions() {
 
     loginWithGoogle: useCallback(async () => {
       await run(async () => {
-        await signInWithGoogle();
+        await signInWithGoogle(false);
+      });
+    }, []),
+
+    connectGoogleDrive: useCallback(async () => {
+      await run(async () => {
+        await signInWithGoogle(true);
       });
     }, []),
 
