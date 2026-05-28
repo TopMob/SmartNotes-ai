@@ -86,7 +86,7 @@ export function SmartNotesShell() {
 
 
   const reduceMotion = settings?.reduceMotion ?? false;
-  const folderViewMode = settings?.folderViewMode ?? "full";
+  const folderViewMode = "full";
   const notesPerPage = settings?.notesPerPage ?? 10;
   const lang = settings?.lang ?? "ru";
   const copy = getUiCopy(lang);

@@ -63,7 +63,7 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
   const userId = useAuthStore((state) => state.user?.id ?? "local-user");
   const { createNote } = useNoteActions();
   const { patchSettings, resetSettings } = useSettingsActions();
-  const { updateProfile, pending: profilePending, loginWithGoogle, connectGoogleDrive, logout } = useAuthActions();
+  const { updateProfile, pending: profilePending, loginWithGoogle, connectGoogleDrive, logout, resetPassword } = useAuthActions();
 
   const [displayName, setDisplayName] = useState(user?.displayName ?? "");
   const [avatarUrl, setAvatarUrl] = useState(user?.photoURL ?? "");
@@ -328,7 +328,6 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
           </Link>
 
           <h1 className="mt-5 text-2xl lg:text-3xl font-black tracking-tight">{copy.settings.title}</h1>
-          <p className="mt-2 text-xs leading-5 text-foreground/58 sm:text-sm sm:leading-6">{copy.settings.description}</p>
 
           <nav className="mt-6 flex w-full max-w-full gap-2 overflow-x-auto overflow-y-hidden pb-2 no-scrollbar lg:block lg:space-y-2 lg:overflow-visible lg:pb-0">
             {sections.map((section) => {
@@ -382,16 +381,20 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                 </div>
 
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                  <label className="block w-full min-w-0 truncate text-sm font-bold text-foreground/72">
-                    {copy.settings.appearance.mainBackgroundUrl}
-                    <input className="mt-2 w-full min-w-0 rounded-2xl border border-border bg-background px-4 py-2.5 text-sm" onChange={(event) => void patchSettings({ mainBackgroundUrl: event.target.value || null })} placeholder="https://..." type="url" value={settings.mainBackgroundUrl ?? ""} />
-                    <button className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-2xl border border-border bg-background px-4 py-2.5 text-xs font-bold sm:text-sm transition hover:bg-surface-strong" onClick={() => void uploadBackground("mainBackgroundUrl")} type="button"><Plus className="h-3.5 w-3.5" />Файл</button>
-                  </label>
-                  <label className="block w-full min-w-0 truncate text-sm font-bold text-foreground/72">
-                    {copy.settings.appearance.sidebarBackgroundUrl}
-                    <input className="mt-2 w-full min-w-0 rounded-2xl border border-border bg-background px-4 py-2.5 text-sm" onChange={(event) => void patchSettings({ sidebarBackgroundUrl: event.target.value || null })} placeholder="https://..." type="url" value={settings.sidebarBackgroundUrl ?? ""} />
-                    <button className="mt-2 inline-flex min-h-11 items-center gap-2 rounded-2xl border border-border bg-background px-4 py-2.5 text-xs font-bold sm:text-sm transition hover:bg-surface-strong" onClick={() => void uploadBackground("sidebarBackgroundUrl")} type="button"><Plus className="h-3.5 w-3.5" />Файл</button>
-                  </label>
+                  <div className="flex w-full min-w-0 flex-col gap-2">
+                    <span className="text-sm font-bold text-foreground/72">{copy.settings.appearance.mainBackgroundUrl}</span>
+                    <div className="flex gap-2">
+                      <input className="w-full min-w-0 rounded-2xl border border-border bg-background px-4 py-2.5 text-sm font-normal" onChange={(event) => void patchSettings({ mainBackgroundUrl: event.target.value || null })} placeholder="https://..." type="url" value={settings.mainBackgroundUrl ?? ""} />
+                      <button className="shrink-0 inline-flex min-h-11 items-center gap-2 rounded-2xl border border-border bg-background px-4 py-2.5 text-xs font-bold sm:text-sm transition hover:bg-surface-strong" onClick={() => void uploadBackground("mainBackgroundUrl")} type="button"><Plus className="h-3.5 w-3.5" />Файл</button>
+                    </div>
+                  </div>
+                  <div className="flex w-full min-w-0 flex-col gap-2">
+                    <span className="text-sm font-bold text-foreground/72">{copy.settings.appearance.sidebarBackgroundUrl}</span>
+                    <div className="flex gap-2">
+                      <input className="w-full min-w-0 rounded-2xl border border-border bg-background px-4 py-2.5 text-sm font-normal" onChange={(event) => void patchSettings({ sidebarBackgroundUrl: event.target.value || null })} placeholder="https://..." type="url" value={settings.sidebarBackgroundUrl ?? ""} />
+                      <button className="shrink-0 inline-flex min-h-11 items-center gap-2 rounded-2xl border border-border bg-background px-4 py-2.5 text-xs font-bold sm:text-sm transition hover:bg-surface-strong" onClick={() => void uploadBackground("sidebarBackgroundUrl")} type="button"><Plus className="h-3.5 w-3.5" />Файл</button>
+                    </div>
+                  </div>
                 </div>
               </Panel>
 
@@ -403,13 +406,7 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                     </button>
                   ))}
                 </div>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {(["compact", "full"] as const).map((item) => (
-                    <button className={`min-h-11 rounded-2xl border px-4 py-2.5 text-xs font-black sm:text-sm ${settings.folderViewMode === item ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={item} onClick={() => void patchSettings({ folderViewMode: item })} type="button">
-                      {item === "compact" ? (lang === "ru" ? "Компактный" : "Compact") : (lang === "ru" ? "Полный" : "Full")}
-                    </button>
-                  ))}
-                </div>
+
                 <div className="mt-4 flex flex-wrap gap-2">
                   {([5, 10, 20, 50] as const).map((item) => (
                     <button className={`min-h-11 rounded-2xl border px-4 py-2.5 text-xs font-black sm:text-sm ${settings.notesPerPage === item ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={item} onClick={() => void patchSettings({ notesPerPage: item })} type="button">
@@ -418,7 +415,7 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                   ))}
                 </div>
                 <button className={`mt-4 min-h-11 rounded-2xl border px-4 py-2.5 text-left text-xs font-bold sm:text-sm ${settings.reduceMotion ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} onClick={() => void patchSettings({ reduceMotion: !settings.reduceMotion })} type="button">
-                  {lang === "ru" ? `Сокращение анимации: ${settings.reduceMotion ? "Вкл" : "Выкл"}` : `Reduce motion: ${settings.reduceMotion ? "On" : "Off"}`}
+                  {lang === "ru" ? `Упрощенные анимации: ${settings.reduceMotion ? "Вкл" : "Выкл"}` : `Reduce motion: ${settings.reduceMotion ? "On" : "Off"}`}
                 </button>
               </Panel>
 
@@ -481,9 +478,9 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
               <Panel title={copy.settings.filters.sections}>
                 <div className="space-y-2">
                   {([
-                    ["showSavedFilters", "Saved filters"],
-                    ["showTagFilter", "Tag filter"],
-                    ["showUpdatedPeriodFilter", "Updated period filter"],
+                    ["showSavedFilters", copy.settings.filters.savedFilters],
+                    ["showTagFilter", copy.settings.filters.tagFilter],
+                    ["showUpdatedPeriodFilter", copy.settings.filters.updatedPeriodFilter],
                   ] as const).map(([key, label]) => (
                     <button className={`flex w-full min-w-0 min-h-11 items-center justify-between rounded-2xl border px-4 py-2.5 text-xs font-bold sm:text-sm transition hover:bg-surface-strong ${settings.interface[key] ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={key} onClick={() => toggleInterfaceSection(key)} type="button">
                       <span className="truncate pr-3">{label}</span>
@@ -519,27 +516,22 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                     {copy.settings.data.resetSettings}
                   </button>
                 </div>
-                 <div className="mt-4 rounded-[1.2rem] border border-border bg-surface-strong p-4 text-sm text-foreground/58">
-                   <p className="font-black text-foreground">{copy.settings.data.preset}: {settings.preset}</p>
-                   <p>{copy.settings.data.background}: {settings.mainBackgroundUrl ? copy.common.custom : copy.common.default}</p>
-                   <p>{copy.settings.data.customPresets}: {settings.customPresets.length}</p>
-                 </div>
-               </Panel>
+              </Panel>
 
-               <Panel title={lang === "ru" ? "Хранилище Google Drive (BYOS)" : "Google Drive Storage (BYOS)"}>
-                 <div className="rounded-[1.2rem] border border-border bg-surface-strong p-4 text-sm text-foreground/58 space-y-3">
-                   <p className="font-black text-foreground">
-                     {lang === "ru" ? "Статус: " : "Status: "}
-                     {driveConnected ? (
-                       <span className="text-emerald-500">{lang === "ru" ? "Подключено (Изображения сохраняются на ваш Google Диск)" : "Connected (Images are saved to your Google Drive)"}</span>
-                     ) : (
-                       <span className="text-amber-500">
-                         {lang === "ru" 
-                           ? "Локальный режим (Файлы сохраняются в заметках)" 
-                           : "Local-only mode (Files are stored inside notes)"}
-                       </span>
-                     )}
-                   </p>
+              <Panel title={lang === "ru" ? "Хранилище Google Drive (BYOS)" : "Google Drive Storage (BYOS)"}>
+                <div className="rounded-[1.2rem] border border-border bg-surface-strong p-4 text-sm text-foreground/58 space-y-3">
+                  <p className="font-black text-foreground">
+                    {lang === "ru" ? "Статус: " : "Status: "}
+                    {driveConnected ? (
+                      <span className="text-emerald-500">{lang === "ru" ? "Подключено (Изображения сохраняются на ваш Google Диск)" : "Connected (Images are saved to your Google Drive)"}</span>
+                    ) : (
+                      <span className="text-amber-500">
+                        {lang === "ru" 
+                          ? "Локальный режим (Файлы сохраняются в заметках)" 
+                          : "Local-only mode (Files are stored inside notes)"}
+                      </span>
+                    )}
+                  </p>
                    <p className="text-xs leading-5">
                      {lang === "ru" 
                        ? "Концепция BYOS (Bring Your Own Storage) позволяет загружать все изображения напрямую в ваш личный Google Drive. Приложение сохраняет только ссылки на файлы. Для включения этой функции войдите в систему с помощью учетной записи Google."
@@ -568,116 +560,72 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
            ) : null}
 
           {activeSection === "profile" ? (
-            <div className="space-y-4">
+            <div className="space-y-6">
               <SectionIntro title={copy.settings.profile.title} text={copy.settings.profile.subtitle} />
 
-              {/* Account info */}
-              <Panel title={copy.settings.profile.accountInfo}>
-                <div className="space-y-3">
-                  {/* Email */}
-                  <div>
-                    <p className="mb-1.5 text-xs font-bold text-foreground/60">{copy.settings.profile.email}</p>
-                    <div className="w-full min-h-11 rounded-2xl border border-border bg-background px-4 py-2.5 text-sm text-foreground/70 flex items-center">
-                      {user?.email ?? "—"}
-                    </div>
-                  </div>
-
-                  {/* UID */}
-                  <div>
-                    <p className="mb-1.5 text-xs font-bold text-foreground/60">{copy.settings.profile.uid}</p>
-                    <div className="flex items-center gap-2">
-                      <div className="min-w-0 flex-1 truncate rounded-2xl border border-border bg-background px-4 py-2.5 font-mono text-xs text-foreground/60 min-h-11 flex items-center">
-                        {user?.id ?? "—"}
-                      </div>
-                      <button
-                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border transition ${uidCopied ? "border-accent bg-accent/10 text-accent" : "border-border bg-background text-foreground/60 hover:bg-surface-strong"}`}
-                        onClick={copyUid}
-                        title={copy.settings.profile.copy}
-                        type="button"
-                      >
-                        {uidCopied ? <Check className="h-4 w-4" /> : (
-                          <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                            <rect height="13" rx="2" width="13" x="9" y="9" />
-                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                          </svg>
+              <div className="grid gap-6 md:grid-cols-2">
+                {/* Profile Details Panel */}
+                <Panel title={copy.settings.profile.profileDetails || "Данные профиля"}>
+                  <div className="space-y-4">
+                    {/* Avatar preview & Upload */}
+                    <div className="flex flex-col items-center gap-4 p-4 rounded-2xl bg-surface-strong border border-border sm:flex-row">
+                      <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-2 border-border bg-background text-2xl font-black text-foreground/45 shadow-inner">
+                        {avatarUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img alt="avatar" className="h-full w-full object-cover" src={avatarUrl} />
+                        ) : (
+                          <span>{(displayName || user?.email || "?").slice(0, 1).toUpperCase()}</span>
                         )}
-                      </button>
-                    </div>
-                    {uidCopied ? <p className="mt-1 text-xs text-accent">{copy.settings.profile.copied}</p> : null}
-                  </div>
-
-                  {/* Log Out Button */}
-                  <div className="pt-2">
-                    <button
-                      className="w-full min-h-11 rounded-2xl border border-rose-500/30 bg-rose-500/10 text-rose-500 font-bold hover:bg-rose-500/20 transition flex items-center justify-center gap-2"
-                      onClick={() => void logout()}
-                      type="button"
-                    >
-                      {copy.shell.logout || "Выйти"}
-                    </button>
-                  </div>
-                </div>
-              </Panel>
-
-              {/* Display name + Avatar */}
-              <Panel title={copy.settings.profile.displayName}>
-                <div className="space-y-4">
-                  {/* Avatar preview */}
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-[1.2rem] border border-border bg-surface-strong text-lg font-black text-foreground/40">
-                      {avatarUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img alt="avatar" className="h-full w-full object-cover" src={avatarUrl} />
-                      ) : (
-                        <span>{(displayName || user?.email || "?").slice(0, 1).toUpperCase()}</span>
-                      )}
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <button
-                        className="inline-flex min-h-11 items-center gap-2 rounded-2xl border border-border bg-background px-4 py-2.5 text-xs font-bold hover:bg-surface-strong transition"
-                        onClick={() => void uploadAvatar()}
-                        type="button"
-                      >
-                        <Upload className="h-3.5 w-3.5" />
-                        {copy.settings.profile.uploadAvatar}
-                      </button>
-                      {avatarUrl ? (
+                      </div>
+                      <div className="flex flex-col gap-2 w-full sm:w-auto">
                         <button
-                          className="text-left text-xs font-bold text-rose-500 hover:underline min-h-9 flex items-center"
-                          onClick={() => setAvatarUrl("")}
+                          className="w-full inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2 text-xs font-bold text-accent-foreground hover:bg-accent/90 transition shadow-sm"
+                          onClick={() => void uploadAvatar()}
                           type="button"
                         >
-                          Удалить аватар
+                          <Upload className="h-3.5 w-3.5" />
+                          {copy.settings.profile.uploadAvatarLabel || "Загрузить аватар"}
                         </button>
-                      ) : null}
+                        {avatarUrl ? (
+                          <button
+                            className="w-full text-center text-xs font-bold text-rose-500 hover:text-rose-600 transition min-h-9 flex items-center justify-center border border-rose-500/20 rounded-xl bg-rose-500/5 hover:bg-rose-500/10"
+                            onClick={() => setAvatarUrl("")}
+                            type="button"
+                          >
+                            {copy.settings.profile.deleteAvatar || "Удалить аватар"}
+                          </button>
+                        ) : null}
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Avatar URL input */}
-                  <label className="block text-xs font-bold text-foreground/60">
-                    {copy.settings.profile.avatarUrl}
-                    <input
-                      className="mt-1.5 w-full rounded-2xl border border-border bg-background px-4 py-2.5 text-sm min-h-11"
-                      onChange={(e) => setAvatarUrl(e.target.value)}
-                      placeholder={copy.settings.profile.avatarUrlPlaceholder}
-                      type="url"
-                      value={avatarUrl}
-                    />
-                  </label>
-
-                  {/* Display name input + Save */}
-                  <label className="block text-xs font-bold text-foreground/60">
-                    {copy.settings.profile.displayName}
-                    <div className="mt-1.5 flex gap-2">
+                    {/* Avatar URL input */}
+                    <div>
+                      <span className="block mb-1 text-xs font-bold text-foreground/60">{copy.settings.profile.avatarUrl}</span>
                       <input
-                        className="min-w-0 flex-1 rounded-2xl border border-border bg-background px-4 py-2.5 text-sm min-h-11"
+                        className="w-full rounded-2xl border border-border bg-background px-4 py-2.5 text-sm min-h-11 outline-none focus:border-accent transition font-normal"
+                        onChange={(e) => setAvatarUrl(e.target.value)}
+                        placeholder={copy.settings.profile.avatarUrlPlaceholder}
+                        type="url"
+                        value={avatarUrl}
+                      />
+                    </div>
+
+                    {/* Display name input */}
+                    <div>
+                      <span className="block mb-1 text-xs font-bold text-foreground/60">{copy.settings.profile.displayName}</span>
+                      <input
+                        className="w-full rounded-2xl border border-border bg-background px-4 py-2.5 text-sm min-h-11 outline-none focus:border-accent transition font-normal"
                         onChange={(e) => setDisplayName(e.target.value)}
                         placeholder={copy.settings.profile.displayNamePlaceholder}
                         type="text"
                         value={displayName}
                       />
+                    </div>
+
+                    {/* Save Button */}
+                    <div className="pt-2">
                       <button
-                        className={`shrink-0 min-h-11 rounded-2xl px-4 text-sm font-bold transition ${profileSaved ? "bg-accent/10 text-accent" : "bg-accent text-accent-foreground"}`}
+                        className={`w-full min-h-11 rounded-2xl px-4 text-sm font-bold transition-all shadow-sm ${profileSaved ? "bg-accent/15 text-accent border border-accent/25" : "bg-accent text-accent-foreground hover:bg-accent/90"}`}
                         disabled={profilePending}
                         onClick={() => void handleSaveProfile()}
                         type="button"
@@ -689,9 +637,95 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                             : copy.settings.profile.saveProfile}
                       </button>
                     </div>
-                  </label>
-                </div>
-              </Panel>
+                  </div>
+                </Panel>
+
+                {/* Account & Security Panel */}
+                <Panel title={copy.settings.profile.securityAndSession || "Безопасность и сессия"}>
+                  <div className="space-y-4">
+                    {/* Email */}
+                    <div>
+                      <span className="block mb-1 text-xs font-bold text-foreground/60">{copy.settings.profile.email}</span>
+                      <input
+                        className="w-full min-h-10 rounded-xl border border-border/80 bg-background/50 px-3 py-1.5 text-xs text-foreground/60 select-all cursor-default font-normal"
+                        readOnly
+                        value={user?.email ?? "—"}
+                      />
+                    </div>
+
+                    {/* UID */}
+                    <div>
+                      <span className="block mb-1 text-xs font-bold text-foreground/60">{copy.settings.profile.uid}</span>
+                      <div className="flex gap-2">
+                        <input
+                          className="min-w-0 flex-1 rounded-xl border border-border/80 bg-background/50 px-3 py-1.5 font-mono text-[10px] text-foreground/60 select-all cursor-default"
+                          readOnly
+                          value={user?.id ?? "—"}
+                        />
+                        <button
+                          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-all ${uidCopied ? "border-accent bg-accent/10 text-accent" : "border-border/80 bg-background text-foreground/60 hover:bg-surface-strong"}`}
+                          onClick={copyUid}
+                          title={copy.settings.profile.copy}
+                          type="button"
+                        >
+                          {uidCopied ? <Check className="h-4 w-4" /> : (
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                              <rect height="13" rx="2" width="13" x="9" y="9" />
+                              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                            </svg>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Registered / Last login */}
+                    {user?.createdAt && (
+                      <div className="grid grid-cols-2 gap-3 p-3 rounded-xl bg-surface-strong border border-border text-[11px] text-foreground/60 font-medium">
+                        <div>
+                          <span className="block text-[10px] text-foreground/45 uppercase font-bold">{copy.settings.profile.registeredAt || "Дата регистрации"}</span>
+                          <span className="mt-0.5 block truncate">
+                            {new Date(user.createdAt).toLocaleDateString(lang === "ru" ? "ru-RU" : "en-US", { year: "numeric", month: "short", day: "numeric" })}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] text-foreground/45 uppercase font-bold">{copy.settings.profile.lastLoginAt || "Последний вход"}</span>
+                          <span className="mt-0.5 block truncate">
+                            {user.lastSignInAt ? new Date(user.lastSignInAt).toLocaleDateString(lang === "ru" ? "ru-RU" : "en-US", { year: "numeric", month: "short", day: "numeric" }) : "—"}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Reset Password & Log Out Buttons */}
+                    <div className="pt-2 flex flex-col gap-2">
+                      {user?.email && user.id !== "local-user" && !user.id.startsWith("guest-") && (
+                        <button
+                          className="w-full min-h-10 rounded-2xl border border-border bg-background hover:bg-surface-strong transition flex items-center justify-center gap-2 text-xs font-bold text-foreground/80 shadow-sm"
+                          onClick={async () => {
+                            try {
+                              await resetPassword(user.email!);
+                              window.alert(copy.settings.profile.resetPasswordSuccess || "Ссылка для сброса пароля отправлена на почту!");
+                            } catch (e) {
+                              window.alert(e instanceof Error ? e.message : "Не удалось отправить ссылку.");
+                            }
+                          }}
+                          type="button"
+                        >
+                          {copy.settings.profile.resetPassword || "Сбросить пароль"}
+                        </button>
+                      )}
+                      
+                      <button
+                        className="w-full min-h-10 rounded-2xl border border-rose-500/25 bg-rose-500/10 text-rose-500 hover:bg-rose-500/15 font-bold transition flex items-center justify-center gap-2 text-xs shadow-sm"
+                        onClick={() => void logout()}
+                        type="button"
+                      >
+                        {copy.shell.logout || "Выйти из аккаунта"}
+                      </button>
+                    </div>
+                  </div>
+                </Panel>
+              </div>
             </div>
           ) : null}
         </section>

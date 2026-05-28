@@ -18,5 +18,7 @@ export function mapAuthUser(user: SupabaseUser): User {
     displayName,
     photoURL,
     hasGoogleLinked,
+    createdAt: user.created_at,
+    lastSignInAt: user.last_sign_in_at,
   };
 }
