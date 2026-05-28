@@ -36,6 +36,10 @@ function matchesView(note: Note, view: AppView, activeFolderId: string | null) {
     return false;
   }
 
+  if (note.lock && view !== "locked") {
+    return false;
+  }
+
   switch (view) {
     case "favorites":
       return note.favorite;

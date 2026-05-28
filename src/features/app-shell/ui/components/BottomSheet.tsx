@@ -9,6 +9,7 @@ import { useNoteCollabSession } from "@/features/editor-collab/hooks/use-note-co
 import { useFolderActions } from "@/features/folders/hooks/use-folder-mutations";
 import { useFoldersQuery } from "@/features/folders/hooks/use-folders-query";
 import { LockModal } from "@/features/lock-center/ui/lock-modal";
+import { useLockStore } from "@/features/lock-center/model/lock-store";
 import { useNoteActions } from "@/features/notes/hooks/use-note-mutations";
 import { useNotesFlat } from "@/features/notes/hooks/use-notes-query";
 import { useNoteUiStore } from "@/features/notes/model/note-ui-store";
@@ -37,9 +38,11 @@ type BottomSheetProps = {
   isDesktop: boolean;
   onClose: () => void;
   onOpenSheet?: (name: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void;
+  onOpenEditor?: () => void;
+  onCloseEditor?: () => void;
 };
 
-export function BottomSheet({ sheet, activeFolder, isDesktop, onClose, onOpenSheet }: BottomSheetProps) {
+export function BottomSheet({ sheet, activeFolder, isDesktop, onClose, onOpenSheet, onOpenEditor, onCloseEditor }: BottomSheetProps) {
   const { data: settings } = useSettingsQuery();
   const lang = settings?.lang ?? "ru";
   const copy = getUiCopy(lang);
@@ -60,13 +63,13 @@ export function BottomSheet({ sheet, activeFolder, isDesktop, onClose, onOpenShe
             ? copy.shell.lockCenter
             : name === "create-folder"
               ? copy.shell.createFolderSheet
-                : name === "reminder"
-                  ? copy.shell.reminder
-                  : name === "share"
-                    ? copy.shell.actions.share
-                    : name === "invites"
-                      ? (lang === "ru" ? "Приглашения совместного доступа" : "Collaboration Invites")
-                      : copy.shell.aboutSheet;
+              : name === "reminder"
+                ? copy.shell.reminder
+                : name === "share"
+                  ? copy.shell.actions.share
+                  : name === "invites"
+                    ? (lang === "ru" ? "Приглашения совместного доступа" : "Collaboration Invites")
+                    : copy.shell.aboutSheet;
   const topSheet = name === "pages";
   const mobileSheet = !isDesktop;
   const folderPopup = name === "folder" && !!anchor && !mobileSheet;
@@ -83,9 +86,9 @@ export function BottomSheet({ sheet, activeFolder, isDesktop, onClose, onOpenShe
           <button className="rounded-full p-2 hover:bg-surface-strong" onClick={onClose} type="button"><X className="h-5 w-5" /></button>
         </div>
         {name === "folder" ? <FolderActionList copy={copy} activeFolder={activeFolder} /> : null}
-        {name === "note" ? <NoteActionSheet copy={copy} onOpenSheet={onOpenSheet} /> : null}
+        {name === "note" ? <NoteActionSheet copy={copy} onOpenSheet={onOpenSheet} onClose={onClose} onCloseEditor={onCloseEditor} /> : null}
         {name === "pages" ? <PagesContent copy={copy} /> : null}
-        {name === "lock" ? <LockContent copy={copy} onClose={onClose} /> : null}
+        {name === "lock" ? <LockContent copy={copy} onClose={() => { onClose(); useNoteUiStore.getState().setCurrentNoteId(null); }} onOpenEditor={onOpenEditor} /> : null}
         {name === "about" ? <AboutContent copy={copy} /> : null}
         {name === "create-folder" ? <CreateFolderContent copy={copy} onClose={onClose} /> : null}
         {name === "reminder" ? <ReminderContent copy={copy} onClose={onClose} /> : null}
@@ -143,7 +146,7 @@ async function copyNoteText(note: Note) {
   textarea.remove();
 }
 
-function NoteActionSheet({ copy, onOpenSheet }: { copy: ReturnType<typeof getUiCopy>; onOpenSheet?: (name: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void }) {
+function NoteActionSheet({ copy, onOpenSheet, onClose, onCloseEditor }: { copy: ReturnType<typeof getUiCopy>; onOpenSheet?: (name: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void; onClose: () => void; onCloseEditor?: () => void }) {
   const { data: settings } = useSettingsQuery();
   const lang = settings?.lang ?? "ru";
   const { data: notes = [] } = useNotesFlat();
@@ -169,10 +172,10 @@ function NoteActionSheet({ copy, onOpenSheet }: { copy: ReturnType<typeof getUiC
       
       {note.trashedAt ? (
         <div className="grid gap-2 grid-cols-2">
-          <button className="min-h-12 rounded-2xl border border-border bg-surface-strong px-4 py-3 text-sm font-bold hover:bg-background text-center transition" onClick={() => void restoreNote(note.id)} type="button">
+          <button className="min-h-12 rounded-2xl border border-border bg-surface-strong px-4 py-3 text-sm font-bold hover:bg-background text-center transition" onClick={async () => { await restoreNote(note.id); onClose(); }} type="button">
             {copy.shell.actions.restore}
           </button>
-          <button className="min-h-12 rounded-2xl border border-rose-200 bg-rose-500/6 text-rose-600 hover:bg-rose-500/10 px-4 py-3 text-sm font-bold text-center transition" onClick={() => void permanentlyDeleteNote(note.id)} type="button">
+          <button className="min-h-12 rounded-2xl border border-rose-200 bg-rose-500/6 text-rose-600 hover:bg-rose-500/10 px-4 py-3 text-sm font-bold text-center transition" onClick={async () => { await permanentlyDeleteNote(note.id); onClose(); onCloseEditor?.(); }} type="button">
             {copy.shell.actions.permanentDelete}
           </button>
         </div>
@@ -225,7 +228,11 @@ function NoteActionSheet({ copy, onOpenSheet }: { copy: ReturnType<typeof getUiC
           <GridActionBtn
             icon={Trash2}
             label={copy.shell.actions.delete || "Удалить"}
-            onClick={() => void trashNote(note.id)}
+            onClick={async () => {
+              await trashNote(note.id);
+              onClose();
+              onCloseEditor?.();
+            }}
             destructive
           />
         </div>
@@ -426,9 +433,8 @@ function PagesContent({ copy }: { copy: ReturnType<typeof getUiCopy> }) {
   );
 }
 
-function LockContent({ copy, onClose }: { copy: ReturnType<typeof getUiCopy>; onClose: () => void }) {
+function LockContent({ copy, onClose, onOpenEditor }: { copy: ReturnType<typeof getUiCopy>; onClose: () => void; onOpenEditor?: () => void }) {
   const { data: notes = [] } = useNotesFlat();
-  const { patchNote } = useNoteActions();
   const currentNoteId = useNoteUiStore((state) => state.currentNoteId);
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -449,10 +455,11 @@ function LockContent({ copy, onClose }: { copy: ReturnType<typeof getUiCopy>; on
       return;
     }
 
-    await patchNote(currentNoteId!, { lock: { ...currentLock, hidden: false } }, { scheduleAnalysis: false });
+    useLockStore.getState().unlockNote(currentNoteId!);
     setError(null);
     setPassword("");
     onClose();
+    onOpenEditor?.();
   }
 
   return <div className="mt-4 space-y-3"><p className="text-sm leading-6 text-foreground/58">{dlgs?.lockDescription || "Контент заметки скрыт до локальной verify-проверки. Preview уже замаскирован в карточке."}</p><input autoComplete="off" className="h-10 w-full rounded-2xl border border-border bg-surface-strong px-4 outline-none sm:h-12" name={`lock_${currentNoteId.slice(0, 6)}`} onChange={(event) => setPassword(event.target.value)} placeholder={dlgs?.lockEnterPassword || "Пароль заметки"} type="password" value={password} />{error ? <p className="text-sm font-bold text-rose-500">{error}</p> : null}<Button className="h-10 w-full rounded-2xl sm:h-11" onClick={() => void handleUnlock()} type="button">{dlgs?.lockButton || "Unlock"}</Button></div>;

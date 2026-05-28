@@ -84,6 +84,10 @@ export function Header({
         <label className="absolute left-[15px] right-[15px] top-[4.5rem] z-50 flex h-11 min-w-0 max-w-none items-center gap-3 rounded-full border border-border bg-surface-strong px-4 shadow-lg md:static md:mx-auto md:flex-1 md:h-10 md:max-w-[560px] md:shadow-inner md:shadow-violet-950/4">
           <Search className="h-5 w-5 shrink-0 text-foreground/38" />
           <input
+            type="search"
+            autoComplete="off"
+            name="search_query_input"
+            id="search_query_input"
             className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-foreground/38"
             onChange={(event) => useSearchStore.getState().setQuery(event.target.value)}
             placeholder={copy.shell.search}

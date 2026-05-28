@@ -264,11 +264,11 @@ export function SmartNotesShell() {
         <EditorErrorBoundary>
           <NoteCollabSessionProvider key={currentNote.id} note={currentNote}>
             <EditorOverlay note={currentNote} onClose={closeEditor} onOpenSheet={shellState.openSheet} toolbarVisible={shellState.toolbarVisible} setToolbarVisible={shellState.setToolbarVisible} />
-            <BottomSheet activeFolder={activeFolder} editorDirty={editorDirty} isDesktop={shellState.isDesktop} sheet={shellState.sheet} onClose={() => shellState.setSheet(null)} onOpenSheet={shellState.openSheet} />
+            <BottomSheet activeFolder={activeFolder} editorDirty={editorDirty} isDesktop={shellState.isDesktop} sheet={shellState.sheet} onClose={() => shellState.setSheet(null)} onOpenSheet={shellState.openSheet} onOpenEditor={() => shellState.setEditorOpen(true)} onCloseEditor={closeEditor} />
           </NoteCollabSessionProvider>
         </EditorErrorBoundary>
       ) : null}
-      {!shellState.editorOpen || !currentNote ? <BottomSheet activeFolder={activeFolder} editorDirty={editorDirty} isDesktop={shellState.isDesktop} sheet={shellState.sheet} onClose={() => shellState.setSheet(null)} onOpenSheet={shellState.openSheet} /> : null}
+      {!shellState.editorOpen || !currentNote ? <BottomSheet activeFolder={activeFolder} editorDirty={editorDirty} isDesktop={shellState.isDesktop} sheet={shellState.sheet} onClose={() => shellState.setSheet(null)} onOpenSheet={shellState.openSheet} onOpenEditor={() => shellState.setEditorOpen(true)} onCloseEditor={closeEditor} /> : null}
       
       <FeedbackModal isOpen={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
       <LockManager />

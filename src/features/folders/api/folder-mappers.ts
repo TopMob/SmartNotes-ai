@@ -43,8 +43,18 @@ export function mapFolderDraftToInsert(
   };
 }
 
+function cleanUndefined<T extends object>(obj: T): T {
+  const res = {} as any;
+  for (const key in obj) {
+    if (obj[key] !== undefined) {
+      res[key] = obj[key];
+    }
+  }
+  return res;
+}
+
 export function mapFolderPatchToUpdate(patch: Partial<Folder>): FolderUpdate {
-  return {
+  const raw = {
     owner_id: patch.ownerId,
     name: patch.name,
     description: patch.description,
@@ -58,4 +68,6 @@ export function mapFolderPatchToUpdate(patch: Partial<Folder>): FolderUpdate {
     embedding: patch.embedding,
     is_system: patch.isSystem,
   };
+
+  return cleanUndefined(raw);
 }

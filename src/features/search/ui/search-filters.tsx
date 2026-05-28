@@ -15,7 +15,10 @@ export function SearchFilters() {
   return (
     <div className="flex flex-col gap-4 p-4 border-b border-border bg-surface">
       <input
-        type="text"
+        type="search"
+        autoComplete="off"
+        name="filters_search_query"
+        id="filters_search_query"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Поиск..."

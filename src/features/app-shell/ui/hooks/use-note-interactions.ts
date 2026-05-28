@@ -9,6 +9,8 @@ import { useNoteUiStore } from "@/features/notes/model/note-ui-store";
 
 import type { SheetAnchor, SheetName } from "../components/shared";
 
+import { useLockStore } from "@/features/lock-center/model/lock-store";
+
 export function useNoteInteractions(options: {
   activeFolderId: string | null;
   setEditorOpen: (open: boolean) => void;
@@ -31,7 +33,8 @@ export function useNoteInteractions(options: {
       setCurrentNotePageIndex(0);
       setFiltersOpen(false);
 
-      if (note.lock?.hidden) {
+      const isUnlocked = useLockStore.getState().unlockedNotes.has(noteId);
+      if (note.lock?.hidden && !isUnlocked) {
         openSheet("lock");
         return;
       }

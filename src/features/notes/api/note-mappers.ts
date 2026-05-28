@@ -103,6 +103,16 @@ export function mapNoteDraftToInsert(note: Note): NoteInsert {
   };
 }
 
+function cleanUndefined<T extends object>(obj: T): T {
+  const res = {} as any;
+  for (const key in obj) {
+    if (obj[key] !== undefined) {
+      res[key] = obj[key];
+    }
+  }
+  return res;
+}
+
 export function mapNotePatchToUpdate(patch: Partial<Note>): NoteUpdate {
   const lockFields =
     patch.lock === undefined
@@ -114,7 +124,7 @@ export function mapNotePatchToUpdate(patch: Partial<Note>): NoteUpdate {
           lock_hidden: patch.lock?.hidden ?? false,
         };
 
-  return {
+  const raw = {
     owner_id: patch.ownerId,
     folder_id: patch.folderId,
     title: patch.title,
@@ -139,6 +149,8 @@ export function mapNotePatchToUpdate(patch: Partial<Note>): NoteUpdate {
     updated_at: patch.updatedAt,
     trashed_at: patch.trashedAt,
   };
+
+  return cleanUndefined(raw);
 }
 
 export function deriveTitleFromDraft(draft: NoteDraft) {
