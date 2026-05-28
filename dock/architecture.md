@@ -61,13 +61,16 @@ User opens note → NoteCollabSessionProvider
 ### 4.3 AI Analysis Flow
 
 ```
-Note content changes → useAutoAnalyze hook (debounced)
-  → POST /api/ai/analyze { noteId, title, content, userTags, folderContext }
+Note content changes / App boots
+  → DataBootstrap monitors notes → identifies unanalyzed notes (analyzed === false)
+  → Enqueues note ID via scheduleAiAnalysis(noteId) → persisted in localStorage ('smartnotes:ai:pending')
+  → ai-queue processes sequentially with a 1.5s delay (prevents rate limits)
+  → POST /api/ai/analyze { noteId }
   → Server: authenticate user (cookie) or admin (x-secret header)
   → Set ai_status = "analyzing" in Supabase
-  → OpenRouter LLM call → parse JSON result
+  → OpenRouter LLM call (GPT-4o-mini) → parse JSON result
   → Update note: user_tags, hidden_tags, folder_id, ai_relevance, resurfacing_class, ai_status = "done"
-  → Client: ai-store updates status
+  → Client: removes note from queue → EventBus publishes syncCompleted → React Query invalidates cache
 ```
 
 ### 4.4 Search Flow
@@ -104,7 +107,7 @@ Internal events (typed):
 | OpenRouter over direct OpenAI | Multi-model access, cost optimization, single API |
 | Zustand over Redux | Lightweight, minimal boilerplate, good with React Query |
 | TanStack Query over manual fetch | Cache management, optimistic updates, pagination |
-| BYOS over Supabase Storage | User owns their data, no storage quota costs |
+| Cloud Media Storage | Supabase Storage as primary default, with optional bypassable Google Drive (BYOS) integration |
 | Client-side SHA-256 over server hashing | Zero-knowledge: password never transmitted |
 | IndexedDB over localStorage for Yjs | Structured, larger capacity, async, transactional |
 | Event Bus over prop drilling | Decoupled cross-feature communication |
@@ -141,21 +144,31 @@ RootLayout
 
 ---
 
-## 8. AI as Pipeline
+## 8. AI as Pipeline (Background AI Queue)
 
-The AI engine operates as a **pipeline**, not a single call:
+The AI engine operates as a robust **sequential pipeline**, managed globally to ensure stability and respect external API rate limits:
 
-1. Note content changes → `aiStatus = "pending"`
-2. Auto-analyze hook debounces and triggers `/api/ai/analyze`
-3. Server calls OpenRouter LLM → generates `userTags`, `hiddenTags`, `folderId`, `relevance`, `resurfacingClass`
-4. Results written back to Supabase → `aiStatus = "done"`
-5. Future: embeddings pipeline → `note_embeddings` → vector retrieval
+1. **Detection & Enqueuing**: As notes are created or updated, the application sets `analyzed = false` and `aiStatus = "idle"`.
+2. **Global Monitoring**: `DataBootstrap` continuously observes the notes cache. Any unanalyzed notes are automatically added to the queue via `scheduleAiAnalysis(noteId)`.
+3. **Queue Management**: The queue is stored in `localStorage` under `smartnotes:ai:pending` to survive session restarts or browser crashes, processing tasks sequentially.
+4. **Execution**: The background queue handler makes sequential POST calls to `/api/ai/analyze` with an enforced **1.5s delay** between them.
+5. **LLM & Semantic Classification**: The Next.js API endpoint delegates to the Supabase Deno Edge Function, which prompts OpenRouter to extract semantic summaries (`aiInsight`), `userTags`, `hiddenTags`, maps the closest folder (`match_folder` RPC), and determines `relevance` / `resurfacingClass`.
+6. **Vector Generation**: Text embeddings are generated and stored in `note_embeddings` for future semantic hybrid search.
+7. **Cache Invalidation & Reactive UI**: Upon completion, the note is removed from the queue, `syncCompleted` is dispatched over the `EventBus`, and React Query invalidates the notes query cache, instantly and seamlessly updating the user interface.
 
 ---
 
-## 9. BYOS (Bring Your Own Storage)
+## 9. Cloud Media Storage & Image Compression (Zero-Base64)
 
-User media files are stored on the **user's own Google Drive**, not in the project's Supabase Storage. Notes contain only reference `MediaDescriptor` objects with `fileId`, `url`, and `thumbnailUrl`. Upload flows through a Next.js proxy route.
+User media files are uploaded to **Supabase Storage** (the `note-images` bucket) by default.
+To minimize bandwidth and cloud storage usage, images are compressed client-side using a zero-dependency HTML5 Canvas utility to high-quality JPEGs under 500KB before uploading.
+Alternatively, users can configure an optional **Google Drive (BYOS)** integration to save files directly to their personal Drive accounts. Users can completely disable Google Drive in settings at any time, forcing the application to instantly fall back to Supabase Storage.
+
+### Zero-Base64 Offline & Guest Fallback
+If the user is unauthenticated (guest session) or offline, the compressed image is saved directly as a **binary Blob in IndexedDB** (DB name: `smartnotes-local-media`) under a unique `fileId` key.
+- The note JSON/HTML content stores **only a clean string ID** (`local-media:fileId`), keeping the database size tiny and avoiding `localStorage` quota limits.
+- A custom Tiptap NodeView (`LocalMediaImageExtension`) intercepts `local-media:fileId` URLs at runtime, asynchronously loads the binary Blob from IndexedDB, and exposes it using a temporary session-only object URL (`URL.createObjectURL(blob)`), which is revoked on destroy to avoid memory leaks.
+- **Base64 Auto-Migration**: If any old notes containing inline Base64 data URLs (`data:image/...`) are loaded into the editor, they are automatically parsed, converted to Blobs, saved to IndexedDB, and rewritten to `local-media:fileId` references, purging legacy Base64 from database notes permanently.
 
 ---
 

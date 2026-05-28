@@ -11,6 +11,8 @@ import { startSyncConsumer } from "@/services/sync/sync-consumer";
 import { startRealtimeSubscriptions, stopRealtimeSubscriptions } from "@/services/realtime/realtime-subscriptions";
 import { subscribe } from "@/services/event-bus";
 import { submitFeedback } from "@/features/feedback/api/feedback-api";
+import { useNotesFlat } from "@/features/notes/hooks/use-notes-query";
+import { startBackgroundAiScheduler, scheduleAiAnalysis } from "@/services/ai/ai-queue";
 
 export function DataBootstrap({ children }: Readonly<{ children: ReactNode }>) {
   const queryClient = useQueryClient();
@@ -20,6 +22,8 @@ export function DataBootstrap({ children }: Readonly<{ children: ReactNode }>) {
   const resetNoteUi = useNoteUiStore((state) => state.reset);
   const hasRemoteUser = authUser !== null && authUser.id !== "local-user" && !isGuestUser(authUser);
   const canUseRemoteSync = authStatus === "authenticated" && !authDegraded && hasRemoteUser;
+
+  const { data: notes = [] } = useNotesFlat();
 
   useEffect(() => {
     if (authStatus !== "anonymous") {
@@ -48,8 +52,41 @@ export function DataBootstrap({ children }: Readonly<{ children: ReactNode }>) {
     return undefined;
   }, [canUseRemoteSync, queryClient]);
 
+  // Start background AI queue scheduler on boot
   useEffect(() => {
-    const unsubscribe = subscribe("feedbackSubmitted", async (payload) => {
+    startBackgroundAiScheduler();
+  }, []);
+
+  // Monitor notes and schedule unanalyzed notes for background AI processing
+  useEffect(() => {
+    if (authStatus === "authenticated" && notes.length > 0) {
+      const unanalyzedNotes = notes.filter(
+        (note) =>
+          !note.trashedAt &&
+          note.analyzed === false &&
+          note.aiStatus !== "pending" &&
+          note.aiStatus !== "analyzing" &&
+          note.aiStatus !== "error"
+      );
+
+      if (unanalyzedNotes.length > 0) {
+        console.log(`[AI Background] Automatically scheduling ${unanalyzedNotes.length} unanalyzed notes.`);
+        unanalyzedNotes.forEach((note) => {
+          scheduleAiAnalysis(note.id);
+        });
+      }
+    }
+  }, [notes, authStatus]);
+
+  // Invalidate notes cache when background processes or synchronization completes
+  useEffect(() => {
+    const unsubscribeSync = subscribe("syncCompleted", () => {
+      void queryClient.invalidateQueries({
+        predicate: (query) => query.queryKey[0] === "notes",
+      });
+    });
+
+    const unsubscribeFeedback = subscribe("feedbackSubmitted", async (payload) => {
       try {
         await submitFeedback(payload);
       } catch (error) {
@@ -58,9 +95,11 @@ export function DataBootstrap({ children }: Readonly<{ children: ReactNode }>) {
     });
 
     return () => {
-      unsubscribe();
+      unsubscribeSync();
+      unsubscribeFeedback();
     };
-  }, []);
+  }, [queryClient]);
 
   return children;
 }
+

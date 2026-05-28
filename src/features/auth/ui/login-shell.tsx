@@ -194,20 +194,17 @@ export function LoginShell() {
               </span>
             </label>
 
-            <AnimatePresence initial={false}>
-              {mode === "register" && (
-                <motion.div
-                  key="repeat-password-field"
-                  initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                  animate={{ opacity: 1, height: "auto", marginTop: 16 }}
-                  exit={{ opacity: 0, height: 0, marginTop: 0 }}
-                  transition={{ duration: 0.2, ease: "easeInOut" }}
-                  className="overflow-hidden"
-                >
-                  <Field icon={KeyRound} label="Повторите пароль" onChange={setRepeatPassword} placeholder="Еще раз пароль" type="password" value={repeatPassword} />
-                </motion.div>
-              )}
-            </AnimatePresence>
+            <div 
+              className={`grid transition-all duration-300 ease-in-out overflow-hidden will-change-[grid-template-rows,opacity,margin] ${
+                mode === "register" 
+                  ? "grid-rows-[1fr] opacity-100 mt-4" 
+                  : "grid-rows-[0fr] opacity-0 mt-0 pointer-events-none"
+              }`}
+            >
+              <div className="min-h-0 overflow-hidden">
+                <Field icon={KeyRound} label="Повторите пароль" onChange={setRepeatPassword} placeholder="Еще раз пароль" type="password" value={repeatPassword} />
+              </div>
+            </div>
 
             {mode === "login" && (
               <div className="flex items-center justify-between gap-3 text-sm pt-1">

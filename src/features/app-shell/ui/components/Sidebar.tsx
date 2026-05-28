@@ -54,16 +54,31 @@ function SortableFolderItem({ folder, isActive, folderViewMode, onOpenFolder }: 
   };
 
   return (
-    <div ref={setNodeRef} style={style} className={`group flex w-full items-start gap-2 rounded-2xl border p-3 text-left transition ${isActive ? "border-accent bg-accent/15 text-accent ring-1 ring-accent/50" : "border-transparent hover:border-border hover:bg-surface-strong"}`}>
-      <div {...attributes} {...listeners} className="mt-0.5 cursor-grab touch-none text-foreground/20 hover:text-foreground/50 opacity-0 group-hover:opacity-100 transition-opacity" >
-        <GripVertical className="h-[18px] w-[18px]" />
-      </div>
-      <button className="flex-1 text-left flex items-start gap-2" onClick={() => onOpenFolder(folder)} type="button">
-        <Folder className={`mt-0.5 h-[18px] w-[18px] shrink-0 ${isActive ? "text-accent" : "text-foreground/50"}`} />
-        <span>
-          <span className="block text-sm font-bold">{folder.name}</span>
-          {folderViewMode === "full" && folder.description ? <span className="mt-1 block line-clamp-2 text-xs text-foreground/48">{folder.description}</span> : null}
-        </span>
+    <div ref={setNodeRef} style={style} className="relative w-full">
+      <button 
+        className={`group flex w-full items-start gap-2 rounded-2xl border p-3 text-left transition ${
+          isActive 
+            ? "border-accent bg-accent/15 text-accent ring-1 ring-accent/50" 
+            : "border-transparent hover:border-border hover:bg-surface-strong"
+        }`} 
+        onClick={() => onOpenFolder(folder)} 
+        type="button"
+      >
+        <div 
+          {...attributes} 
+          {...listeners} 
+          className="mt-0.5 cursor-grab touch-none text-foreground/20 hover:text-foreground/50 opacity-0 group-hover:opacity-100 transition-opacity z-20 relative" 
+          onClick={(e) => e.stopPropagation()} 
+        >
+          <GripVertical className="h-[18px] w-[18px]" />
+        </div>
+        <div className="flex-1 text-left flex items-start gap-2 pointer-events-none">
+          <Folder className={`mt-0.5 h-[18px] w-[18px] shrink-0 ${isActive ? "text-accent" : "text-foreground/50"}`} />
+          <span>
+            <span className="block text-sm font-bold text-foreground">{folder.name}</span>
+            {folderViewMode === "full" && folder.description ? <span className="mt-1 block line-clamp-2 text-xs text-foreground/48">{folder.description}</span> : null}
+          </span>
+        </div>
       </button>
     </div>
   );

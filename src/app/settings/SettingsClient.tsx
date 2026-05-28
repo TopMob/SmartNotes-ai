@@ -59,6 +59,20 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
   const developerMode = useUiStore((s) => s.developerMode);
   
   const [driveConnected, setDriveConnected] = useState(initialDriveConnected);
+  const [gdriveDisabled, setGdriveDisabled] = useState(() => {
+    if (typeof window !== "undefined") {
+      return window.localStorage.getItem("smartnotes:disable-google-drive") === "true";
+    }
+    return false;
+  });
+
+  function handleToggleGoogleDrive() {
+    const nextVal = !gdriveDisabled;
+    setGdriveDisabled(nextVal);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("smartnotes:disable-google-drive", String(nextVal));
+    }
+  }
   
   const userId = useAuthStore((state) => state.user?.id ?? "local-user");
   const { createNote } = useNoteActions();
@@ -518,46 +532,88 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                 </div>
               </Panel>
 
-              <Panel title={lang === "ru" ? "Хранилище Google Drive (BYOS)" : "Google Drive Storage (BYOS)"}>
-                <div className="rounded-[1.2rem] border border-border bg-surface-strong p-4 text-sm text-foreground/58 space-y-3">
-                  <p className="font-black text-foreground">
-                    {lang === "ru" ? "Статус: " : "Status: "}
-                    {driveConnected ? (
-                      <span className="text-emerald-500">{lang === "ru" ? "Подключено (Изображения сохраняются на ваш Google Диск)" : "Connected (Images are saved to your Google Drive)"}</span>
-                    ) : (
-                      <span className="text-amber-500">
-                        {lang === "ru" 
-                          ? "Локальный режим (Файлы сохраняются в заметках)" 
-                          : "Local-only mode (Files are stored inside notes)"}
-                      </span>
-                    )}
-                  </p>
-                   <p className="text-xs leading-5">
-                     {lang === "ru" 
-                       ? "Концепция BYOS (Bring Your Own Storage) позволяет загружать все изображения напрямую в ваш личный Google Drive. Приложение сохраняет только ссылки на файлы. Для включения этой функции войдите в систему с помощью учетной записи Google."
-                       : "The BYOS (Bring Your Own Storage) concept allows you to upload all images directly to your personal Google Drive. The app only stores file metadata. To enable this feature, sign in with your Google account."}
-                   </p>
-                   {driveConnected ? (
-                     <button
-                       onClick={() => void handleDisconnectDrive()}
-                       className="inline-flex min-h-11 items-center gap-2 rounded-2xl border border-rose-500/30 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition mt-2 font-bold px-4 py-2"
-                       type="button"
-                     >
-                       {lang === "ru" ? "Отключить Google Диск" : "Disconnect Google Drive"}
-                     </button>
-                   ) : (
-                     <button
-                       onClick={() => void connectGoogleDrive()}
-                       className="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-accent px-4 py-2 text-sm font-bold text-accent-foreground transition hover:bg-accent/90 mt-2"
-                       type="button"
-                     >
-                       {lang === "ru" ? "Подключить Google Диск" : "Connect Google Drive"}
-                     </button>
-                   )}
-                 </div>
-               </Panel>
-             </div>
-           ) : null}
+              <Panel title={lang === "ru" ? "Облачное хранилище медиафайлов" : "Cloud Media Storage"}>
+                <div className="rounded-[1.2rem] border border-border bg-surface-strong p-4 text-sm text-foreground/58 space-y-4">
+                  <div>
+                    <span className="block text-xs font-black uppercase tracking-[0.18em] text-foreground/42">
+                      {lang === "ru" ? "Основное хранилище (Supabase Storage)" : "Default Storage (Supabase Storage)"}
+                    </span>
+                    <p className="mt-2 text-sm font-semibold text-emerald-500">
+                      {lang === "ru" 
+                        ? "✓ Активно (Изображения сохраняются в Supabase Storage и сжимаются до 500KB)" 
+                        : "✓ Active (Images are saved in Supabase Storage and compressed to 500KB)"}
+                    </p>
+                    <p className="mt-1 text-xs leading-relaxed text-foreground/50">
+                      {lang === "ru"
+                        ? "Каждому пользователю предоставляется бесплатное защищённое хранилище объёмом до 1 ГБ. Все медиафайлы автоматически оптимизируются для экономии места."
+                        : "Each user gets up to 1 GB of secure storage free of charge. All media assets are automatically optimized to conserve storage capacity."}
+                    </p>
+                  </div>
+
+                  <div className="h-px bg-border" />
+
+                  <div>
+                    <span className="block text-xs font-black uppercase tracking-[0.18em] text-foreground/42">
+                      {lang === "ru" ? "Дополнительно: Google Диск (BYOS)" : "Optional: Google Drive (BYOS)"}
+                    </span>
+
+                    <p className="mt-2 text-sm font-medium text-foreground">
+                      {lang === "ru" ? "Статус интеграции: " : "Integration Status: "}
+                      {gdriveDisabled ? (
+                        <span className="text-amber-500">{lang === "ru" ? "Отключена пользователем" : "Disabled by user"}</span>
+                      ) : driveConnected ? (
+                        <span className="text-emerald-500">{lang === "ru" ? "Подключено (Изображения сохраняются на ваш Google Диск)" : "Connected (Images are saved to your Google Drive)"}</span>
+                      ) : (
+                        <span className="text-foreground/48">{lang === "ru" ? "Не подключено" : "Not connected"}</span>
+                      )}
+                    </p>
+
+                    <p className="mt-1 text-xs leading-relaxed text-foreground/50">
+                      {lang === "ru"
+                        ? "Концепция BYOS (Bring Your Own Storage) позволяет загружать все изображения напрямую в ваш личный Google Drive. При возникновении проблем с авторизацией Google вы можете временно отключить интеграцию ниже."
+                        : "The BYOS concept lets you upload photos directly to your personal Google Drive account. If you encounter Google OAuth issues, you can disable the integration below."}
+                    </p>
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {driveConnected && !gdriveDisabled && (
+                        <button
+                          onClick={() => void handleDisconnectDrive()}
+                          className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition text-xs font-bold px-4 py-2"
+                          type="button"
+                        >
+                          {lang === "ru" ? "Отключить аккаунт Google" : "Disconnect Google Account"}
+                        </button>
+                      )}
+                      
+                      {!driveConnected && (
+                        <button
+                          onClick={() => void connectGoogleDrive()}
+                          className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-accent px-4 py-2 text-xs font-bold text-accent-foreground transition hover:bg-accent/90"
+                          type="button"
+                        >
+                          {lang === "ru" ? "Подключить Google Диск" : "Connect Google Drive"}
+                        </button>
+                      )}
+
+                      <button
+                        onClick={handleToggleGoogleDrive}
+                        className={`inline-flex min-h-10 items-center gap-2 rounded-xl border px-4 py-2 text-xs font-bold transition ${
+                          gdriveDisabled 
+                            ? "border-accent bg-accent/10 text-accent" 
+                            : "border-border bg-background hover:bg-surface-strong text-foreground/72"
+                        }`}
+                        type="button"
+                      >
+                        {gdriveDisabled 
+                          ? (lang === "ru" ? "Включить интеграцию с Диском" : "Enable Drive Integration")
+                          : (lang === "ru" ? "Отключить интеграцию с Диском" : "Disable Drive Integration")}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </Panel>
+            </div>
+          ) : null}
 
           {activeSection === "profile" ? (
             <div className="space-y-6">

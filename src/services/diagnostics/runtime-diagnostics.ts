@@ -10,7 +10,7 @@ type CollabDiagnostic = {
 };
 
 type MediaDiagnostic = {
-  provider: "google-drive" | "local-inline";
+  provider: "google-drive" | "local-inline" | "supabase";
   degraded: boolean;
   updatedAt: string;
   message: string;

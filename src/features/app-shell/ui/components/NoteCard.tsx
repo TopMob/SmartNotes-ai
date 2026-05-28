@@ -43,13 +43,14 @@ export function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: NoteC
 
   return (
     <article className={`note-card relative overflow-visible rounded-[1.5rem] border bg-surface-strong p-4 text-left shadow-md shadow-violet-950/4 transition hover:-translate-y-0.5 hover:shadow-lg sm:p-5 border-border ${note.trashedAt ? "border-dashed border-rose-300" : "border-border"}`}>
-      <div className="absolute right-3 top-3 z-10 flex items-start gap-1">
+      {/* Top right action buttons. Positioned at z-20 relative so they render on top of the card's clickable pseudo-overlay. */}
+      <div className="absolute right-3 top-3 z-20 flex items-start gap-1">
         {view === "trash" ? null : (
           <>
-            <button className={`flex h-9 w-9 items-center justify-center rounded-xl bg-surface/92 backdrop-blur hover:bg-background ${note.pinned ? "text-accent" : "text-foreground/56"}`} onClick={() => void togglePinned(note.id)} type="button">
+            <button className={`flex h-9 w-9 items-center justify-center rounded-xl bg-surface/92 backdrop-blur hover:bg-background ${note.pinned ? "text-accent" : "text-foreground/56"}`} onClick={(e) => { e.stopPropagation(); void togglePinned(note.id); }} type="button">
               <Pin className={`h-4 w-4 ${note.pinned ? "fill-current" : ""}`} />
             </button>
-            <button className={`flex h-9 w-9 items-center justify-center rounded-xl bg-surface/92 backdrop-blur hover:bg-background ${note.favorite ? "text-rose-500" : "text-foreground/56"}`} onClick={() => void toggleFavorite(note.id)} type="button">
+            <button className={`flex h-9 w-9 items-center justify-center rounded-xl bg-surface/92 backdrop-blur hover:bg-background ${note.favorite ? "text-rose-500" : "text-foreground/56"}`} onClick={(e) => { e.stopPropagation(); void toggleFavorite(note.id); }} type="button">
               <Heart className={`h-4 w-4 ${note.favorite ? "fill-current" : ""}`} />
             </button>
           </>
@@ -57,6 +58,7 @@ export function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: NoteC
 
         <div className="relative">
           <button className="flex h-9 w-9 items-center justify-center rounded-xl bg-surface/92 text-foreground/56 backdrop-blur hover:bg-background" onClick={(event) => {
+            event.stopPropagation();
             if (note.lock && !isUnlocked) {
               onOpenNote(note.id);
             } else {
@@ -69,44 +71,55 @@ export function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: NoteC
         </div>
       </div>
 
-      <button className="block w-full text-left" onClick={() => onOpenNote(note.id)} type="button">
+      {/* Main card trigger button. Stretched using the pseudo-element 'before' overlay at z-10.
+          This handles standard button semantics, keyboard focus/triggering, and makes the ENTIRE card clickable. */}
+      <button 
+        className="block w-full text-left rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 before:absolute before:inset-0 before:rounded-[1.5rem] before:z-10" 
+        onClick={() => onOpenNote(note.id)} 
+        type="button"
+      >
         <h3 className="pr-20 text-base font-black tracking-tight sm:text-lg mt-0 truncate" title={note.title}>
           {note.title}
         </h3>
         <p className={`mt-2 line-clamp-3 text-sm leading-6 text-foreground/60 ${note.lock?.hidden && !isUnlocked ? "select-none" : ""}`}>
           {previewText}
         </p>
-        {Boolean(note.reminderAt || note.lock || note.isArchived || folder || isShared) && (
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-[12px] font-black uppercase tracking-[0.18em] text-foreground/42">
-            {note.reminderAt ? <span className="rounded-full bg-amber-500/10 px-2 py-1 text-amber-600">{reminderLabel}</span> : null}
-            {note.lock ? <span className="rounded-full bg-foreground/8 px-2 py-1">🔒</span> : null}
-            {note.isArchived ? <span className="rounded-full bg-foreground/8 px-2 py-1">Archive</span> : null}
-            {folder ? <span className="rounded-full bg-accent/10 px-2 py-1 text-accent">{folder.name}</span> : null}
-            {isShared ? <span className="rounded-full bg-violet-500/10 px-2.5 py-1 text-violet-400">👥 Collab</span> : null}
-          </div>
-        )}
-        {(!note.lock || isUnlocked) && note.userTags.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-2">
-            {note.userTags.slice(0, 5).map((tag) => (
-              <span className="rounded-full border border-border px-3.5 py-1 text-xs font-semibold text-foreground/56" key={tag}>
-                #{tag}
-              </span>
-            ))}
-          </div>
-        )}
-        {note.aiStatus === "done" && note.aiRelevance > 0 && (
-          <div className="mt-2 flex items-center gap-2">
-            <div className="h-1 flex-1 rounded-full bg-foreground/8">
-              <div
-                className="h-1 rounded-full bg-emerald-500"
-                style={{ width: Math.round(note.aiRelevance * 100) + "%" }}
-              />
+        
+        {/* z-20 relative wrapper so that other text links or tags stay interactable if needed, or simply render cleanly. */}
+        <div className="relative z-20 pointer-events-none">
+          {Boolean(note.reminderAt || note.lock || note.isArchived || folder || isShared) && (
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-[12px] font-black uppercase tracking-[0.18em] text-foreground/42">
+              {note.reminderAt ? <span className="rounded-full bg-amber-500/10 px-2 py-1 text-amber-600">{reminderLabel}</span> : null}
+              {note.lock ? <span className="rounded-full bg-foreground/8 px-2 py-1">🔒</span> : null}
+              {note.isArchived ? <span className="rounded-full bg-foreground/8 px-2 py-1">Archive</span> : null}
+              {folder ? <span className="rounded-full bg-accent/10 px-2 py-1 text-accent">{folder.name}</span> : null}
+              {isShared ? <span className="rounded-full bg-violet-500/10 px-2.5 py-1 text-violet-400">👥 Collab</span> : null}
             </div>
-            <span className="text-[10px] font-bold text-foreground/36">{Math.round(note.aiRelevance * 100)}% релевантность</span>
-          </div>
-        )}
+          )}
+          {(!note.lock || isUnlocked) && note.userTags.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {note.userTags.slice(0, 5).map((tag) => (
+                <span className="rounded-full border border-border px-3.5 py-1 text-xs font-semibold text-foreground/56" key={tag}>
+                  #{tag}
+                </span>
+              ))}
+            </div>
+          )}
+          {note.aiStatus === "done" && note.aiRelevance > 0 && (
+            <div className="mt-2 flex items-center gap-2">
+              <div className="h-1 flex-1 rounded-full bg-foreground/8">
+                <div
+                  className="h-1 rounded-full bg-emerald-500"
+                  style={{ width: Math.round(note.aiRelevance * 100) + "%" }}
+                />
+              </div>
+              <span className="text-[10px] font-bold text-foreground/36">{Math.round(note.aiRelevance * 100)}% релевантность</span>
+            </div>
+          )}
+        </div>
       </button>
     </article>
+
   );
 }
 

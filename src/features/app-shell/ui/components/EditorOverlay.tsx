@@ -36,7 +36,90 @@ import TextAlign from "@tiptap/extension-text-align";
 import StarterKit from "@tiptap/starter-kit";
 import UnderlineExtension from "@tiptap/extension-underline";
 import ImageExtension from "@tiptap/extension-image";
+import { getLocalMedia, storeLocalMedia } from "@/shared/utils/local-media-db";
 import { DrawingCanvas } from "@/features/editor/ui/DrawingCanvas";
+
+const LocalMediaImageExtension = ImageExtension.extend({
+  addNodeView() {
+    return ({ node, HTMLAttributes, getPos, editor }) => {
+      const dom = document.createElement("div");
+      dom.className = "my-custom-image-wrapper relative inline-block max-w-full";
+
+      const img = document.createElement("img");
+      img.className = "rounded-2xl max-w-full h-auto select-none border border-border bg-surface/50 shadow-md";
+      
+      // Copy all attributes except src
+      Object.entries(HTMLAttributes).forEach(([key, value]) => {
+        if (key !== "src" && value !== undefined) {
+          img.setAttribute(key, value as string);
+        }
+      });
+
+      let objectUrl: string | null = null;
+      const src = node.attrs.src;
+
+      if (src && src.startsWith("data:image/")) {
+        // Base64 Migration: automatically convert data URLs to IndexedDB Blobs
+        const fileId = crypto.randomUUID();
+        fetch(src)
+          .then((res) => res.blob())
+          .then(async (blob) => {
+            await storeLocalMedia(fileId, blob);
+            
+            objectUrl = URL.createObjectURL(blob);
+            img.src = objectUrl;
+
+            if (typeof getPos === "function") {
+              const pos = getPos();
+              if (typeof pos === "number" && editor) {
+                editor.view.dispatch(
+                  editor.state.tr.setNodeMarkup(pos, undefined, {
+                    ...node.attrs,
+                    src: `local-media:${fileId}`,
+                  })
+                );
+              }
+            }
+          })
+          .catch((err) => {
+            console.error("Failed to migrate Base64 image to IndexedDB:", err);
+          });
+      } else if (src && src.startsWith("local-media:")) {
+        const fileId = src.replace("local-media:", "");
+        getLocalMedia(fileId).then((blob) => {
+          if (blob) {
+            objectUrl = URL.createObjectURL(blob);
+            img.src = objectUrl;
+          } else {
+            console.warn(`Local media Blob not found in IndexedDB for ID: ${fileId}`);
+          }
+        }).catch((err) => {
+          console.error("Failed to load local media Blob:", err);
+        });
+      } else {
+        img.src = src;
+      }
+
+      dom.appendChild(img);
+
+      return {
+        dom,
+        selectNode() {
+          img.classList.add("ring-2", "ring-accent", "scale-[1.01]", "transition-transform");
+        },
+        deselectNode() {
+          img.classList.remove("ring-2", "ring-accent", "scale-[1.01]", "transition-transform");
+        },
+        destroy() {
+          if (objectUrl) {
+            URL.revokeObjectURL(objectUrl);
+          }
+        }
+      };
+    };
+  }
+});
+
 import { useAiEngineStore } from "@/features/ai-engine/model/ai-store";
 import { useAutoAnalyze } from "@/features/ai-engine/hooks/use-auto-analyze";
 import { useEffect, useRef, useState, useCallback, useMemo, type ComponentType } from "react";
@@ -66,7 +149,7 @@ const EDITOR_EXTENSIONS = [
   LinkExtension.configure({ openOnClick: false, autolink: true, linkOnPaste: true, defaultProtocol: "https" }),
   TextAlign.configure({ types: ["heading", "paragraph"] }),
   UnderlineExtension,
-  ImageExtension,
+  LocalMediaImageExtension,
 ];
 
 type EditorOverlayProps = {
