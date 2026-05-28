@@ -1,7 +1,8 @@
 const CACHE_NAME = "smartnotes-v1";
 const ASSETS_TO_CACHE = [
-  "/manifest.json",
-  "/apple-icon.svg",
+  "/manifest.webmanifest",
+  "/icon.svg",
+  "/apple-icon.png",
 ];
 
 self.addEventListener("install", (event) => {
@@ -27,11 +28,9 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
-  // Only cache GET requests
   if (event.request.method !== "GET") return;
 
   const url = new URL(event.request.url);
-  // Skip chrome-extension, cross-origin, API, webpack-hmr, and HTML navigations
   if (
     url.origin !== self.location.origin ||
     url.pathname.startsWith("/api/") ||
@@ -53,7 +52,6 @@ self.addEventListener("fetch", (event) => {
         }
         return networkResponse;
       }).catch(() => {
-        // Fallback for offline if not in cache
         return cachedResponse;
       });
 

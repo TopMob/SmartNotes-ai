@@ -7,39 +7,37 @@ export function LogoMark({ className, title = "SmartNotes" }: LogoMarkProps) {
   return (
     <svg
       className={className}
-      viewBox="0 0 24 24"
+      viewBox="0 0 512 512"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
       <title>{title}</title>
-      {/* Left half: Brain outline */}
       <path
-        d="M9.5 4.5C6.5 4.5 4.5 6.5 4.5 9.5C4.5 11.2 5.5 12.2 5.5 13C5.5 13.8 4.5 14.8 4.5 16.5C4.5 19 6.5 20.5 9.5 20.5"
+        d="M 120 280 L 120 150 C 120 120, 145 95, 175 95 L 320 95 C 350 95, 375 120, 375 150 L 375 220"
         stroke="currentColor"
-        strokeWidth="2.2"
+        strokeWidth="24"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      {/* Middle notebook spine */}
       <path
-        d="M11 4V20"
+        d="M 210 270 L 210 220 C 210 190, 235 165, 265 165 L 410 165 C 440 165, 465 190, 465 220 L 465 350 C 465 380, 440 405, 410 405 L 310 405 L 210 490 L 210 380 C 175 380, 150 355, 150 320 L 150 280"
         stroke="currentColor"
-        strokeWidth="2.2"
+        strokeWidth="24"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      {/* Right half: Text document lines */}
       <path
-        d="M14 6H19M14 10H20M14 14H18M14 18H19"
+        d="M 285 270 A 45 45 0 1 1 390 270"
         stroke="currentColor"
-        strokeWidth="2.2"
+        strokeWidth="24"
         strokeLinecap="round"
       />
-      {/* Pulsing Neural/AI Sparkle node */}
       <path
-        d="M17 12.5C17 12.5 17.2 13.1 17.6 13.5C18 13.9 18.6 14 18.6 14C18.6 14 18 14.1 17.6 14.5C17.2 14.9 17 15.5 17 15.5C17 15.5 16.8 14.9 16.4 14.5C16 14.1 15.4 14 15.4 14C15.4 14 16 13.9 16.4 13.5C16.8 13.1 17 12.5 17 12.5Z"
-        fill="currentColor"
-        className="text-accent animate-pulse"
+        d="M 305 245 L 330 270 L 365 235"
+        stroke="currentColor"
+        strokeWidth="24"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   );

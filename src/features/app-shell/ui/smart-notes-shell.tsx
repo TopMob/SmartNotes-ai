@@ -198,6 +198,7 @@ export function SmartNotesShell() {
 
           {shellState.filtersOpen ? (
             <TopFiltersPopup
+              popupRef={shellState.filtersPopupRef}
               folders={folders}
               notesFilter={notesFilter}
               savedFilters={savedFilters}

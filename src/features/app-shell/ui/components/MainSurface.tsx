@@ -21,6 +21,9 @@ import type { AppView } from "@/shared/store/ui-store";
 import { NoteCard } from "./NoteCard";
 import { InvitesMainView } from "./InvitesMainView";
 import { Button } from "@/shared/ui/button";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, rectSortingStrategy } from "@dnd-kit/sortable";
+import { useUiStore } from "@/shared/store/ui-store";
 import type { SheetAnchor, SheetName } from "./shared";
 
 type MainSurfaceProps = {
@@ -194,10 +197,43 @@ function NotesView({ copy, title: _title, notes, notesPerPage, emptyText: _empty
 
   const { pinned, unpinned } = useMemo(() => selectPinnedGroups(notes), [notes]);
 
-
   const pinnedVisible = pinned.slice(0, displayLimit);
   const unpinnedVisible = unpinned.slice(0, Math.max(displayLimit - pinnedVisible.length, 0));
   const hasMore = displayLimit < notes.length;
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const { reorderNotes } = useNoteActions();
+  const setNotesSort = useUiStore((state) => state.setNotesSort);
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) {
+      return;
+    }
+
+    const isPinned = pinned.some((n) => n.id === active.id);
+    const list = isPinned ? pinned : unpinned;
+
+    const oldIndex = list.findIndex((n) => n.id === active.id);
+    const newIndex = list.findIndex((n) => n.id === over.id);
+
+    if (oldIndex !== -1 && newIndex !== -1) {
+      const nextList = arrayMove(list, oldIndex, newIndex);
+      setNotesSort("manual");
+      void reorderNotes(nextList.map((n) => n.id));
+    }
+  }
 
   if (!notes.length) {
     return (
@@ -212,44 +248,50 @@ function NotesView({ copy, title: _title, notes, notesPerPage, emptyText: _empty
   }
 
   return (
-    <div className="content-scrollable space-y-5 p-3 sm:p-4">
-      {pinnedVisible.length ? (
-        <section>
-          <div className="mb-3 flex items-center gap-2 text-sm font-black uppercase tracking-[0.2em] text-accent">
-            <Heart className="h-4 w-4" />
-            {copy.shell.sections.pinned}
-          </div>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3 sm:gap-[14px]">
-            {pinnedVisible.map((note) => (
-              <NoteCard key={note.id} folders={visibleFolders} note={note} onOpenNote={onOpenNote} onOpenSheet={onOpenSheet} view={view} />
-            ))}
-          </div>
-        </section>
-      ) : null}
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <div className="content-scrollable space-y-5 p-3 sm:p-4">
+        {pinnedVisible.length ? (
+          <section>
+            <div className="mb-3 flex items-center gap-2 text-sm font-black uppercase tracking-[0.2em] text-accent">
+              <Heart className="h-4 w-4" />
+              {copy.shell.sections.pinned}
+            </div>
+            <SortableContext items={pinnedVisible.map((n) => n.id)} strategy={rectSortingStrategy}>
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3 sm:gap-[14px]">
+                {pinnedVisible.map((note) => (
+                  <NoteCard key={note.id} folders={visibleFolders} note={note} onOpenNote={onOpenNote} onOpenSheet={onOpenSheet} view={view} />
+                ))}
+              </div>
+            </SortableContext>
+          </section>
+        ) : null}
 
-      {unpinnedVisible.length ? (
-        <section>
-          <div className="mb-3 text-sm font-black uppercase tracking-[0.2em] text-foreground/42">{copy.shell.sections.notes}</div>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3 sm:gap-[14px]">
-            {unpinnedVisible.map((note) => (
-              <NoteCard key={note.id} folders={visibleFolders} note={note} onOpenNote={onOpenNote} onOpenSheet={onOpenSheet} view={view} />
-            ))}
-          </div>
-        </section>
-      ) : null}
+        {unpinnedVisible.length ? (
+          <section>
+            <div className="mb-3 text-sm font-black uppercase tracking-[0.2em] text-foreground/42">{copy.shell.sections.notes}</div>
+            <SortableContext items={unpinnedVisible.map((n) => n.id)} strategy={rectSortingStrategy}>
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3 sm:gap-[14px]">
+                {unpinnedVisible.map((note) => (
+                  <NoteCard key={note.id} folders={visibleFolders} note={note} onOpenNote={onOpenNote} onOpenSheet={onOpenSheet} view={view} />
+                ))}
+              </div>
+            </SortableContext>
+          </section>
+        ) : null}
 
-      {hasMore ? (
-        <div className="mt-8 flex justify-center pb-8">
-          <button
-            className="rounded-2xl border border-border bg-surface-strong px-6 py-3 text-sm font-black text-foreground/72 hover:bg-surface transition-colors"
-            onClick={() => setDisplayLimit(limit => limit + notesPerPage)}
-            type="button"
-          >
-            {(copy.shell.actions as Record<string, string>)?.loadMore || "Показать еще"}
-          </button>
-        </div>
-      ) : null}
-    </div>
+        {hasMore ? (
+          <div className="mt-8 flex justify-center pb-8">
+            <button
+              className="rounded-2xl border border-border bg-surface-strong px-6 py-3 text-sm font-black text-foreground/72 hover:bg-surface transition-colors"
+              onClick={() => setDisplayLimit(limit => limit + notesPerPage)}
+              type="button"
+            >
+              {(copy.shell.actions as Record<string, string>)?.loadMore || "Показать еще"}
+            </button>
+          </div>
+        ) : null}
+      </div>
+    </DndContext>
   );
 }
 

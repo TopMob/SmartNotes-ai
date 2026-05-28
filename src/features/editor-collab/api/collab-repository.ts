@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import { createSupabaseBrowserClient } from "@/shared/api/supabase/client";
 
 export type CollaboratorDetail = {

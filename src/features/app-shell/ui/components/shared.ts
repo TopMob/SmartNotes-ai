@@ -110,11 +110,19 @@ export function exportNoteAsPdf(note: Note) {
 
 export async function shareText(title: string, text: string) {
   if (typeof window !== "undefined" && typeof window.navigator.share === "function") {
-    await navigator.share({ title, text });
-    return;
+    try {
+      await navigator.share({ title, text });
+      return;
+    } catch {
+    }
   }
 
-  await window.navigator.clipboard.writeText(text);
+  try {
+    await window.navigator.clipboard.writeText(text);
+    window.alert("Информация скопирована в буфер обмена");
+  } catch {
+    window.alert("Не удалось скопировать в буфер обмена");
+  }
 }
 
 export async function shareNote(note: Note) {

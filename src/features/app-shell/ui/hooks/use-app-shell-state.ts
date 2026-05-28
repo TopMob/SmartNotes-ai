@@ -19,7 +19,7 @@ export function useAppShellState() {
   const [isDesktop, setIsDesktop] = useState(false);
   const profileRef = useRef<HTMLDivElement | null>(null);
   const filtersRef = useRef<HTMLDivElement | null>(null);
-
+  const filtersPopupRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     function syncViewport() {
@@ -44,14 +44,16 @@ export function useAppShellState() {
     return () => window.removeEventListener("resize", syncViewport);
   }, [desktopSidebarOpen, desktopSidebarPinned, setDesktopSidebarOpen]);
 
-
   useEffect(() => {
     function handlePointerDown(event: MouseEvent) {
       if (!profileRef.current?.contains(event.target as Node)) {
         setProfileOpen(false);
       }
 
-      if (!filtersRef.current?.contains(event.target as Node)) {
+      if (
+        !filtersRef.current?.contains(event.target as Node) &&
+        !filtersPopupRef.current?.contains(event.target as Node)
+      ) {
         setFiltersOpen(false);
       }
     }
@@ -74,6 +76,7 @@ export function useAppShellState() {
     filtersOpen,
     setFiltersOpen,
     filtersRef,
+    filtersPopupRef,
     editorOpen,
     setEditorOpen,
     toolbarVisible,
