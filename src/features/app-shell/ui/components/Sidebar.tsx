@@ -42,7 +42,6 @@ type SidebarProps = {
   onOpenFolder: (folder: FolderEntity) => void;
   onOpenSheet: (sheet: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void;
   onSwitchView: (view: AppView) => void;
-  onOpenFeedback?: () => void;
 };
 
 
@@ -70,7 +69,7 @@ function SortableFolderItem({ folder, isActive, folderViewMode, onOpenFolder }: 
   );
 }
 
-export function Sidebar({ copy, currentView, folders, folderViewMode, activeFolderId, isDesktop = false, invitesCount = 0, onClose, onCreateFolder, onOpenFolder, onOpenSheet, onSwitchView, onOpenFeedback }: SidebarProps) {
+export function Sidebar({ copy, currentView, folders, folderViewMode, activeFolderId, isDesktop = false, invitesCount = 0, onClose, onCreateFolder, onOpenFolder, onOpenSheet, onSwitchView }: SidebarProps) {
   const logoClicksRef = useRef(0);
   const developerMode = useUiStore((s) => s.developerMode);
   const toggleDeveloperMode = useUiStore((s) => s.toggleDeveloperMode);
@@ -150,11 +149,7 @@ export function Sidebar({ copy, currentView, folders, folderViewMode, activeFold
 
       <div className="mt-3 shrink-0 border-t border-border/80 pt-3 pr-2">
         <div className="grid gap-2 rounded-[1.25rem] border border-border bg-surface-strong/55 p-2">
-        {onOpenFeedback ? (
-          <button className="flex w-full items-center justify-center rounded-xl border border-border bg-background/40 px-4 py-2.5 text-sm font-bold text-accent hover:bg-background/70" onClick={onOpenFeedback} type="button">
-            Оставить отзыв
-          </button>
-        ) : null}
+
         <button className="flex w-full items-center justify-center rounded-xl border border-border bg-background/40 px-4 py-2.5 text-sm font-bold hover:bg-background/70" onClick={(event) => onOpenSheet("about", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button">
           {copy.shell.about}
         </button>

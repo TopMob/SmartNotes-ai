@@ -448,12 +448,12 @@ function AdminToolsView({ notes }: { notes: Note[] }) {
                     </div>
                   </div>
                   <p className="text-sm font-medium leading-relaxed mb-4">
-                    {item.comment || <span className="italic text-foreground/30">Без комментария</span>}
+                    {item.text || <span className="italic text-foreground/30">Без комментария</span>}
                   </p>
                   <div className="text-[10px] text-foreground/40 font-mono bg-background p-2 rounded-xl break-all">
-                    UserAgent: {item.user_agent}<br/>
-                    Language: {item.system_language}<br/>
-                    {item.diagnostics_snapshot ? `Diagnostics: ${JSON.stringify(item.diagnostics_snapshot).substring(0, 100)}...` : ""}
+                    UserAgent: {item.technical_data?.userAgent || "—"}<br/>
+                    Language: {item.technical_data?.systemLanguage || "—"}<br/>
+                    {item.technical_data?.diagnostics ? `Diagnostics: ${JSON.stringify(item.technical_data.diagnostics).substring(0, 100)}...` : ""}
                   </div>
                 </div>
               ))

@@ -28,7 +28,6 @@ import { useNoteInteractions } from "./hooks/use-note-interactions";
 import { useReminderEffects } from "./hooks/use-reminder-effects";
 import { AiChatPanel } from "@/features/ai-engine/ui/AiChatPanel";
 import { CommandPalette } from "./components/CommandPalette";
-import { FeedbackModal } from "@/features/feedback/ui/FeedbackModal";
 import { LockManager } from "@/features/lock-center/ui/lock-manager";
 
 export function SmartNotesShell() {
@@ -38,7 +37,6 @@ export function SmartNotesShell() {
   const { data: settings } = useSettingsQuery();
   const user = useAuthStore((state) => state.user);
   const [invitesCount, setInvitesCount] = useState(0);
-  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   const loadInvites = useCallback(() => {
     if (user?.email) {
@@ -181,7 +179,7 @@ export function SmartNotesShell() {
       <div className="relative flex min-h-0 flex-1 overflow-x-hidden">
         {desktopSidebarVisible ? (
           <div className="hidden lg:block">
-            <Sidebar copy={copy} currentView={view} folderViewMode={folderViewMode} folders={folders} activeFolderId={activeFolderId} isDesktop invitesCount={invitesCount} onClose={() => setDesktopSidebarOpen(false)} onCreateFolder={(anchor) => shellState.openSheet("create-folder", anchor)} onOpenFolder={openFolder} onOpenSheet={shellState.openSheet} onSwitchView={openView} onOpenFeedback={() => setFeedbackOpen(true)} />
+            <Sidebar copy={copy} currentView={view} folderViewMode={folderViewMode} folders={folders} activeFolderId={activeFolderId} isDesktop invitesCount={invitesCount} onClose={() => setDesktopSidebarOpen(false)} onCreateFolder={(anchor) => shellState.openSheet("create-folder", anchor)} onOpenFolder={openFolder} onOpenSheet={shellState.openSheet} onSwitchView={openView} />
           </div>
         ) : null}
 
@@ -220,7 +218,7 @@ export function SmartNotesShell() {
         <div className="fixed inset-0 z-40 lg:hidden">
           <button aria-label="Закрыть меню" className="absolute inset-0 bg-black/50 backdrop-blur-md" onClick={closeMobileSidebar} type="button" />
           <div className="absolute inset-y-0 left-0 w-[85vw] max-w-[320px]">
-            <Sidebar copy={copy} currentView={view} folderViewMode={folderViewMode} folders={folders} activeFolderId={activeFolderId} invitesCount={invitesCount} onClose={closeMobileSidebar} onCreateFolder={(anchor) => shellState.openSheet("create-folder", anchor)} onOpenFolder={openFolder} onOpenSheet={shellState.openSheet} onSwitchView={openView} onOpenFeedback={() => setFeedbackOpen(true)} />
+            <Sidebar copy={copy} currentView={view} folderViewMode={folderViewMode} folders={folders} activeFolderId={activeFolderId} invitesCount={invitesCount} onClose={closeMobileSidebar} onCreateFolder={(anchor) => shellState.openSheet("create-folder", anchor)} onOpenFolder={openFolder} onOpenSheet={shellState.openSheet} onSwitchView={openView} />
           </div>
         </div>
       ) : null}
@@ -270,7 +268,6 @@ export function SmartNotesShell() {
       ) : null}
       {!shellState.editorOpen || !currentNote ? <BottomSheet activeFolder={activeFolder} editorDirty={editorDirty} isDesktop={shellState.isDesktop} sheet={shellState.sheet} onClose={() => shellState.setSheet(null)} onOpenSheet={shellState.openSheet} onOpenEditor={() => shellState.setEditorOpen(true)} onCloseEditor={closeEditor} /> : null}
       
-      <FeedbackModal isOpen={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
       <LockManager />
     </main>
   );
