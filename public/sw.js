@@ -1,8 +1,5 @@
 const CACHE_NAME = "smartnotes-v1";
 const ASSETS_TO_CACHE = [
-  "/",
-  "/settings",
-  "/login",
   "/manifest.json",
   "/apple-icon.svg",
 ];
@@ -39,7 +36,8 @@ self.addEventListener("fetch", (event) => {
     url.origin !== self.location.origin ||
     url.pathname.startsWith("/api/") ||
     url.pathname.startsWith("/_next/") ||
-    event.request.mode === "navigate"
+    event.request.mode === "navigate" ||
+    event.request.redirect === "manual"
   ) {
     return;
   }

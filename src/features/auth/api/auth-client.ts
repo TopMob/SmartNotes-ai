@@ -81,7 +81,7 @@ export async function signInWithGoogle(requestDriveAccess: boolean = false) {
   return data;
 }
 
-export async function signInWithGoogleIdToken(credential: string) {
+export async function signInWithGoogleIdToken(credential: string, nonce?: string) {
   const supabase = createSupabaseBrowserClient();
 
   if (!supabase) {
@@ -91,6 +91,7 @@ export async function signInWithGoogleIdToken(credential: string) {
   const { data, error } = await supabase.auth.signInWithIdToken({
     provider: "google",
     token: credential,
+    nonce,
   });
 
   if (error) {

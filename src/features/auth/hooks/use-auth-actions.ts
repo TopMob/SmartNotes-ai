@@ -58,9 +58,9 @@ export function useAuthActions() {
       });
     }, []),
 
-    loginWithGoogleOneTap: useCallback(async (credential: string) => {
+    loginWithGoogleOneTap: useCallback(async (credential: string, nonce?: string) => {
       await run(async () => {
-        await signInWithGoogleIdToken(credential);
+        await signInWithGoogleIdToken(credential, nonce);
         window.location.assign('/');
       });
     }, []),

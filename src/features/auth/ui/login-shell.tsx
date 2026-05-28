@@ -72,8 +72,8 @@ export function LoginShell() {
     let cleanup: (() => void) | undefined;
     let cancelled = false;
 
-    void initGoogleOneTap(googleClientId, async (credential) => {
-      await loginWithGoogleOneTap(credential);
+    void initGoogleOneTap(googleClientId, async (credential, nonce) => {
+      await loginWithGoogleOneTap(credential, nonce);
     }).then((dispose) => {
       if (cancelled) {
         dispose();

@@ -168,8 +168,8 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
 
           const isLoginPage = typeof window !== "undefined" && window.location.pathname.startsWith("/login");
           if (!sessionData.session && runtimeConfig.googleClientId && !isLoginPage) {
-            void initGoogleOneTap(runtimeConfig.googleClientId, async (credential) => {
-              await signInWithGoogleIdToken(credential);
+            void initGoogleOneTap(runtimeConfig.googleClientId, async (credential, nonce) => {
+              await signInWithGoogleIdToken(credential, nonce);
             });
           }
         }

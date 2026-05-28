@@ -3,7 +3,7 @@
 const GSI_SCRIPT_ID = "google-gsi-script";
 const GSI_SCRIPT_SRC = "https://accounts.google.com/gsi/client";
 
-export type OneTapCredentialCallback = (credential: string) => Promise<void>;
+export type OneTapCredentialCallback = (credential: string, nonce?: string) => Promise<void>;
 
 function loadGsiScript(): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -43,11 +43,19 @@ export async function initGoogleOneTap(
     return () => undefined;
   }
 
+  const nonce = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))));
+  const encoder = new TextEncoder();
+  const encodedNonce = encoder.encode(nonce);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', encodedNonce);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashedNonce = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+
   google.accounts.id.initialize({
     client_id: clientId,
+    nonce: hashedNonce,
     callback: async (response: { credential: string }) => {
       try {
-        await onCredential(response.credential);
+        await onCredential(response.credential, nonce);
       } catch { }
     },
     auto_select: false,
