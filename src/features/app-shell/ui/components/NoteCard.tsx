@@ -6,6 +6,7 @@ import type { Note } from "@/entities/note";
 import { useNoteActions } from "@/features/notes/hooks/use-note-mutations";
 import { maskLockedPreview } from "@/features/lock-center/lib/lock-service";
 import { useNoteUiStore } from "@/features/notes/model/note-ui-store";
+import { useLockStore } from "@/features/lock-center/model/lock-store";
 import type { AppView } from "@/shared/store/ui-store";
 import { useAuthStore } from "@/features/auth/model/auth-store";
 
@@ -25,8 +26,9 @@ export function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: NoteC
   const setCurrentNoteId = useNoteUiStore((state) => state.setCurrentNoteId);
   const currentUserId = useAuthStore((state) => state.user?.id);
   const isShared = (note.access && note.access.length > 0) || (note.ownerId && note.ownerId !== currentUserId && currentUserId !== "local-user" && currentUserId !== undefined);
+  const isUnlocked = useLockStore((state) => state.unlockedNotes.has(note.id));
 
-  const previewText = note.lock?.hidden ? maskLockedPreview(note.id) : stripHtml(note.content);
+  const previewText = note.lock?.hidden && !isUnlocked ? maskLockedPreview(note.id) : stripHtml(note.content);
   const reminderLabel = note.reminderAt
     ? new Date(note.reminderAt).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
     : null;
@@ -64,7 +66,7 @@ export function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: NoteC
         <h3 className="pr-20 text-base font-black tracking-tight sm:text-lg mt-0">
           {note.title}
         </h3>
-        <p className={`mt-2 line-clamp-3 text-sm leading-6 text-foreground/60 ${note.lock?.hidden ? "select-none" : ""}`}>
+        <p className={`mt-2 line-clamp-3 text-sm leading-6 text-foreground/60 ${note.lock?.hidden && !isUnlocked ? "select-none" : ""}`}>
           {previewText}
         </p>
         {Boolean(note.reminderAt || note.lock || note.isArchived || folder || isShared) && (
@@ -76,7 +78,7 @@ export function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: NoteC
             {isShared ? <span className="rounded-full bg-violet-500/10 px-2.5 py-1 text-violet-400">👥 Collab</span> : null}
           </div>
         )}
-        {!note.lock?.hidden && note.userTags.length > 0 && (
+        {(!note.lock?.hidden || isUnlocked) && note.userTags.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-2">
             {note.userTags.slice(0, 5).map((tag) => (
               <span className="rounded-full border border-border px-3.5 py-1 text-xs font-semibold text-foreground/56" key={tag}>

@@ -56,6 +56,8 @@ import { setMediaDiagnostic } from "@/services/diagnostics/runtime-diagnostics";
 import { Button } from "@/shared/ui/button";
 import { AccessBadge } from "@/features/editor-collab/ui/access-badge";
 import { useAuthStore } from "@/features/auth/model/auth-store";
+import { useLockStore } from "@/features/lock-center/model/lock-store";
+import { LockPrompt } from "@/features/lock-center/ui/lock-prompt";
 
 import { getSheetAnchor, plainTextToEditorContent, serializeEditorSnapshot, type SheetAnchor, type SheetName } from "./shared";
 
@@ -84,6 +86,9 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
   const isOwner = note.ownerId === user?.id || user?.id === "local-user";
   const userAccess = note.access?.find(a => a.userId === user?.id);
   const role = isOwner ? "owner" : (userAccess?.role ?? "viewer");
+
+  const isUnlocked = useLockStore((state) => state.unlockedNotes.has(note.id));
+  const needsPassword = note.lock && note.lock.hidden && !isUnlocked;
 
   const { data: settings } = useSettingsQuery();
   const lang = settings?.lang ?? "ru";
@@ -375,6 +380,10 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
 
   if (!editor) {
     return null;
+  }
+
+  if (needsPassword && note.lock) {
+    return <LockPrompt noteId={note.id} lock={note.lock} onCancel={handleClose} />;
   }
 
   if (status === "hydrating") {

@@ -10,11 +10,11 @@ import { selectPinnedGroups } from "@/features/notes/model/note-selectors";
 import { useSearchStore } from "@/features/search";
 import { calculateScore } from "@/features/search/lib/search-engine";
 import { useAuthStore } from "@/features/auth/model/auth-store";
-import { isAdminUser } from "@/features/auth/lib/admin-acl";
+import { isAdminUser, getAdminEmails, saveAdminEmails } from "@/features/auth/lib/admin-acl";
 
 
 import { useNotesFlat } from "@/features/notes/hooks/use-notes-query";
-import { listPendingAiAnalysis } from "@/services/ai/ai-queue";
+import { listPendingAiAnalysis, clearAiAnalysisQueue } from "@/services/ai/ai-queue";
 import { listCollabDiagnostics, getMediaDiagnostic } from "@/services/diagnostics/runtime-diagnostics";
 import { listSyncQueue } from "@/services/sync/sync-queue";
 import { getUiCopy } from "@/shared/lib/i18n";
@@ -22,6 +22,7 @@ import type { AppView } from "@/shared/store/ui-store";
 
 import { NoteCard } from "./NoteCard";
 import { InvitesMainView } from "./InvitesMainView";
+import { Button } from "@/shared/ui/button";
 import type { SheetAnchor, SheetName } from "./shared";
 
 type MainSurfaceProps = {
@@ -62,7 +63,7 @@ export function MainSurface({ copy, view, folders, hiddenFolders, trashedFolders
         </section>
       );
     }
-    return <section className="panel-card min-h-[calc(100vh-4.8rem)] border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><AdminToolsView notes={notes} onOpenSheet={onOpenSheet} /></section>;
+    return <section className="panel-card min-h-[calc(100vh-4.8rem)] border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><AdminToolsView notes={notes} /></section>;
   }
 
   if (view === "hidden_folders") {
@@ -237,8 +238,7 @@ function NotesView({ copy, title: _title, notes, notesPerPage, emptyText: _empty
         case "relevance":
           return (b.aiRelevance || 0) - (a.aiRelevance || 0);
         case "importance":
-          // Stub: fallback to updated if importance not mapped
-          return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+          return (b.aiRelevance || 0) - (a.aiRelevance || 0);
         case "textLength":
           return b.content.length - a.content.length;
         case "manual":
@@ -314,7 +314,65 @@ function NotesView({ copy, title: _title, notes, notesPerPage, emptyText: _empty
   );
 }
 
-function AdminToolsView({ notes, onOpenSheet }: { notes: Note[]; onOpenSheet: (sheet: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void }) {
+function AdminToolsView({ notes }: { notes: Note[] }) {
+  const [tab, setTab] = useState<"overview" | "feedback" | "admins" | "diagnostics">("overview");
+
+  // Feedback State
+  const [feedbackList, setFeedbackList] = useState<any[]>([]);
+  const [loadingFeedback, setLoadingFeedback] = useState(false);
+
+  // Admin Emails State
+  const user = useAuthStore((state) => state.user);
+  const [adminEmails, setAdminEmails] = useState<string[]>([]);
+  const [newEmail, setNewEmail] = useState("");
+  const [emailError, setEmailError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setAdminEmails(getAdminEmails());
+  }, []);
+
+  useEffect(() => {
+    if (tab === "feedback") {
+      setLoadingFeedback(true);
+      fetch("/api/admin/feedback")
+        .then((res) => res.json())
+        .then((data) => setFeedbackList(Array.isArray(data) ? data : []))
+        .catch((err) => console.error("Failed to fetch feedback:", err))
+        .finally(() => setLoadingFeedback(false));
+    }
+  }, [tab]);
+
+  const handleAddEmail = () => {
+    const email = newEmail.trim().toLowerCase();
+    if (!email) return;
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setEmailError("Некорректный формат почты");
+      return;
+    }
+
+    if (adminEmails.includes(email)) {
+      setEmailError("Почта уже добавлена");
+      return;
+    }
+
+    const updated = [...adminEmails, email];
+    setAdminEmails(updated);
+    saveAdminEmails(updated);
+    setNewEmail("");
+    setEmailError(null);
+  };
+
+  const handleRemoveEmail = (emailToRemove: string) => {
+    if (emailToRemove === "shazak6430@gmail.com") return;
+    if (emailToRemove === user?.email?.toLowerCase()) return;
+
+    const updated = adminEmails.filter((email) => email !== emailToRemove);
+    setAdminEmails(updated);
+    saveAdminEmails(updated);
+  };
+
   const pending = notes.filter((note) => note.aiStatus === "pending").length;
   const failed = notes.filter((note) => note.aiStatus === "error").length;
   const analyzing = notes.filter((note) => note.aiStatus === "analyzing").length;
@@ -322,26 +380,160 @@ function AdminToolsView({ notes, onOpenSheet }: { notes: Note[]; onOpenSheet: (s
   const syncBacklog = listSyncQueue().length;
   const collabSessions = listCollabDiagnostics().length;
   const mediaDiagnostic = getMediaDiagnostic();
+  const collabDiagnostics = listCollabDiagnostics();
 
   return (
-    <div className="grid gap-4 p-4 sm:grid-cols-2 xl:grid-cols-3">
-      {[
-        { title: "AI pending / queued", value: `${pending} / ${queued}`, icon: Brain },
-        { title: "AI analyzing / errors", value: `${analyzing} / ${failed}`, icon: Shield },
-        { title: "Sync backlog", value: syncBacklog, icon: RotateCcw },
-        { title: "Collab sessions", value: collabSessions, icon: Sparkles },
-        { title: "Media mode", value: mediaDiagnostic.degraded ? "degraded" : mediaDiagnostic.provider, icon: Folder },
-      ].map((card) => {
-        const Icon = card.icon;
+    <div className="flex h-full flex-col">
+      <div className="border-b border-border p-4 sm:p-6 pb-0">
+        <h1 className="text-2xl font-black mb-6 tracking-tight">Admin Dashboard</h1>
+        <div className="flex gap-4">
+          {[
+            { id: "overview", label: "Сводка" },
+            { id: "feedback", label: "Отзывы" },
+            { id: "admins", label: "Администраторы" },
+            { id: "diagnostics", label: "Диагностика" },
+          ].map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id as any)}
+              className={`pb-3 text-sm font-bold border-b-2 transition ${
+                tab === t.id ? "border-accent text-accent" : "border-transparent text-foreground/50 hover:text-foreground"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
-        return (
-          <button className="rounded-[1.6rem] border border-border bg-surface-strong p-5 text-left shadow-lg shadow-violet-950/4" key={card.title} onClick={() => onOpenSheet("admin-tools")} type="button">
-            <div className="flex items-center gap-2 text-accent"><Icon className="h-5 w-5" /><span className="text-xs font-black uppercase tracking-[0.2em]">Admin</span></div>
-            <h2 className="mt-4 text-3xl font-black tracking-tight">{card.value}</h2>
-            <p className="mt-2 text-sm text-foreground/56">{card.title}</p>
-          </button>
-        );
-      })}
+      <div className="content-scrollable flex-1 p-4 sm:p-6 space-y-6">
+        {tab === "overview" && (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {[
+              { title: "AI pending / queued", value: `${pending} / ${queued}`, icon: Brain },
+              { title: "AI analyzing / errors", value: `${analyzing} / ${failed}`, icon: Shield },
+              { title: "Sync backlog", value: syncBacklog, icon: RotateCcw },
+              { title: "Collab sessions", value: collabSessions, icon: Sparkles },
+              { title: "Media mode", value: mediaDiagnostic.degraded ? "degraded" : mediaDiagnostic.provider, icon: Folder },
+            ].map((card) => {
+              const Icon = card.icon;
+              return (
+                <div className="rounded-[1.6rem] border border-border bg-surface-strong p-5 text-left shadow-lg shadow-violet-950/4" key={card.title}>
+                  <div className="flex items-center gap-2 text-accent"><Icon className="h-5 w-5" /></div>
+                  <h2 className="mt-4 text-3xl font-black tracking-tight">{card.value}</h2>
+                  <p className="mt-2 text-sm text-foreground/56">{card.title}</p>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {tab === "feedback" && (
+          <div className="space-y-4">
+            {loadingFeedback ? (
+              <div className="text-sm font-bold text-foreground/50">Загрузка отзывов...</div>
+            ) : feedbackList.length === 0 ? (
+              <div className="text-sm font-bold text-foreground/50">Отзывов пока нет.</div>
+            ) : (
+              feedbackList.map((item) => (
+                <div key={item.id} className="rounded-2xl border border-border bg-surface-strong p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="flex bg-amber-400/10 text-amber-500 font-black px-2 py-1 rounded-lg text-xs items-center gap-1">
+                        ★ {item.rating}
+                      </div>
+                      <div className="text-xs text-foreground/40 font-bold">
+                        {new Date(item.created_at).toLocaleString("ru-RU")}
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-sm font-medium leading-relaxed mb-4">
+                    {item.comment || <span className="italic text-foreground/30">Без комментария</span>}
+                  </p>
+                  <div className="text-[10px] text-foreground/40 font-mono bg-background p-2 rounded-xl break-all">
+                    UserAgent: {item.user_agent}<br/>
+                    Language: {item.system_language}<br/>
+                    {item.diagnostics_snapshot ? `Diagnostics: ${JSON.stringify(item.diagnostics_snapshot).substring(0, 100)}...` : ""}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {tab === "admins" && (
+          <section className="rounded-[1.5rem] border border-border bg-surface-strong p-5 max-w-xl">
+            <h2 className="text-sm font-black mb-4">Управление администраторами</h2>
+            <div className="flex gap-2">
+              <input
+                type="email"
+                value={newEmail}
+                onChange={(e) => { setNewEmail(e.target.value); setEmailError(null); }}
+                placeholder="admin@example.com"
+                className="flex-1 rounded-2xl border border-border bg-background px-4 py-2 text-sm outline-none"
+              />
+              <Button className="rounded-2xl shrink-0" onClick={handleAddEmail} type="button">Добавить</Button>
+            </div>
+            {emailError && <p className="mt-2 text-xs text-rose-500 font-bold px-1">{emailError}</p>}
+            
+            <div className="mt-6 space-y-2">
+              {adminEmails.map((email) => {
+                const isMain = email === "shazak6430@gmail.com";
+                const isSelf = email === user?.email?.toLowerCase();
+                const canRemove = !isMain && !isSelf;
+
+                return (
+                  <div key={email} className="flex items-center justify-between gap-3 rounded-2xl bg-background border border-border px-4 py-3 text-sm font-semibold text-foreground/72">
+                    <span className="truncate">{email}</span>
+                    <div className="flex items-center gap-2">
+                      {isMain && <span className="text-[10px] bg-accent/10 text-accent px-2 py-1 rounded-lg">Владелец</span>}
+                      {isSelf && <span className="text-[10px] bg-foreground/10 text-foreground/70 px-2 py-1 rounded-lg">Вы</span>}
+                      {canRemove && (
+                        <button
+                          onClick={() => handleRemoveEmail(email)}
+                          className="text-xs text-rose-500 hover:underline font-bold"
+                          type="button"
+                        >
+                          Удалить
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {tab === "diagnostics" && (
+          <div className="space-y-4">
+            <div className="flex mb-4">
+              <Button className="rounded-2xl" onClick={clearAiAnalysisQueue} type="button" variant="secondary">Очистить AI queue</Button>
+            </div>
+            
+            <section className="rounded-[1.5rem] border border-border bg-surface-strong p-4">
+              <div className="text-sm font-black mb-2">Media System</div>
+              <p className="text-sm text-foreground/56">{mediaDiagnostic.message}</p>
+            </section>
+
+            {collabDiagnostics.map((diagnostic) => (
+              <section className="rounded-[1.5rem] border border-border bg-surface-strong p-4" key={diagnostic.noteId}>
+                <div className="text-sm font-black">{diagnostic.noteId}</div>
+                <div className="mt-2 grid gap-2 text-sm text-foreground/64 sm:grid-cols-2">
+                  <div>Status: {diagnostic.status}</div>
+                  <div>Transport: {diagnostic.transport}</div>
+                  <div>Persistence: {diagnostic.persistence}</div>
+                  <div>Durable: {diagnostic.durable}</div>
+                  <div>Hydrated: {diagnostic.hydratedFromQuery ? "yes" : "no"}</div>
+                  <div>Updated: {new Date(diagnostic.updatedAt).toLocaleString("ru-RU")}</div>
+                </div>
+                {diagnostic.message ? <p className="mt-2 text-sm text-foreground/56">{diagnostic.message}</p> : null}
+              </section>
+            ))}
+          </div>
+        )}
+
+      </div>
     </div>
   );
 }

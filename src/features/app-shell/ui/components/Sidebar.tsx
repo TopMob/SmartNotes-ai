@@ -42,6 +42,7 @@ type SidebarProps = {
   onOpenFolder: (folder: FolderEntity) => void;
   onOpenSheet: (sheet: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void;
   onSwitchView: (view: AppView) => void;
+  onOpenFeedback?: () => void;
 };
 
 
@@ -69,7 +70,7 @@ function SortableFolderItem({ folder, isActive, folderViewMode, onOpenFolder }: 
   );
 }
 
-export function Sidebar({ copy, currentView, folders, folderViewMode, activeFolderId, isDesktop = false, invitesCount = 0, onClose, onCreateFolder, onOpenFolder, onOpenSheet, onSwitchView }: SidebarProps) {
+export function Sidebar({ copy, currentView, folders, folderViewMode, activeFolderId, isDesktop = false, invitesCount = 0, onClose, onCreateFolder, onOpenFolder, onOpenSheet, onSwitchView, onOpenFeedback }: SidebarProps) {
   const logoClicksRef = useRef(0);
   const developerMode = useUiStore((s) => s.developerMode);
   const toggleDeveloperMode = useUiStore((s) => s.toggleDeveloperMode);
@@ -78,18 +79,12 @@ export function Sidebar({ copy, currentView, folders, folderViewMode, activeFold
   function handleLogoClick() {
     logoClicksRef.current += 1;
     if (logoClicksRef.current >= 7) {
-      if (!isAdminUser(user?.email)) {
-        window.alert("Доступ ограничен: эта учетная запись не является администратором.");
-        logoClicksRef.current = 0;
-        return;
+      if (isAdminUser(user?.email)) {
+        if (!developerMode) {
+          toggleDeveloperMode();
+        }
+        onSwitchView("admin_tools");
       }
-      toggleDeveloperMode();
-      // Access dialogs via copy.shell.dialogs safely
-      const nextMode = !developerMode;
-      const msg = nextMode
-        ? copy.shell.dialogs?.devModeEnabled || "Developer mode enabled! 🛠️"
-        : copy.shell.dialogs?.devModeDisabled || "Developer mode disabled.";
-      window.alert(msg);
       logoClicksRef.current = 0;
     }
   }
@@ -155,6 +150,11 @@ export function Sidebar({ copy, currentView, folders, folderViewMode, activeFold
 
       <div className="mt-3 shrink-0 border-t border-border/80 pt-3 pr-2">
         <div className="grid gap-2 rounded-[1.25rem] border border-border bg-surface-strong/55 p-2">
+        {onOpenFeedback ? (
+          <button className="flex w-full items-center justify-center rounded-xl border border-border bg-background/40 px-4 py-2.5 text-sm font-bold text-accent hover:bg-background/70" onClick={onOpenFeedback} type="button">
+            Оставить отзыв
+          </button>
+        ) : null}
         <button className="flex w-full items-center justify-center rounded-xl border border-border bg-background/40 px-4 py-2.5 text-sm font-bold hover:bg-background/70" onClick={(event) => onOpenSheet("about", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button">
           {copy.shell.about}
         </button>

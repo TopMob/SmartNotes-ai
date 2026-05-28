@@ -64,7 +64,7 @@ export async function signInWithGoogle() {
       scopes: "https://www.googleapis.com/auth/drive.file",
       queryParams: {
         access_type: "offline",
-        prompt: "select_account",
+        prompt: "consent",
       },
     },
   });

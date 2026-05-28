@@ -8,7 +8,7 @@ import { useNoteCollabPage } from "@/features/editor-collab/hooks/use-note-colla
 import { useNoteCollabSession } from "@/features/editor-collab/hooks/use-note-collab-session";
 import { useFolderActions } from "@/features/folders/hooks/use-folder-mutations";
 import { useFoldersQuery } from "@/features/folders/hooks/use-folders-query";
-import { createNoteLock, verifyNoteLock } from "@/features/lock-center/lib/lock-service";
+import { LockModal } from "@/features/lock-center/ui/lock-modal";
 import { useNoteActions } from "@/features/notes/hooks/use-note-mutations";
 import { useNotesFlat } from "@/features/notes/hooks/use-notes-query";
 import { useNoteUiStore } from "@/features/notes/model/note-ui-store";
@@ -25,7 +25,6 @@ import { Button } from "@/shared/ui/button";
 import { SharePrompt } from "@/features/editor-collab/ui/share-prompt";
 import { AiSummaryCard } from "@/features/editor/ui/AiSummaryCard";
 import { useAiEngineStore } from "@/features/ai-engine/model/ai-store";
-import { getAdminEmails, saveAdminEmails } from "@/features/auth/lib/admin-acl";
 import { collabRepository } from "@/features/editor-collab/api/collab-repository";
 
 import { exportNoteAsPdf, exportNoteAsTxt, exportNoteAsPng, exportNoteForImport, getNotePlainText, shareFolder, type SheetState, type SheetAnchor, type SheetName } from "./shared";
@@ -60,10 +59,8 @@ export function BottomSheet({ sheet, activeFolder, isDesktop, onClose, onOpenShe
             ? copy.shell.lockCenter
             : name === "create-folder"
               ? copy.shell.createFolderSheet
-              : name === "reminder"
-                ? copy.shell.reminder
-                : name === "admin-tools"
-                  ? copy.shell.adminTools
+                : name === "reminder"
+                  ? copy.shell.reminder
                   : name === "share"
                     ? copy.shell.actions.share
                     : name === "invites"
@@ -89,7 +86,6 @@ export function BottomSheet({ sheet, activeFolder, isDesktop, onClose, onOpenShe
         {name === "pages" ? <PagesContent copy={copy} /> : null}
         {name === "lock" ? <LockContent copy={copy} onClose={onClose} /> : null}
         {name === "about" ? <AboutContent copy={copy} /> : null}
-        {name === "admin-tools" ? <DiagnosticsContent /> : null}
         {name === "create-folder" ? <CreateFolderContent copy={copy} onClose={onClose} /> : null}
         {name === "reminder" ? <ReminderContent copy={copy} onClose={onClose} /> : null}
         {name === "share" ? <ShareContent onClose={onClose} /> : null}
@@ -160,60 +156,7 @@ function NoteActionSheet({ copy, onOpenSheet }: { copy: ReturnType<typeof getUiC
 
   const aiStatus = useAiEngineStore((state) => state.status);
   const dlgs = copy.shell.dialogs;
-
-  async function toggleNoteLock() {
-    if (!note) {
-      return false;
-    }
-
-    if (note.lock) {
-      const password = getLockPassword(
-        dlgs?.lockPromptUnlock || "Введите пароль для снятия блокировки",
-        dlgs?.lockAlertEmpty || "Пароль не может быть пустым."
-      );
-
-      if (!password) {
-        return false;
-      }
-
-      const valid = await verifyNoteLock(note.lock, password);
-
-      if (!valid) {
-        window.alert(dlgs?.lockAlertIncorrect || "Неверный пароль.");
-        return false;
-      }
-
-      await patchNote(note.id, { lock: { ...note.lock, hidden: !note.lock.hidden } }, { scheduleAnalysis: false });
-      return true;
-    }
-
-    const password = getLockPassword(
-      dlgs?.lockPromptSet || "Задайте пароль для заметки",
-      dlgs?.lockAlertEmpty || "Пароль не может быть пустым."
-    );
-
-    if (!password) {
-      return false;
-    }
-
-    const confirmPassword = getLockPassword(
-      dlgs?.lockConfirmPassword || "Повторите пароль для подтверждения",
-      dlgs?.lockAlertEmpty || "Пароль не может быть пустым."
-    );
-
-    if (!confirmPassword) {
-      return false;
-    }
-
-    if (password !== confirmPassword) {
-      window.alert(dlgs?.lockAlertMismatch || "Пароли не совпадают.");
-      return false;
-    }
-
-    const lock = await createNoteLock(password);
-    await patchNote(note.id, { lock }, { scheduleAnalysis: false });
-    return true;
-  }
+  const [lockModalOpen, setLockModalOpen] = useState(false);
 
   if (!currentNoteId || !note) {
     return null;
@@ -267,9 +210,9 @@ function NoteActionSheet({ copy, onOpenSheet }: { copy: ReturnType<typeof getUiC
             active={note.isArchived}
           />
           <GridActionBtn
-            icon={note.lock ? Lock : Unlock}
-            label={note.lock?.hidden ? (lang === "ru" ? "Показать" : "Show") : note.lock ? (lang === "ru" ? "Скрыть" : "Hide") : (lang === "ru" ? "Защитить" : "Lock")}
-            onClick={() => void toggleNoteLock()}
+            icon={note.lock ? Unlock : Lock}
+            label={note.lock ? (lang === "ru" ? "Снять защиту" : "Remove Lock") : (lang === "ru" ? "Защитить" : "Lock")}
+            onClick={() => setLockModalOpen(true)}
             active={!!note.lock}
           />
           <GridActionBtn
@@ -333,6 +276,8 @@ function NoteActionSheet({ copy, onOpenSheet }: { copy: ReturnType<typeof getUiC
                 : (lang === "ru" ? "Читатель" : "Reader")}
         </span>
       </div>
+
+      <LockModal note={note} isOpen={lockModalOpen} onClose={() => setLockModalOpen(false)} />
     </div>
   );
 }
@@ -650,130 +595,7 @@ function ReminderContent({ copy, onClose }: { copy: ReturnType<typeof getUiCopy>
   return <div className="mt-4 space-y-3"><input className="h-10 w-full rounded-2xl border border-border bg-surface-strong px-4 outline-none sm:h-12" onChange={(event) => setValue(event.target.value)} type="datetime-local" value={value} /><div className="grid grid-cols-2 gap-2"><Button className="h-10 rounded-2xl sm:h-11" disabled={!value} onClick={async () => { const reminderAt = new Date(value).toISOString(); await setReminder(currentNoteId, reminderAt); scheduleReminder(currentNoteId, reminderAt); await requestNotificationPermission(); onClose(); }} type="button">{copy.common.save || "Сохранить"}</Button><Button className="h-10 rounded-2xl sm:h-11" onClick={() => { void setReminder(currentNoteId, null); scheduleReminder(currentNoteId, null); onClose(); }} type="button" variant="secondary">{copy.common.reset || "Очистить"}</Button></div></div>;
 }
 
-export function DiagnosticsContent() {
-  const collabDiagnostics = listCollabDiagnostics();
-  const mediaDiagnostic = getMediaDiagnostic();
-  const syncQueue = listSyncQueue();
-  const aiQueue = listPendingAiAnalysis();
-  const user = useAuthStore((state) => state.user);
-
-  const [adminEmails, setAdminEmails] = useState<string[]>([]);
-  const [newEmail, setNewEmail] = useState("");
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setAdminEmails(getAdminEmails());
-  }, []);
-
-  const handleAddEmail = () => {
-    const email = newEmail.trim().toLowerCase();
-    if (!email) return;
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      setError("Некорректный формат почты");
-      return;
-    }
-
-    if (adminEmails.includes(email)) {
-      setError("Почта уже добавлена");
-      return;
-    }
-
-    const updated = [...adminEmails, email];
-    setAdminEmails(updated);
-    saveAdminEmails(updated);
-    setNewEmail("");
-    setError(null);
-  };
-
-  const handleRemoveEmail = (emailToRemove: string) => {
-    if (emailToRemove === "shazak6430@gmail.com") return;
-    if (emailToRemove === user?.email?.toLowerCase()) return;
-
-    const updated = adminEmails.filter((email) => email !== emailToRemove);
-    setAdminEmails(updated);
-    saveAdminEmails(updated);
-  };
-
-  return (
-    <div className="mt-4 space-y-4">
-      <section className="rounded-[1.5rem] border border-border bg-surface-strong p-4">
-        <div className="text-xs font-black uppercase tracking-[0.18em] text-foreground/42">Runtime Diagnostics</div>
-        <Button className="mt-3 rounded-2xl" onClick={clearAiAnalysisQueue} type="button" variant="secondary">Очистить AI queue</Button>
-        <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          <div className="rounded-2xl bg-background px-4 py-3 text-sm font-semibold text-foreground/72">Active collab sessions: {collabDiagnostics.length}</div>
-          <div className="rounded-2xl bg-background px-4 py-3 text-sm font-semibold text-foreground/72">Sync backlog: {syncQueue.length}</div>
-          <div className="rounded-2xl bg-background px-4 py-3 text-sm font-semibold text-foreground/72">AI queue: {aiQueue.length}</div>
-          <div className="rounded-2xl bg-background px-4 py-3 text-sm font-semibold text-foreground/72">Media mode: {mediaDiagnostic.provider}{mediaDiagnostic.degraded ? " (degraded)" : ""}</div>
-        </div>
-      </section>
-
-      {/* Admin Management Section */}
-      <section className="rounded-[1.5rem] border border-border bg-surface-strong p-4">
-        <div className="text-xs font-black uppercase tracking-[0.18em] text-foreground/42">Управление администраторами</div>
-        <div className="mt-3 flex gap-2">
-          <input
-            type="email"
-            value={newEmail}
-            onChange={(e) => { setNewEmail(e.target.value); setError(null); }}
-            placeholder="admin@example.com"
-            className="flex-1 rounded-2xl border border-border bg-background px-4 py-2 text-sm outline-none"
-          />
-          <Button className="rounded-2xl shrink-0" onClick={handleAddEmail} type="button">Добавить</Button>
-        </div>
-        {error && <p className="mt-1 text-xs text-rose-500 font-bold px-1">{error}</p>}
-        
-        <div className="mt-4 space-y-2">
-          {adminEmails.map((email) => {
-            const isMain = email === "shazak6430@gmail.com";
-            const isSelf = email === user?.email?.toLowerCase();
-            const canRemove = !isMain && !isSelf;
-
-            return (
-              <div key={email} className="flex items-center justify-between gap-3 rounded-2xl bg-background px-4 py-3 text-sm font-semibold text-foreground/72">
-                <span className="truncate">{email}</span>
-                <div className="flex items-center gap-2">
-                  {isMain && <span className="text-[10px] bg-accent/10 text-accent px-2 py-1 rounded-lg">Владелец</span>}
-                  {isSelf && <span className="text-[10px] bg-foreground/10 text-foreground/70 px-2 py-1 rounded-lg">Вы</span>}
-                  {canRemove && (
-                    <button
-                      onClick={() => handleRemoveEmail(email)}
-                      className="text-xs text-rose-500 hover:underline font-bold"
-                      type="button"
-                    >
-                      Удалить
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {collabDiagnostics.map((diagnostic) => (
-        <section className="rounded-[1.5rem] border border-border bg-surface-strong p-4" key={diagnostic.noteId}>
-          <div className="text-sm font-black">{diagnostic.noteId}</div>
-          <div className="mt-2 grid gap-2 text-sm text-foreground/64 sm:grid-cols-2">
-            <div>Status: {diagnostic.status}</div>
-            <div>Transport: {diagnostic.transport}</div>
-            <div>Persistence: {diagnostic.persistence}</div>
-            <div>Durable: {diagnostic.durable}</div>
-            <div>Hydrated: {diagnostic.hydratedFromQuery ? "yes" : "no"}</div>
-            <div>Updated: {new Date(diagnostic.updatedAt).toLocaleString("ru-RU")}</div>
-          </div>
-          {diagnostic.message ? <p className="mt-2 text-sm text-foreground/56">{diagnostic.message}</p> : null}
-        </section>
-      ))}
-
-      <section className="rounded-[1.5rem] border border-border bg-surface-strong p-4">
-        <div className="text-sm font-black">Media</div>
-        <p className="mt-2 text-sm text-foreground/56">{mediaDiagnostic.message}</p>
-      </section>
-    </div>
-  );
-}
+// Removed DiagnosticsContent
 
 function ShareContent({ onClose }: { onClose: () => void }) {
   const { data: notes = [] } = useNotesFlat();
