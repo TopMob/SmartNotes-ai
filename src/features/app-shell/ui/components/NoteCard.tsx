@@ -10,6 +10,8 @@ import { useLockStore } from "@/features/lock-center/model/lock-store";
 import type { AppView } from "@/shared/store/ui-store";
 import { useAuthStore } from "@/features/auth/model/auth-store";
 
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { getSheetAnchor, stripHtml, type SheetAnchor, type SheetName } from "./shared";
 
 type NoteCardProps = {
@@ -28,6 +30,15 @@ export function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: NoteC
   const isShared = (note.access && note.access.length > 0) || (note.ownerId && note.ownerId !== currentUserId && currentUserId !== "local-user" && currentUserId !== undefined);
   const isUnlocked = useLockStore((state) => state.unlockedNotes.has(note.id));
 
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: note.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.3 : undefined,
+    zIndex: isDragging ? 50 : undefined,
+  };
+
   const previewText = note.lock && !isUnlocked ? maskLockedPreview(note.id) : stripHtml(note.content);
   const reminderLabel = note.reminderAt
     ? new Date(note.reminderAt).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
@@ -42,7 +53,13 @@ export function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: NoteC
   }
 
   return (
-    <article className={`note-card relative overflow-visible rounded-[1.5rem] border bg-surface-strong p-4 text-left shadow-md shadow-violet-950/4 transition hover:-translate-y-0.5 hover:shadow-lg sm:p-5 border-border ${note.trashedAt ? "border-dashed border-rose-300" : "border-border"}`}>
+    <article
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className={`note-card relative overflow-visible rounded-[1.5rem] border bg-surface-strong p-4 text-left shadow-md shadow-violet-950/4 transition hover:-translate-y-0.5 hover:shadow-lg sm:p-5 border-border ${note.trashedAt ? "border-dashed border-rose-300" : "border-border"}`}
+    >
       <div className="absolute right-3 top-3 z-10 flex items-start gap-1">
         {view === "trash" ? null : (
           <>

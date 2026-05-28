@@ -221,12 +221,60 @@ export function useClearTrashMutation() {
   });
 }
 
+export function useReorderNotesMutation() {
+  const queryClient = useQueryClient();
+  const userId = useAuthStore((state) => state.user?.id ?? null);
+
+  return useMutation({
+    mutationFn: async (orderedNoteIds: string[]) => {
+      const updates = orderedNoteIds.map((noteId, order) => ({ noteId, order }));
+      await Promise.all(updates.map(({ noteId, order }) => notesRepository.patch(noteId, { order })));
+    },
+    onMutate: async (orderedNoteIds) => {
+      if (!userId) {
+        return { previousNotes: undefined } satisfies NotesSnapshot;
+      }
+
+      const queryKey = queryKeys.notes(userId);
+      await queryClient.cancelQueries({ queryKey });
+      const previousData = queryClient.getQueryData<InfiniteNotesData>(queryKey);
+
+      const orderById = new Map(orderedNoteIds.map((noteId, order) => [noteId, order]));
+
+      queryClient.setQueryData<InfiniteNotesData>(queryKey, (current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          pages: current.pages.map((page) => ({
+            ...page,
+            data: page.data.map((note) => {
+              const order = orderById.get(note.id);
+              return order === undefined ? note : { ...note, order };
+            }),
+          })),
+        };
+      });
+
+      return { previousNotes: previousData ? getFlatNotes(previousData) : undefined } satisfies NotesSnapshot;
+    },
+    onError: (_error, _variables, context) => {
+      if (!userId || !context) return;
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notes(userId) });
+    },
+    onSettled: () => {
+      if (!userId) return;
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notes(userId) });
+    },
+  });
+}
+
 export function useNoteActions() {
   const queryClient = useQueryClient();
   const createMutation = useCreateNoteMutation();
   const updateMutation = useUpdateNoteMutation();
   const deleteMutation = useDeleteNoteMutation();
   const clearTrashMutation = useClearTrashMutation();
+  const reorderMutation = useReorderNotesMutation();
   const userId = useAuthStore((state) => state.user?.id ?? null);
 
   function findNote(noteId: string) {
@@ -324,5 +372,6 @@ export function useNoteActions() {
 
       void updateMutation.mutateAsync({ noteId, patch: normalizeNotePatch(buildMediaPatch(note, media)) });
     },
+    reorderNotes: (orderedNoteIds: string[]) => reorderMutation.mutateAsync(orderedNoteIds),
   };
 }

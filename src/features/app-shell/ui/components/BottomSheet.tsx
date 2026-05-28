@@ -385,18 +385,8 @@ function FolderActionList({ copy, activeFolder, onClose }: { copy: ReturnType<ty
         <FileText className="h-4 w-4 text-foreground/64" />
         {dlgs?.folderDescriptionPrompt || "Изменить описание"}
       </button>
-
       <div className="h-px bg-border my-2" />
 
-      {/* Block 2: Positioning & Visibility */}
-      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left text-sm font-bold hover:bg-surface-strong" onClick={() => void moveFolder(folder.id, -1)} type="button">
-        <ArrowUp className="h-4 w-4 text-foreground/64" />
-        {copy.shell.actions.move} ↑
-      </button>
-      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left text-sm font-bold hover:bg-surface-strong" onClick={() => void moveFolder(folder.id, 1)} type="button">
-        <ArrowDown className="h-4 w-4 text-foreground/64" />
-        {copy.shell.actions.move} ↓
-      </button>
       {folder.isHidden ? (
         <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left text-sm font-bold hover:bg-surface-strong" onClick={() => void unhideFolder(folder.id)} type="button">
           <Eye className="h-4 w-4 text-foreground/64" />
