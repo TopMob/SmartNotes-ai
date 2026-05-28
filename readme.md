@@ -23,7 +23,6 @@ SmartNotes AI — PWA-приложение для заметок с встрое
 | Virtualization | @tanstack/react-virtual | Long list performance |
 | Offline | Yjs + IndexedDB (y-indexeddb) | Local persistence, offline-first |
 | Deployment | Vercel + PWA | Hosting, installable app |
-
 ---
 
 ## Quick Start
