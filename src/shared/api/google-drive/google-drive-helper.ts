@@ -51,7 +51,7 @@ export async function getGoogleAccessToken(
         cookieStore.set("sb-provider-token", newToken, {
           path: "/",
           httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
+          secure: process.env.NODE_ENV === "production" && !process.env.NEXT_PUBLIC_SITE_URL?.startsWith("http://localhost"),
           sameSite: "lax",
           maxAge: 3500, // Google access tokens expire in 3600 seconds
         });

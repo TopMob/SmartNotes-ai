@@ -46,11 +46,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(error.message)}`, request.url));
   }
 
+  const isHttps = request.nextUrl.protocol === "https:";
+
   if (data?.session?.provider_token) {
     response.cookies.set("sb-provider-token", data.session.provider_token, {
       path: "/",
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: isHttps,
       sameSite: "lax",
       maxAge: data.session.expires_in ?? 3500,
     });
@@ -60,7 +62,7 @@ export async function GET(request: NextRequest) {
     response.cookies.set("sb-provider-refresh-token", data.session.provider_refresh_token, {
       path: "/",
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: isHttps,
       sameSite: "lax",
       maxAge: 60 * 60 * 24 * 365, // 1 year
     });

@@ -5,7 +5,7 @@ export const runtime = "nodejs";
 
 export default async function SettingsPage() {
   const cookieStore = await cookies();
-  const isDriveConnected = cookieStore.has("sb-provider-refresh-token");
+  const isDriveConnected = cookieStore.has("sb-provider-refresh-token") || cookieStore.has("sb-provider-token");
 
   return <SettingsClient initialDriveConnected={isDriveConnected} />;
 }
