@@ -1,5 +1,8 @@
 -- migrate:disable-transaction
 
+-- 0. Enable the pg_net extension
+create extension if not exists pg_net;
+
 -- 1. Add columns to notes table if they do not exist
 alter table public.notes add column if not exists embedding vector(384);
 alter table public.notes add column if not exists embedding_status text not null default 'pending';
@@ -27,13 +30,12 @@ begin
     'old_record', case when tg_op = 'UPDATE' then to_jsonb(old) else null end
   );
 
-  -- Perform async HTTP call to Deno Edge function
-  perform supabase_functions.http_request(
-    'https://ammpwqfcutlyrjcarubc.supabase.co/functions/v1/generate-note-embedding',
-    'POST',
-    '{"Content-Type":"application/json"}'::text,
-    payload::text,
-    '5000'
+  -- Perform the HTTP POST via pg_net to Deno Edge function
+  perform net.http_post(
+    url := 'https://ammpwqfcutlyrjcarubc.supabase.co/functions/v1/generate-note-embedding',
+    body := payload,
+    headers := '{"Content-Type":"application/json"}'::jsonb,
+    timeout_milliseconds := 5000
   );
   
   return new;
