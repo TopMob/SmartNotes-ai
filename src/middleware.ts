@@ -15,7 +15,14 @@ export async function middleware(request: NextRequest) {
   const getUserResult = await updateSupabaseSession(request, response);
 
   const { pathname } = request.nextUrl;
-  const isPublic = PUBLIC_PATHS.has(pathname) || pathname.startsWith("/api/") || pathname.startsWith("/auth/");
+  const isPublic =
+    PUBLIC_PATHS.has(pathname) ||
+    pathname.startsWith("/api/") ||
+    pathname.startsWith("/auth/") ||
+    pathname === "/sw.js" ||
+    pathname === "/manifest.webmanifest" ||
+    pathname === "/manifest" ||
+    pathname.startsWith("/apple-icon");
   const isGuest = request.cookies.has("smartnotes_guest");
   const isAuthenticated = getUserResult?.data?.user != null || isGuest;
 
