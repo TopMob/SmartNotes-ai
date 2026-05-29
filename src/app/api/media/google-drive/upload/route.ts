@@ -58,7 +58,6 @@ export async function POST(request: Request) {
 
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-    const dataUrl = `data:${file.type};base64,${buffer.toString("base64")}`;
 
     // If signed in with Google, upload to user's actual Google Drive
     if (activeToken) {
@@ -76,11 +75,16 @@ export async function POST(request: Request) {
         const delimiter = `\r\n--${boundary}\r\n`;
         const closeDelimiter = `\r\n--${boundary}--`;
 
+        const headerPart = delimiter +
+          'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
+          JSON.stringify(metadata) +
+          delimiter +
+          `Content-Type: ${file.type}\r\n\r\n`;
+
         const multipartBody = Buffer.concat([
-          Buffer.from(delimiter + 'Content-Type: application/json; charset=UTF-8\r\n\r\n' + JSON.stringify(metadata) + delimiter),
-          Buffer.from(`Content-Type: ${file.type}\r\nContent-Transfer-Encoding: base64\r\n\r\n`),
-          Buffer.from(buffer.toString("base64")),
-          Buffer.from(closeDelimiter)
+          Buffer.from(headerPart, "utf-8"),
+          buffer,
+          Buffer.from(closeDelimiter, "utf-8")
         ]);
 
         const driveResponse = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart", {
@@ -97,15 +101,16 @@ export async function POST(request: Request) {
           const fileId = driveData.id;
 
           const mediaId = Math.random().toString(36).slice(2);
+          const downloadUrl = `/api/media/google-drive/download?fileId=${fileId}`;
           const mediaDescriptor = {
             id: mediaId,
             provider: "google-drive",
             fileId: fileId,
-            url: `/api/media/google-drive/download?fileId=${fileId}`,
+            url: downloadUrl,
             mimeType: file.type || "application/octet-stream",
             name: file.name || "Upload",
             size: file.size,
-            thumbnailUrl: file.type.startsWith("image/") ? dataUrl : null,
+            thumbnailUrl: file.type.startsWith("image/") ? downloadUrl : null,
           };
 
           return NextResponse.json(mediaDescriptor);
@@ -124,22 +129,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // Fallback for local users: Return local inline descriptor
-    const mediaId = Math.random().toString(36).slice(2);
-    const fileId = `local-${Math.random().toString(36).slice(2)}`;
-
-    const mediaDescriptor = {
-      id: mediaId,
-      provider: "local-inline",
-      fileId: fileId,
-      url: dataUrl,
-      mimeType: file.type || "application/octet-stream",
-      name: file.name || "Upload",
-      size: file.size,
-      thumbnailUrl: file.type.startsWith("image/") ? dataUrl : null,
-    };
-
-    return NextResponse.json(mediaDescriptor);
+    return NextResponse.json({ error: "Google Drive integration is not connected." }, { status: 400 });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Upload failed" },

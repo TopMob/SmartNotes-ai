@@ -120,7 +120,7 @@ html {
   background: var(--background);
   text-size-adjust: 100%;
   overflow: hidden;
-  overscroll-behavior: contain;
+  overscroll-behavior-y: none;
 }
 
 body {
@@ -129,7 +129,7 @@ body {
   color: var(--foreground);
   background: var(--wallpaper);
   background-attachment: fixed;
-  overscroll-behavior: contain;
+  overscroll-behavior-y: none;
   overflow: hidden;
 }
 

@@ -120,6 +120,7 @@ const LocalMediaImageExtension = ImageExtension.extend({
 import { useAiEngineStore } from "@/features/ai-engine/model/ai-store";
 import { useAutoAnalyze } from "@/features/ai-engine/hooks/use-auto-analyze";
 import { useEffect, useRef, useState, useCallback, useMemo, type ComponentType } from "react";
+import { useVisualViewportKeyboard } from "../hooks/use-visual-viewport-keyboard";
 
 import type { Note } from "@/entities/note";
 import { useNoteCollabPage } from "@/features/editor-collab/hooks/use-note-collab-page";
@@ -158,6 +159,7 @@ type EditorOverlayProps = {
 };
 
 export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setToolbarVisible }: EditorOverlayProps) {
+  useVisualViewportKeyboard();
   const { attachMedia, deletePage } = useNoteActions();
   const currentNotePageIndex = useNoteUiStore((state) => state.currentNotePageIndex);
   const setCurrentNotePageIndex = useNoteUiStore((state) => state.setCurrentNotePageIndex);
@@ -481,7 +483,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/96 backdrop-blur-2xl animate-premium-overlay">
+    <div className="fixed inset-x-0 top-0 z-50 bg-background/96 backdrop-blur-2xl animate-premium-overlay h-[var(--vv-height,100dvh)] md:inset-0 md:h-full">
       <div className="mx-auto flex h-full max-w-6xl flex-col px-0 py-2 sm:px-5 sm:py-3">
         <header className="mx-3 sm:mx-0 flex items-center gap-1 overflow-x-auto no-scrollbar rounded-[1.5rem] border border-border bg-surface/90 p-2 shadow-xl shadow-violet-950/8 sm:gap-2">
           <button title="Назад к списку заметок" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={handleClose} type="button"><ChevronLeft className="h-6 w-6 sm:h-5 sm:w-5" /></button>
@@ -644,7 +646,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
           </div>
         </section>
 
-        <footer className="mx-3 sm:mx-0 mt-3 flex flex-col gap-3 rounded-[1.5rem] border border-border bg-surface/92 p-3 shadow-xl shadow-violet-950/8 sm:flex-row sm:items-center sm:p-2">
+        <footer className="mx-3 sm:mx-0 mt-3 flex flex-col gap-3 rounded-[1.5rem] border border-border bg-surface/92 px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-xl shadow-violet-950/8 sm:flex-row sm:items-center sm:p-2">
           <div className="relative flex-1">
             <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-surface-strong px-3 py-1.5 border border-border min-h-11 focus-within:border-accent/80 focus-within:ring-2 focus-within:ring-accent/15 transition-all duration-200">
               <Tag className="h-4 w-4 text-accent shrink-0" />
@@ -756,8 +758,15 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
 
 function ToolButton({ icon: Icon, label, title, active = false, onClick }: { icon?: ComponentType<{ className?: string }>; label?: string; title: string; active?: boolean; onClick: () => void }) {
   return (
-    <button title={title} className={`shrink-0 rounded-xl px-3 py-2.5 text-sm font-black hover:bg-background sm:px-3 sm:py-2 ${active ? "bg-background text-accent" : ""}`} onClick={onClick} type="button">
-      {Icon ? <Icon className="h-5 w-5 sm:h-4 sm:w-4" /> : label}
+    <button 
+      title={title} 
+      className={`shrink-0 flex items-center justify-center rounded-xl transition-all duration-200 hover:bg-background/80 ${
+        active ? "bg-background text-accent" : "text-foreground/80"
+      } h-11 w-11 md:h-9 md:w-9 touch-manipulation`} 
+      onClick={onClick} 
+      type="button"
+    >
+      {Icon ? <Icon className="h-5 w-5 md:h-4 md:w-4" /> : <span className="text-sm font-black">{label}</span>}
     </button>
   );
 }

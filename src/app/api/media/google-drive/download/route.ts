@@ -122,16 +122,16 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: `Failed to fetch from Google Drive: ${text}` }, { status: driveResponse.status });
     }
 
+    const arrayBuffer = await driveResponse.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
     // 3. Stream the file content back to the client
     const headers = new Headers();
     headers.set("Content-Type", mimeType);
     headers.set("Content-Disposition", `inline; filename="${encodeURIComponent(filename)}"`);
-    if (size) {
-      headers.set("Content-Length", size);
-    }
+    headers.set("Content-Length", buffer.byteLength.toString());
     
-    // Convert Response body (ReadableStream) to Next Response
-    return new Response(driveResponse.body, {
+    return new Response(buffer, {
       status: 200,
       headers,
     });
