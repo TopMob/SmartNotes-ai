@@ -20,15 +20,15 @@ import { isGuestUser, readGuestSessionWithoutCleanup } from "@/features/auth/lib
 import { useAuthActions } from "@/features/auth/hooks/use-auth-actions";
 import { Button } from "@/shared/ui/button";
 
-import { BottomSheet } from "./components/BottomSheet";
-import { EditorOverlay } from "./components/EditorOverlay";
 import { Header } from "./components/Header";
 import { MainSurface } from "./components/MainSurface";
 import { Sidebar } from "./components/Sidebar";
-import { TopFiltersPopup } from "./components/TopFiltersPopup";
 import { useAppShellState } from "./hooks/use-app-shell-state";
 import { useNoteInteractions } from "./hooks/use-note-interactions";
 import { useReminderEffects } from "./hooks/use-reminder-effects";
+import { BottomSheet } from "./components/BottomSheet";
+import { EditorOverlay } from "./components/EditorOverlay";
+import { TopFiltersPopup } from "./components/TopFiltersPopup";
 import { AiChatPanel } from "@/features/ai-engine/ui/AiChatPanel";
 import { CommandPalette } from "./components/CommandPalette";
 import { LockManager } from "@/features/lock-center/ui/lock-manager";

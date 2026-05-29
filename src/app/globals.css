@@ -249,6 +249,8 @@ section,
 .note-card,
 .folder-card {
   transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease !important;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 240px;
 }
 
 /* Premium Animations & Keyframes - Optimized for GPU acceleration (Zero backdrop-filter blur animation to prevent CPU lag) */
@@ -295,19 +297,19 @@ section,
 }
 
 .animate-premium-backdrop {
-  animation: premium-backdrop-enter 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: premium-backdrop-enter 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .animate-premium-modal {
-  animation: premium-modal-enter 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation: premium-modal-enter 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .animate-premium-sheet {
-  animation: premium-sheet-enter 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: premium-sheet-enter 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .animate-premium-overlay {
-  animation: premium-overlay-enter 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: premium-overlay-enter 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .line-clamp-3 {
@@ -381,6 +383,12 @@ section,
   background: color-mix(in srgb, var(--surface-strong) 96%, black 4%);
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.35);
   backdrop-filter: blur(18px);
+}
+
+.dropdown-menu,
+.modal-card,
+.filter-menu {
+  will-change: transform, opacity;
 }
 
 .sidebar-nav,

@@ -24,7 +24,7 @@ type HeaderProps = {
   onToggleAiChat?: () => void;
 };
 
-export function Header({
+export const Header = React.memo(function Header({
   copy,
   view,
   activeFolder,
@@ -159,4 +159,4 @@ export function Header({
       </div>
     </header>
   );
-}
+});

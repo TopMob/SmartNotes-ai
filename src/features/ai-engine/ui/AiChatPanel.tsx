@@ -352,7 +352,7 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
             id="ai-chat-panel"
             initial={{ x: "100%", opacity: 0 }}
             role="complementary"
-            transition={{ type: "tween", ease: [0.16, 1, 0.3, 1], duration: 0.3 }}
+            transition={{ type: "tween", ease: [0.16, 1, 0.3, 1], duration: 0.18 }}
             style={{ willChange: "transform, opacity" }}
           >
             {/* ── Header ── */}

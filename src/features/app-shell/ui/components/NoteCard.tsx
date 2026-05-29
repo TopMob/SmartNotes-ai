@@ -1,6 +1,5 @@
 import { Heart, MoreHorizontal, Pin } from "lucide-react";
-import { useState } from "react";
-
+import { useState, memo } from "react";
 import type { Folder as FolderEntity } from "@/entities/folder";
 import type { Note } from "@/entities/note";
 import { useNoteActions } from "@/features/notes/hooks/use-note-mutations";
@@ -22,7 +21,7 @@ type NoteCardProps = {
   view: AppView;
 };
 
-export function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: NoteCardProps) {
+export const NoteCard = memo(function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: NoteCardProps) {
   const [_folderPickerOpen, setFolderPickerOpen] = useState(false);
   const { toggleFavorite, togglePinned } = useNoteActions();
   const setCurrentNoteId = useNoteUiStore((state) => state.setCurrentNoteId);
@@ -140,6 +139,6 @@ export function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: NoteC
     </article>
 
   );
-}
+});
 
 

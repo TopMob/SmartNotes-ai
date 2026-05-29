@@ -1,3 +1,4 @@
+import React, { memo } from "react";
 import type { Folder as FolderEntity } from "@/entities/folder";
 import type { NotesFilter, NotesSort } from "@/features/notes/model/note-selectors";
 
@@ -33,7 +34,7 @@ type TopFiltersPopupProps = {
   };
 };
 
-export function TopFiltersPopup({ popupRef, notesFilter, savedFilters, folders, tagDraft, tagSuggestions, onApplySavedFilter, onDeleteSavedFilter, onSaveCurrentFilter, onSetNotesSort, onToggleFolderFilter, onToggleTagFilter, onSetUpdatedWindowDays, onResetFilters, onTagDraftChange, visibleSections = { savedFilters: true, tagFilter: true, updatedPeriodFilter: true } }: TopFiltersPopupProps) {
+export const TopFiltersPopup = memo(function TopFiltersPopup({ popupRef, notesFilter, savedFilters, folders, tagDraft, tagSuggestions, onApplySavedFilter, onDeleteSavedFilter, onSaveCurrentFilter, onSetNotesSort, onToggleFolderFilter, onToggleTagFilter, onSetUpdatedWindowDays, onResetFilters, onTagDraftChange, visibleSections = { savedFilters: true, tagFilter: true, updatedPeriodFilter: true } }: TopFiltersPopupProps) {
   function saveFilter() {
     const name = window.prompt("Название фильтра", "Мой фильтр")?.trim();
 
@@ -117,4 +118,4 @@ export function TopFiltersPopup({ popupRef, notesFilter, savedFilters, folders, 
       </div> : null}
     </section>
   );
-}
+});

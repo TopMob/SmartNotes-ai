@@ -84,11 +84,11 @@ function SortableFolderItem({ folder, isActive, folderViewMode, onOpenFolder }: 
   );
 }
 
-export function Sidebar({ copy, currentView, folders, folderViewMode, activeFolderId, isDesktop = false, invitesCount = 0, onClose, onCreateFolder, onOpenFolder, onOpenSheet, onSwitchView }: SidebarProps) {
+export const Sidebar = React.memo(function Sidebar({ copy, currentView, folders, folderViewMode, activeFolderId, isDesktop = false, invitesCount = 0, onClose, onCreateFolder, onOpenFolder, onOpenSheet, onSwitchView }: SidebarProps) {
   const logoClicksRef = useRef(0);
   const developerMode = useUiStore((s) => s.developerMode);
   const toggleDeveloperMode = useUiStore((s) => s.toggleDeveloperMode);
-  const user = useAuthStore((s) => s.user);
+  const user = useAuthStore((state) => state.user);
 
   function handleLogoClick() {
     logoClicksRef.current += 1;
@@ -176,7 +176,7 @@ export function Sidebar({ copy, currentView, folders, folderViewMode, activeFold
       </div>
     </aside>
   );
-}
+})
 
 import { useFolderActions } from "@/features/folders/hooks/use-folder-mutations";
 
