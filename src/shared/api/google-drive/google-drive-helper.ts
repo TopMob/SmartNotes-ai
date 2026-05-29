@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
-import { requireSupabaseUrl, requireSupabasePublishableKey } from "@/shared/api/supabase/env";
+import { requireSupabaseUrl, requireSupabasePublishableKey, getSupabaseServiceRoleKey } from "@/shared/api/supabase/env";
 import type { Database } from "@/shared/api/supabase/types";
 
 export async function refreshGoogleAccessToken(refreshToken: string): Promise<string | null> {
@@ -202,3 +202,63 @@ export async function getOrCreateSmartNotesPath(token: string): Promise<string> 
   const imageFolderId = await getOrCreateFolder("image", smartNotesFolderId, token);
   return imageFolderId;
 }
+
+export async function getGoogleAccessTokenForUser(userId: string): Promise<string | null> {
+  const serviceKey = getSupabaseServiceRoleKey();
+  if (!serviceKey) {
+    console.error("getGoogleAccessTokenForUser: Missing service role key");
+    return null;
+  }
+
+  // Create an admin client to query integrations for any user bypassing RLS
+  const adminClient = createServerClient<Database>(
+    requireSupabaseUrl(),
+    serviceKey,
+    {
+      cookies: {
+        getAll() { return []; },
+        setAll() {}
+      }
+    }
+  );
+
+  const { data: integration, error: integrationError } = await adminClient
+    .from("user_google_integrations")
+    .select("*")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (integrationError) {
+    console.error(`getGoogleAccessTokenForUser: Error fetching integration for user ${userId}`, integrationError);
+    return null;
+  }
+
+  if (!integration?.refresh_token) {
+    console.warn(`getGoogleAccessTokenForUser: No Google refresh token found for user ${userId}`);
+    return integration?.access_token ?? null;
+  }
+
+  const newAccessToken = await refreshGoogleAccessToken(integration.refresh_token);
+  if (!newAccessToken) {
+    console.error(`getGoogleAccessTokenForUser: Failed to refresh Google access token for user ${userId}`);
+    return integration.access_token;
+  }
+
+  const { error: upsertError } = await adminClient
+    .from("user_google_integrations")
+    .upsert({
+      user_id: userId,
+      provider: "google",
+      access_token: newAccessToken,
+      refresh_token: integration.refresh_token,
+      last_refreshed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "user_id" });
+
+  if (upsertError) {
+    console.error(`getGoogleAccessTokenForUser: Failed to upsert tokens for user ${userId}`, upsertError);
+  }
+
+  return newAccessToken;
+}
+
