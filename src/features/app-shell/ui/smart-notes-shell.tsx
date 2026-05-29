@@ -68,6 +68,7 @@ export function SmartNotesShell() {
   const desktopSidebarOpen = useUiStore((state) => state.desktopSidebarOpen);
   const desktopSidebarPinned = useUiStore((state) => state.desktopSidebarPinned);
   const aiChatOpen = useUiStore((state) => state.aiChatOpen);
+  const toggleAiChat = useUiStore((state) => state.toggleAiChat);
   const setView = useUiStore((state) => state.setView);
   const setActiveFolderId = useUiStore((state) => state.setActiveFolderId);
   const setSearchQuery = useUiStore((state) => state.setSearchQuery);
@@ -194,7 +195,7 @@ export function SmartNotesShell() {
         ) : null}
 
         <div className="main-content min-w-0 flex-1">
-          <Header copy={copy} activeFolder={activeFolder} filtersOpen={shellState.filtersOpen} filtersRef={shellState.filtersRef} onOpenDrawer={toggleSidebar} onOpenFilters={() => shellState.setFiltersOpen((value) => !value)} onOpenFolderMenu={(anchor) => shellState.openSheet("folder", anchor)} searchQuery={searchQuery} setSearchQuery={setSearchQuery} view={view} />
+          <Header copy={copy} activeFolder={activeFolder} filtersOpen={shellState.filtersOpen} filtersRef={shellState.filtersRef} onOpenDrawer={toggleSidebar} onOpenFilters={() => shellState.setFiltersOpen((value) => !value)} onOpenFolderMenu={(anchor) => shellState.openSheet("folder", anchor)} searchQuery={searchQuery} setSearchQuery={setSearchQuery} view={view} aiChatOpen={aiChatOpen} onToggleAiChat={toggleAiChat} />
 
           {shellState.filtersOpen ? (
             <TopFiltersPopup

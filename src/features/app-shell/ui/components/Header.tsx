@@ -1,6 +1,6 @@
 "use client";
 
-import { Command, Menu, MoreHorizontal, Search, SlidersHorizontal } from "lucide-react";
+import { Command, Menu, MoreHorizontal, Search, SlidersHorizontal, Sparkles } from "lucide-react";
 import type React from "react";
 
 import type { Folder as FolderEntity } from "@/entities/folder";
@@ -20,6 +20,8 @@ type HeaderProps = {
   onOpenFilters: () => void;
   onOpenFolderMenu: (anchor: SheetAnchor) => void;
   setSearchQuery: (query: string) => void;
+  aiChatOpen?: boolean;
+  onToggleAiChat?: () => void;
 };
 
 export function Header({
@@ -33,6 +35,8 @@ export function Header({
   onOpenFilters,
   onOpenFolderMenu,
   setSearchQuery,
+  aiChatOpen = false,
+  onToggleAiChat,
 }: HeaderProps) {
   const title =
     view === "folder" && activeFolder
@@ -110,6 +114,21 @@ export function Header({
         </label>
 
         <div className="flex shrink-0 items-center gap-2">
+          {/* Glowing AI Chat Button */}
+          <button
+            className={`flex h-11 shrink-0 items-center gap-2 rounded-2xl border px-4 text-sm font-bold sm:h-10 transition-all duration-300 ${
+              aiChatOpen
+                ? "bg-violet-600 border-violet-500 text-white shadow-[0_0_15px_rgba(124,58,237,0.4)]"
+                : "bg-surface-strong border-border text-foreground/72 hover:border-violet-500 hover:text-violet-600"
+            }`}
+            onClick={onToggleAiChat}
+            type="button"
+            title="AI Чат"
+          >
+            <Sparkles className={`h-5 w-5 sm:h-4 sm:w-4 ${aiChatOpen ? "fill-white" : ""}`} />
+            <span className="hidden sm:inline">AI Чат</span>
+          </button>
+
           <div className="relative shrink-0" ref={filtersRef}>
             <button
               className={`flex h-11 shrink-0 items-center gap-2 rounded-2xl border border-border px-4 text-sm font-bold sm:h-10 ${

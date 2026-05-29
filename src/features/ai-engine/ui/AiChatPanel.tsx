@@ -1,11 +1,5 @@
 "use client";
 
-
-
-
-
-
-
 import {
   Bot,
   ChevronRight,
@@ -14,6 +8,13 @@ import {
   Send,
   Sparkles,
   X,
+  FolderPlus,
+  FolderInput,
+  Tag,
+  CheckCircle2,
+  Loader2,
+  Play,
+  AlertTriangle,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -21,6 +22,9 @@ import { useUiStore } from "@/shared/store/ui-store";
 import { useNotesFlat } from "@/features/notes/hooks/use-notes-query";
 import { useAuthStore } from "@/features/auth/model/auth-store";
 import { isGuestUser } from "@/features/auth/lib/guest-session";
+import { useFoldersQuery } from "@/features/folders/hooks/use-folders-query";
+import { useFolderActions } from "@/features/folders/hooks/use-folder-mutations";
+import { useNoteActions } from "@/features/notes/hooks/use-note-mutations";
 
 
 
@@ -35,6 +39,8 @@ type Message = {
   citations?: Citation[];
   error?: boolean;
   streaming?: boolean;
+  actions?: any[];
+  actionsStatus?: "pending" | "running" | "completed" | "error";
 };
 
 type AiChatPanelProps = {
@@ -83,6 +89,11 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
   const { data: notes = [] } = useNotesFlat();
   const user = useAuthStore((s) => s.user);
 
+  // Folder & Note mutation hooks
+  const { data: rawFolders = [] } = useFoldersQuery();
+  const { addFolder } = useFolderActions();
+  const { moveNoteToFolder, patchNote } = useNoteActions();
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -90,18 +101,15 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
-
 
   useEffect(() => {
     if (open) {
       setTimeout(() => inputRef.current?.focus(), 150);
     }
   }, [open]);
-
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -114,7 +122,6 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
   const handleSend = useCallback(async (questionOverride?: string) => {
     const question = (questionOverride ?? input).trim();
     if (!question || loading) return;
-
 
     abortRef.current?.abort();
     abortRef.current = new AbortController();
@@ -133,13 +140,21 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
     setLoading(true);
 
     try {
-      const isGuest = !user || user.id === "local-user" || isGuestUser(user);
       const response = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           question,
-          ...(isGuest ? { notes } : {}),
+          notes: notes.map((n) => ({
+            id: n.id,
+            title: n.title,
+            folderId: n.folderId,
+            userTags: n.userTags || [],
+          })),
+          folders: rawFolders.map((f) => ({
+            id: f.id,
+            name: f.name,
+          })),
         }),
         signal: abortRef.current.signal,
       });
@@ -148,8 +163,11 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
         throw new Error(`Ошибка сервера: ${response.status}`);
       }
 
-      const data = (await response.json()) as { answer: string; citations: Citation[] };
-
+      const data = (await response.json()) as { 
+        answer: string; 
+        citations: Citation[]; 
+        actions?: any[];
+      };
 
       const fullText = data.answer;
       const citations = data.citations ?? [];
@@ -171,7 +189,14 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
       setMessages((prev) =>
         prev.map((m) =>
           m.id === assistantId
-            ? { ...m, text: fullText, citations, streaming: false }
+            ? { 
+                ...m, 
+                text: fullText, 
+                citations, 
+                streaming: false,
+                actions: data.actions ?? [],
+                actionsStatus: data.actions && data.actions.length > 0 ? "pending" : undefined,
+              }
             : m,
         ),
       );
@@ -196,7 +221,74 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
       setLoading(false);
       setTimeout(() => inputRef.current?.focus(), 50);
     }
-  }, [input, loading, user, notes]);
+  }, [input, loading, notes, rawFolders]);
+
+  const handleExecuteActions = useCallback(async (msgId: string, actionsList: any[] = []) => {
+    setMessages((prev) =>
+      prev.map((m) => (m.id === msgId ? { ...m, actionsStatus: "running" } : m))
+    );
+
+    try {
+      const tempIdMap: Record<string, string> = {};
+      const ownerId = user?.id ?? "local-user";
+
+      for (const action of actionsList) {
+        if (action.type === "createFolder") {
+          const folder = await addFolder(
+            { name: action.folderName, isHidden: false, description: null },
+            ownerId
+          );
+          if (folder && folder.id) {
+            tempIdMap[action.tempId] = folder.id;
+          }
+        } else if (action.type === "moveNotesToFolder") {
+          let resolvedFolderId: string | null = null;
+          if (action.folderId && action.folderId !== "null") {
+            resolvedFolderId = action.folderId;
+          } else if (action.tempId && tempIdMap[action.tempId]) {
+            resolvedFolderId = tempIdMap[action.tempId];
+          } else if (action.folderName) {
+            const existing = rawFolders.find(
+              (f) => f.name.toLowerCase() === action.folderName.toLowerCase()
+            );
+            if (existing) {
+              resolvedFolderId = existing.id;
+            }
+          }
+
+          if (action.noteIds && Array.isArray(action.noteIds)) {
+            for (const noteId of action.noteIds) {
+              await moveNoteToFolder(noteId, resolvedFolderId);
+            }
+          }
+        } else if (action.type === "addTagsToNotes") {
+          if (action.noteIds && Array.isArray(action.noteIds) && action.tags && Array.isArray(action.tags)) {
+            for (const noteId of action.noteIds) {
+              const note = notes.find((n) => n.id === noteId);
+              const currentTags = note?.userTags || [];
+              const mergedTags = Array.from(new Set([...currentTags, ...action.tags]));
+              await patchNote(noteId, { userTags: mergedTags });
+            }
+          }
+        }
+      }
+
+      setMessages((prev) =>
+        prev.map((m) => (m.id === msgId ? { ...m, actionsStatus: "completed" } : m))
+      );
+    } catch (error) {
+      console.error("Failed to execute agent actions:", error);
+      setMessages((prev) =>
+        prev.map((m) => (m.id === msgId ? { ...m, actionsStatus: "error" } : m))
+      );
+    }
+  }, [user, notes, rawFolders, addFolder, moveNoteToFolder, patchNote]);
+
+  const handleDismissActions = useCallback((msgId: string) => {
+    setMessages((prev) =>
+      prev.map((m) => (m.id === msgId ? { ...m, actionsStatus: undefined } : m))
+    );
+  }, []);
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -392,6 +484,111 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
                           📄 {c.title}
                         </button>
                       ))}
+                    </div>
+                  )}
+
+                  {/* Agent Action Card */}
+                  {msg.actions && msg.actions.length > 0 && msg.actionsStatus && (
+                    <div className="mt-3 w-[92%] overflow-hidden rounded-2xl border border-violet-100 bg-gradient-to-br from-violet-50 to-indigo-50/30 p-3.5 shadow-sm dark:border-violet-950/30 dark:from-violet-950/10 dark:to-indigo-950/5">
+                      <div className="flex items-center gap-2 text-violet-700 dark:text-violet-400">
+                        <Sparkles className="h-4 w-4 fill-violet-200 dark:fill-violet-950" />
+                        <span className="text-xs font-black uppercase tracking-wider">⚡ AI Предложение</span>
+                      </div>
+
+                      <div className="mt-2.5 space-y-2">
+                        {msg.actions.map((act: any, idx: number) => {
+                          if (act.type === "createFolder") {
+                            return (
+                              <div key={idx} className="flex items-start gap-2.5 text-xs text-foreground/80">
+                                <FolderPlus className="mt-0.5 h-3.5 w-3.5 shrink-0 text-violet-500" />
+                                <span>
+                                  Создать папку <strong className="font-semibold text-violet-700 dark:text-violet-400">«{act.folderName}»</strong>
+                                </span>
+                              </div>
+                            );
+                          }
+                          if (act.type === "moveNotesToFolder") {
+                            const notesCount = act.noteIds?.length ?? 0;
+                            const noteNames = act.noteIds
+                              ? act.noteIds
+                                  .map((nid: string) => notes.find((n) => n.id === nid)?.title || "Без названия")
+                                  .join(", ")
+                              : "";
+                            return (
+                              <div key={idx} className="flex items-start gap-2.5 text-xs text-foreground/80">
+                                <FolderInput className="mt-0.5 h-3.5 w-3.5 shrink-0 text-violet-500" />
+                                <span>
+                                  Перенести {notesCount} заметку(-и) в папку <strong className="font-semibold text-violet-700 dark:text-violet-400">«{act.folderName}»</strong>
+                                  <span className="block mt-0.5 text-[10px] text-foreground/45">({noteNames})</span>
+                                </span>
+                              </div>
+                            );
+                          }
+                          if (act.type === "addTagsToNotes") {
+                            const notesCount = act.noteIds?.length ?? 0;
+                            const tagsList = act.tags?.join(", ") ?? "";
+                            return (
+                              <div key={idx} className="flex items-start gap-2.5 text-xs text-foreground/80">
+                                <Tag className="mt-0.5 h-3.5 w-3.5 shrink-0 text-violet-500" />
+                                <span>
+                                  Добавить теги <strong className="font-semibold text-violet-700 dark:text-violet-400">[{tagsList}]</strong> к {notesCount} заметке(-ам)
+                                </span>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })}
+                      </div>
+
+                      <div className="mt-3.5 flex items-center justify-end border-t border-violet-100/50 pt-3 dark:border-violet-950/20">
+                        {msg.actionsStatus === "pending" && (
+                          <div className="flex gap-2">
+                            <button
+                              className="rounded-xl bg-background border border-border px-3 py-1.5 text-xs font-bold text-foreground/70 transition hover:bg-surface-strong"
+                              type="button"
+                              onClick={() => handleDismissActions(msg.id)}
+                            >
+                              Пропустить
+                            </button>
+                            <button
+                              className="flex items-center gap-1.5 rounded-xl bg-violet-600 px-3.5 py-1.5 text-xs font-black text-white shadow-sm shadow-violet-600/20 transition hover:bg-violet-500 active:scale-95"
+                              type="button"
+                              onClick={() => void handleExecuteActions(msg.id, msg.actions)}
+                            >
+                              <Play className="h-3 w-3 fill-current" />
+                              Выполнить
+                            </button>
+                          </div>
+                        )}
+
+                        {msg.actionsStatus === "running" && (
+                          <div className="flex items-center gap-2 text-xs font-bold text-violet-600 dark:text-violet-400">
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            <span>Применяю изменения...</span>
+                          </div>
+                        )}
+
+                        {msg.actionsStatus === "completed" && (
+                          <div className="flex items-center gap-2 text-xs font-black text-emerald-600 dark:text-emerald-400">
+                            <CheckCircle2 className="h-4 w-4" />
+                            <span>Готово! Изменения применены.</span>
+                          </div>
+                        )}
+
+                        {msg.actionsStatus === "error" && (
+                          <div className="flex items-center gap-2 text-xs font-bold text-rose-600 dark:text-rose-400">
+                            <AlertTriangle className="h-4 w-4" />
+                            <span>Ошибка применения.</span>
+                            <button
+                              className="ml-2 underline"
+                              type="button"
+                              onClick={() => void handleExecuteActions(msg.id, msg.actions)}
+                            >
+                              Повторить
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
