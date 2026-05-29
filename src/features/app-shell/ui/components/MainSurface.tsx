@@ -47,7 +47,7 @@ export function MainSurface({ copy, view, folders, hiddenFolders, trashedFolders
 
   if (view === "invites") {
     return (
-      <section className="panel-card min-h-[calc(100vh-4.8rem)] border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl">
+      <section className="panel-card flex flex-col flex-1 min-h-0 border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl">
         <InvitesMainView onRefreshInvites={onRefreshInvites} />
       </section>
     );
@@ -56,7 +56,7 @@ export function MainSurface({ copy, view, folders, hiddenFolders, trashedFolders
   if (view === "admin_tools") {
     if (!isAdminUser(user?.email)) {
       return (
-        <section className="panel-card min-h-[calc(100vh-4.8rem)] border-t border-border bg-surface/88 p-6 shadow-xl backdrop-blur-2xl flex items-center justify-center text-center">
+        <section className="panel-card flex flex-col flex-1 min-h-0 border-t border-border bg-surface/88 p-6 shadow-xl backdrop-blur-2xl flex items-center justify-center text-center">
           <div>
             <h2 className="text-xl font-black text-rose-500">Доступ ограничен</h2>
             <p className="mt-2 text-sm text-foreground/56">Вы не имеете прав для просмотра этого раздела.</p>
@@ -64,27 +64,27 @@ export function MainSurface({ copy, view, folders, hiddenFolders, trashedFolders
         </section>
       );
     }
-    return <section className="panel-card min-h-[calc(100vh-4.8rem)] border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><AdminToolsView notes={notes} /></section>;
+    return <section className="panel-card flex flex-col flex-1 min-h-0 border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><AdminToolsView notes={notes} /></section>;
   }
 
   if (view === "hidden_folders") {
-    return <section className="panel-card min-h-[calc(100vh-4.8rem)] border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><FoldersGrid emptyText={copy.shell.hiddenFolders} folderViewMode={folderViewMode} folders={hiddenFolders} mode="hidden" onOpenFolder={onOpenFolder} /></section>;
+    return <section className="panel-card flex flex-col flex-1 min-h-0 border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><FoldersGrid emptyText={copy.shell.hiddenFolders} folderViewMode={folderViewMode} folders={hiddenFolders} mode="hidden" onOpenFolder={onOpenFolder} /></section>;
   }
 
   if (view === "folders") {
-    return <section className="panel-card min-h-[calc(100vh-4.8rem)] border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><FoldersGrid emptyText={copy.shell.folders} folderViewMode={folderViewMode} folders={folders} mode="active" onOpenFolder={onOpenFolder} /></section>;
+    return <section className="panel-card flex flex-col flex-1 min-h-0 border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><FoldersGrid emptyText={copy.shell.folders} folderViewMode={folderViewMode} folders={folders} mode="active" onOpenFolder={onOpenFolder} /></section>;
   }
 
   if (view === "trash") {
-    return <section className="panel-card min-h-[calc(100vh-4.8rem)] border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><TrashView copy={copy} notes={notes} notesPerPage={notesPerPage} onOpenNote={onOpenNote} onOpenSheet={onOpenSheet} trashedFolders={trashedFolders} /></section>;
+    return <section className="panel-card flex flex-col flex-1 min-h-0 border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><TrashView copy={copy} notes={notes} notesPerPage={notesPerPage} onOpenNote={onOpenNote} onOpenSheet={onOpenSheet} trashedFolders={trashedFolders} /></section>;
   }
 
   if (view === "folder" && activeFolder) {
-    return <section className="panel-card min-h-[calc(100vh-4.8rem)] border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><NotesView copy={copy} emptyText={copy.shell.prompts.noMatches} notes={notes} notesPerPage={notesPerPage} onOpenNote={onOpenNote} onOpenSheet={onOpenSheet} title={activeFolder.name} view={view} /></section>;
+    return <section className="panel-card flex flex-col flex-1 min-h-0 border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><NotesView copy={copy} emptyText={copy.shell.prompts.noMatches} notes={notes} notesPerPage={notesPerPage} onOpenNote={onOpenNote} onOpenSheet={onOpenSheet} title={activeFolder.name} view={view} /></section>;
   }
 
   return (
-    <section className="panel-card min-h-[calc(100vh-4.8rem)] border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl">
+    <section className="panel-card flex flex-col flex-1 min-h-0 border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl">
       <NotesView
         copy={copy}
         emptyText="Здесь пока пусто"
@@ -125,24 +125,28 @@ function FoldersGrid({ folders, mode, emptyText, folderViewMode, onOpenFolder }:
   }
 
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3 p-3 sm:gap-[14px] sm:p-5">
-      {folders.map((folder) => {
-        const notesCount = notes.filter((note) => note.folderId === folder.id && !note.trashedAt).length;
+    <div className="content-scrollable flex-1 min-h-0">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3 p-3 sm:gap-[14px] sm:p-5">
+        {folders.map((folder) => {
+          const notesCount = notes.filter((note) => note.folderId === folder.id && !note.trashedAt).length;
 
-        return (
-            <div className="folder-card min-h-[15rem] rounded-[1.6rem] border border-border bg-surface-strong p-8 text-left shadow-lg shadow-violet-950/4 sm:min-h-[16.5rem]" key={folder.id}>
-            <button className="block w-full text-left" onClick={() => onOpenFolder(folder)} type="button">
-              <div className="flex items-center gap-2 text-accent"><Folder className="h-5 w-5" /></div>
-              <h2 className="mt-4 text-[1.45rem] font-black tracking-tight">{folder.name}</h2>
-              {folder.description ? <p className={`mt-2 text-sm text-foreground/56 ${folderViewMode === "compact" ? "line-clamp-3 leading-6" : "line-clamp-4 leading-7"}`}>{folder.description}</p> : null}
-            </button>
-            <div className="mt-4 flex items-center justify-between gap-3 text-sm text-foreground/56">
-              <span>{notesCount} заметок</span>
-              {mode === "hidden" ? <button className="rounded-xl bg-background px-3 py-2 font-bold text-accent" onClick={() => void unhideFolder(folder.id)} type="button">Показать</button> : null}
+          return (
+            <div className="folder-card min-h-[15rem] rounded-[1.6rem] border border-border bg-surface-strong p-6 sm:p-8 text-left shadow-lg shadow-violet-950/4 sm:min-h-[16.5rem] flex flex-col justify-between h-full transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-1.5 hover:shadow-xl hover:shadow-violet-950/8" key={folder.id}>
+              <button className="flex flex-col flex-1 w-full text-left" onClick={() => onOpenFolder(folder)} type="button">
+                <div className="flex-1 w-full">
+                  <div className="flex items-center gap-2 text-accent"><Folder className="h-5 w-5" /></div>
+                  <h2 className="mt-4 text-[1.45rem] font-black tracking-tight">{folder.name}</h2>
+                  {folder.description ? <p className={`mt-2 text-sm text-foreground/56 ${folderViewMode === "compact" ? "line-clamp-3 leading-6" : "line-clamp-4 leading-7"}`}>{folder.description}</p> : null}
+                </div>
+              </button>
+              <div className="mt-auto pt-4 flex items-center justify-between gap-3 text-sm text-foreground/56 w-full">
+                <span>{notesCount} заметок</span>
+                {mode === "hidden" ? <button className="rounded-xl bg-background px-3 py-2 font-bold text-accent" onClick={() => void unhideFolder(folder.id)} type="button">Показать</button> : null}
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }

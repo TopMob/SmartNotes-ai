@@ -58,7 +58,7 @@ export function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: NoteC
       style={style}
       {...attributes}
       {...listeners}
-      className={`note-card relative overflow-visible rounded-[1.5rem] border bg-surface-strong p-4 text-left shadow-md shadow-violet-950/4 transition hover:-translate-y-0.5 hover:shadow-lg sm:p-5 border-border ${note.trashedAt ? "border-dashed border-rose-300" : "border-border"}`}
+      className={`note-card relative overflow-visible rounded-[1.5rem] border bg-surface-strong p-4 text-left shadow-md shadow-violet-950/4 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-1.5 hover:shadow-xl hover:shadow-violet-950/8 sm:p-5 border-border flex flex-col h-full min-h-[200px] ${note.trashedAt ? "border-dashed border-rose-300" : "border-border"}`}
     >
       {/* Top right action buttons. Positioned at z-20 relative so they render on top of the card's clickable pseudo-overlay. */}
       <div className="absolute right-3 top-3 z-20 flex items-start gap-1">
@@ -91,21 +91,23 @@ export function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: NoteC
       {/* Main card trigger button. Stretched using the pseudo-element 'before' overlay at z-10.
           This handles standard button semantics, keyboard focus/triggering, and makes the ENTIRE card clickable. */}
       <button 
-        className="block w-full text-left rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 before:absolute before:inset-0 before:rounded-[1.5rem] before:z-10" 
+        className="flex flex-col flex-1 h-full w-full text-left rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 before:absolute before:inset-0 before:rounded-[1.5rem] before:z-10" 
         onClick={() => onOpenNote(note.id)} 
         type="button"
       >
-        <h3 className="pr-20 text-base font-black tracking-tight sm:text-lg mt-0 truncate" title={note.title}>
-          {note.title}
-        </h3>
-        <p className={`mt-2 line-clamp-3 text-sm leading-6 text-foreground/60 ${note.lock?.hidden && !isUnlocked ? "select-none" : ""}`}>
-          {previewText}
-        </p>
+        <div className="flex-1 w-full">
+          <h3 className="pr-20 text-base font-black tracking-tight sm:text-lg mt-0 truncate" title={note.title}>
+            {note.title}
+          </h3>
+          <p className={`mt-2 line-clamp-3 text-sm leading-6 text-foreground/60 ${note.lock?.hidden && !isUnlocked ? "select-none" : ""}`}>
+            {previewText}
+          </p>
+        </div>
         
         {/* z-20 relative wrapper so that other text links or tags stay interactable if needed, or simply render cleanly. */}
-        <div className="relative z-20 pointer-events-none">
+        <div className="relative z-20 pointer-events-none mt-auto pt-3.5 w-full">
           {Boolean(note.reminderAt || note.lock || note.isArchived || folder || isShared) && (
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-[12px] font-black uppercase tracking-[0.18em] text-foreground/42">
+            <div className="flex flex-wrap items-center gap-2 text-[12px] font-black uppercase tracking-[0.18em] text-foreground/42">
               {note.reminderAt ? <span className="rounded-full bg-amber-500/10 px-2 py-1 text-amber-600">{reminderLabel}</span> : null}
               {note.lock ? <span className="rounded-full bg-foreground/8 px-2 py-1">🔒</span> : null}
               {note.isArchived ? <span className="rounded-full bg-foreground/8 px-2 py-1">Archive</span> : null}
@@ -117,7 +119,7 @@ export function NoteCard({ note, folders, onOpenNote, onOpenSheet, view }: NoteC
             <div className="mt-2 flex flex-wrap gap-2">
               {note.userTags.slice(0, 5).map((tag) => (
                 <span className="rounded-full border border-border px-3.5 py-1 text-xs font-semibold text-foreground/56" key={tag}>
-                  #{tag}
+                  #{tag.replace(/^#+/, "")}
                 </span>
               ))}
             </div>

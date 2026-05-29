@@ -347,12 +347,13 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
           <motion.aside
             animate={{ x: 0, opacity: 1 }}
             aria-label="AI чат по заметкам"
-            className="fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l border-border bg-surface shadow-2xl shadow-violet-950/20 backdrop-blur-2xl sm:w-[420px]"
+            className="fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l border-border bg-surface-strong/95 shadow-2xl shadow-violet-950/20 backdrop-blur-md sm:w-[420px]"
             exit={{ x: "100%", opacity: 0 }}
             id="ai-chat-panel"
             initial={{ x: "100%", opacity: 0 }}
             role="complementary"
-            transition={{ type: "spring", stiffness: 360, damping: 38 }}
+            transition={{ type: "tween", ease: [0.16, 1, 0.3, 1], duration: 0.3 }}
+            style={{ willChange: "transform, opacity" }}
           >
             {/* ── Header ── */}
             <header className="flex shrink-0 items-center gap-3 border-b border-border bg-surface-strong px-4 py-3">

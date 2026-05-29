@@ -90,23 +90,29 @@ export function TopFiltersPopup({ popupRef, notesFilter, savedFilters, folders, 
         
         {notesFilter.tags.length > 0 ? (
           <div className="mt-3 flex flex-wrap gap-1.5">
-            {notesFilter.tags.map((tag) => (
-              <span key={tag} className="inline-flex items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-xs font-bold text-accent-foreground shadow-sm shadow-accent/10">
-                #{tag}
-                <button
-                  type="button"
-                  onClick={() => onToggleTagFilter(tag)}
-                  className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full hover:bg-black/10 focus:outline-none font-bold"
-                  aria-label={`Убрать тег ${tag}`}
-                >
-                  ×
-                </button>
-              </span>
-            ))}
+            {notesFilter.tags.map((tag) => {
+              const cleanTag = tag.replace(/^#+/, "");
+              return (
+                <span key={tag} className="inline-flex items-center gap-1 rounded-full bg-accent px-2.5 py-1 text-xs font-bold text-accent-foreground shadow-sm shadow-accent/10">
+                  #{cleanTag}
+                  <button
+                    type="button"
+                    onClick={() => onToggleTagFilter(tag)}
+                    className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full hover:bg-black/10 focus:outline-none font-bold"
+                    aria-label={`Убрать тег ${tag}`}
+                  >
+                    ×
+                  </button>
+                </span>
+              );
+            })}
           </div>
         ) : null}
 
-        {tagSuggestions.length ? <div className="mt-3 flex flex-wrap justify-center gap-1.5">{tagSuggestions.map((tag) => <button className={`rounded-full border px-2.5 py-1 text-xs sm:px-3 sm:py-1.5 sm:text-sm font-bold transition-all duration-200 ${notesFilter.tags.includes(tag) ? "border-accent bg-accent text-accent-foreground font-black shadow-md shadow-accent/10" : "border-border bg-background text-foreground/72 hover:border-foreground/20"}`} key={tag} onClick={() => onToggleTagFilter(tag)} type="button">#{tag}</button>)}</div> : <p className="mt-3 text-sm text-foreground/52">Совпадений пока нет.</p>}
+        {tagSuggestions.length ? <div className="mt-3 flex flex-wrap justify-center gap-1.5">{tagSuggestions.map((tag) => {
+          const cleanTag = tag.replace(/^#+/, "");
+          return <button className={`rounded-full border px-2.5 py-1 text-xs sm:px-3 sm:py-1.5 sm:text-sm font-bold transition-all duration-200 ${notesFilter.tags.includes(tag) ? "border-accent bg-accent text-accent-foreground font-black shadow-md shadow-accent/10" : "border-border bg-background text-foreground/72 hover:border-foreground/20"}`} key={tag} onClick={() => onToggleTagFilter(tag)} type="button">#{cleanTag}</button>;
+        })}</div> : <p className="mt-3 text-sm text-foreground/52">Совпадений пока нет.</p>}
         {tagDraft.trim() ? <button className="mt-3 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm font-bold hover:bg-surface" onClick={() => onToggleTagFilter(tagDraft.trim())} type="button">Применить тег `#{tagDraft.trim()}`</button> : null}
       </div> : null}
     </section>

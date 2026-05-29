@@ -189,7 +189,7 @@ export function SmartNotesShell() {
     <main className="app-layout overflow-hidden text-foreground">
       <div className="relative flex min-h-0 flex-1 overflow-x-hidden">
         {desktopSidebarVisible ? (
-          <div className="hidden lg:block">
+          <div className="hidden lg:block h-full">
             <Sidebar copy={copy} currentView={view} folderViewMode={folderViewMode} folders={folders} activeFolderId={activeFolderId} isDesktop invitesCount={invitesCount} onClose={() => setDesktopSidebarOpen(false)} onCreateFolder={(anchor) => shellState.openSheet("create-folder", anchor)} onOpenFolder={openFolder} onOpenSheet={shellState.openSheet} onSwitchView={openView} />
           </div>
         ) : null}

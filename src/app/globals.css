@@ -119,6 +119,8 @@ html {
   min-height: 100%;
   background: var(--background);
   text-size-adjust: 100%;
+  overflow: hidden;
+  overscroll-behavior: contain;
 }
 
 body {
@@ -127,7 +129,7 @@ body {
   color: var(--foreground);
   background: var(--wallpaper);
   background-attachment: fixed;
-  overscroll-behavior-y: none;
+  overscroll-behavior: contain;
   overflow: hidden;
 }
 
@@ -167,21 +169,145 @@ select {
 }
 
 button:focus-visible,
-a:focus-visible,
-input:focus-visible,
-textarea:focus-visible,
-select:focus-visible {
+a:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
-button {
-  cursor: pointer;
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(.bg-transparent):not(.outline-none):not(.borderless-input),
+textarea:not(.bg-transparent):not(.outline-none),
+select {
+  border-radius: 12px;
+  transition: border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-input,
-textarea {
-  border-radius: 0;
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(.bg-transparent):not(.outline-none):not(.borderless-input):focus,
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(.bg-transparent):not(.outline-none):not(.borderless-input):focus-visible,
+textarea:not(.bg-transparent):not(.outline-none):focus,
+textarea:not(.bg-transparent):not(.outline-none):focus-visible,
+select:focus,
+select:focus-visible {
+  outline: none !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 24%, transparent) !important;
+}
+
+/* Disable focus rings on seamless inputs inside styled parents (e.g., search container, chat prompt capsule) */
+.search-container input,
+.search-bar input,
+input.bg-transparent,
+input.outline-none,
+input.borderless-input,
+textarea.bg-transparent,
+textarea.outline-none,
+.search-container input:focus,
+.search-bar input:focus,
+input.bg-transparent:focus,
+input.outline-none:focus,
+input.borderless-input:focus,
+textarea.bg-transparent:focus,
+textarea.outline-none:focus,
+.search-container input:focus-visible,
+.search-bar input:focus-visible,
+input.bg-transparent:focus-visible,
+input.outline-none:focus-visible,
+input.borderless-input:focus-visible,
+textarea.bg-transparent:focus-visible,
+textarea.outline-none:focus-visible {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+/* Lock scrolling chains completely */
+html, body, .app-layout, .main-content, .content-scrollable, aside, .sidebar-glass, [class*="scrollable"], [class*="overflow-y-auto"] {
+  overscroll-behavior: contain !important;
+}
+
+button {
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), background-color 0.2s ease, opacity 0.2s ease;
+}
+
+button:active {
+  transform: scale(0.97);
+}
+
+/* Block scroll propagation (chaining/bouncing) to background wallpaper entirely */
+.content-scrollable,
+.sidebar-glass,
+aside,
+section,
+.filter-menu,
+.dropdown-menu,
+.modal-card {
+  overscroll-behavior: contain;
+}
+
+/* Silky smooth card transitions targeting hardware-accelerated properties specifically */
+.note-card,
+.folder-card {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease !important;
+}
+
+/* Premium Animations & Keyframes - Optimized for GPU acceleration (Zero backdrop-filter blur animation to prevent CPU lag) */
+@keyframes premium-backdrop-enter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes premium-modal-enter {
+  from {
+    transform: translate(-50%, -50%) scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes premium-sheet-enter {
+  from {
+    transform: translateY(15%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes premium-overlay-enter {
+  from {
+    opacity: 0;
+    transform: scale(1.015);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-premium-backdrop {
+  animation: premium-backdrop-enter 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-premium-modal {
+  animation: premium-modal-enter 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.animate-premium-sheet {
+  animation: premium-sheet-enter 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-premium-overlay {
+  animation: premium-overlay-enter 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .line-clamp-3 {

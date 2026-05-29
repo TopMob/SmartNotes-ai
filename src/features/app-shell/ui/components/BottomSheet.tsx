@@ -73,10 +73,17 @@ export function BottomSheet({ sheet, activeFolder, isDesktop, onClose, onCloseWi
   const folderPopup = name === "folder" && !!anchor && !mobileSheet;
 
   function renderSheetContent() {
+    const isPositioned = !(name === "note" || name === "about" || name === "share" || mobileSheet || !anchor);
+    const animationClass = isPositioned
+      ? "animate-premium-backdrop"
+      : (name === "note" || name === "about" || name === "share") && !mobileSheet
+        ? "animate-premium-modal"
+        : "animate-premium-sheet";
+
     return (
       <section
-        className={`absolute border border-border bg-surface p-4 shadow-2xl shadow-violet-950/20 backdrop-blur-2xl ${mobileSheet ? "inset-3 max-h-[calc(100vh-1.5rem)] overflow-y-auto rounded-[2rem]" : name === "note" || name === "about" || name === "share" ? "left-1/2 top-1/2 w-[min(92vw,32rem)] max-h-[86vh] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[2rem]" : anchor ? "w-[min(92vw,24rem)] max-h-[82vh] overflow-y-auto rounded-[1.8rem]" : topSheet ? "inset-x-0 top-0 max-h-[86vh] overflow-y-auto rounded-b-[2rem] lg:left-1/2 lg:top-4 lg:w-[min(94vw,48rem)] lg:-translate-x-1/2 lg:rounded-[2rem]" : "inset-x-0 bottom-0 max-h-[86vh] overflow-y-auto rounded-t-[2rem] lg:inset-auto lg:bottom-6 lg:right-6 lg:w-[420px] lg:rounded-[2rem]"}`}
-        style={name === "note" || name === "about" || name === "share" || mobileSheet || !anchor ? undefined : { left: `${anchor.x}px`, top: `${anchor.y}px`, transform: `translate(-50%, ${anchor.placement === "above" ? "-100%" : "0"})` }}
+        className={`absolute border border-border bg-surface p-4 shadow-2xl shadow-violet-950/20 backdrop-blur-2xl ${mobileSheet ? "inset-3 max-h-[calc(100vh-1.5rem)] overflow-y-auto rounded-[2rem]" : name === "note" || name === "about" || name === "share" ? "left-1/2 top-1/2 w-[min(92vw,32rem)] max-h-[86vh] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[2rem]" : anchor ? "w-[min(92vw,24rem)] max-h-[82vh] overflow-y-auto rounded-[1.8rem]" : topSheet ? "inset-x-0 top-0 max-h-[86vh] overflow-y-auto rounded-b-[2rem] lg:left-1/2 lg:top-4 lg:w-[min(94vw,48rem)] lg:-translate-x-1/2 lg:rounded-[2rem]" : "inset-x-0 bottom-0 max-h-[86vh] overflow-y-auto rounded-t-[2rem] lg:inset-auto lg:bottom-6 lg:right-6 lg:w-[420px] lg:rounded-[2rem]"} ${animationClass}`}
+        style={isPositioned ? { left: `${anchor.x}px`, top: `${anchor.y}px`, transform: `translate(-50%, ${anchor.placement === "above" ? "-100%" : "0"})` } : undefined}
       >
         <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-foreground/18 lg:hidden" />
         <div className="flex items-center justify-between gap-3">
@@ -103,7 +110,7 @@ export function BottomSheet({ sheet, activeFolder, isDesktop, onClose, onCloseWi
     </div>
   ) : (
     <div className="fixed inset-0 z-50">
-      <button className="absolute inset-0 bg-black/50 backdrop-blur-md" onClick={onClose} type="button" />
+      <button className="absolute inset-0 bg-black/50 backdrop-blur-md animate-premium-backdrop" onClick={onClose} type="button" />
       {renderSheetContent()}
     </div>
   );
@@ -333,7 +340,13 @@ function ActionCard({ label, onClick, active = false, destructive = false }: { l
 }
 
 function FolderActionList({ copy, activeFolder, onClose }: { copy: ReturnType<typeof getUiCopy>; activeFolder: FolderEntity | null; onClose: () => void }) {
-  const { hideFolder, moveFolder, renameFolder, trashFolder, unhideFolder, updateFolderDescription } = useFolderActions();
+  const { hideFolder, renameFolder, trashFolder, unhideFolder, updateFolderDescription } = useFolderActions();
+
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [isEditingDesc, setIsEditingDesc] = useState(false);
+  const [nameVal, setNameVal] = useState(activeFolder?.name ?? "");
+  const [descVal, setDescVal] = useState(activeFolder?.description ?? "");
+  const [isCopied, setIsCopied] = useState(false);
 
   if (!activeFolder) {
     return null;
@@ -342,14 +355,18 @@ function FolderActionList({ copy, activeFolder, onClose }: { copy: ReturnType<ty
   const folder = activeFolder;
   const dlgs = copy.shell.dialogs;
 
-  function handleRename() {
-    const nextName = window.prompt(dlgs?.folderRenamePrompt || "Новое имя папки", folder.name)?.trim();
-
-    if (!nextName) {
-      return;
+  function handleSaveRename() {
+    const nextName = nameVal.trim();
+    if (nextName) {
+      void renameFolder(folder.id, nextName);
+      setIsRenaming(false);
     }
+  }
 
-    void renameFolder(folder.id, nextName);
+  function handleSaveDesc() {
+    const nextDesc = descVal.trim() || null;
+    void updateFolderDescription(folder.id, nextDesc);
+    setIsEditingDesc(false);
   }
 
   function handleDelete() {
@@ -362,58 +379,130 @@ function FolderActionList({ copy, activeFolder, onClose }: { copy: ReturnType<ty
     onClose();
   }
 
-  function handleDescription() {
-    const nextValue = window.prompt(dlgs?.folderDescriptionPrompt || "Описание папки", folder.description ?? "");
-
-    if (nextValue === null) {
-      return;
+  async function handleShare() {
+    const text = `${folder.name}\n${folder.description ?? ""}\nFolder ID: ${folder.id}`.trim();
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.opacity = "0";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        const successful = document.execCommand("copy");
+        document.body.removeChild(textArea);
+        if (successful) {
+          setIsCopied(true);
+          setTimeout(() => setIsCopied(false), 2000);
+        } else {
+          throw new Error("Fallback copy failed");
+        }
+      }
+    } catch (e) {
+      console.error(e);
+      setIsCopied(false);
+      window.alert("Не удалось скопировать автоматически. Скопируйте вручную:\n\n" + text);
     }
-
-    const nextDescription = nextValue.trim() || null;
-
-    void updateFolderDescription(folder.id, nextDescription);
   }
 
   return (
     <div className="mt-4 space-y-1">
-      {/* Block 1: Info & Management */}
-      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left text-sm font-bold hover:bg-surface-strong" onClick={handleRename} type="button">
-        <Pencil className="h-4 w-4 text-foreground/64" />
-        {copy.shell.actions.rename}
-      </button>
-      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left text-sm font-bold hover:bg-surface-strong" onClick={handleDescription} type="button">
-        <FileText className="h-4 w-4 text-foreground/64" />
-        {dlgs?.folderDescriptionPrompt || "Изменить описание"}
-      </button>
-      <div className="h-px bg-border my-2" />
-
-      {folder.isHidden ? (
-        <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left text-sm font-bold hover:bg-surface-strong" onClick={() => void unhideFolder(folder.id)} type="button">
-          <Eye className="h-4 w-4 text-foreground/64" />
-          {copy.shell.actions.unhide}
-        </button>
+      {isRenaming ? (
+        <div className="p-3.5 rounded-2xl border border-border bg-surface-strong/50 space-y-3 animate-premium-sheet">
+          <div className="text-[10px] font-black uppercase tracking-[0.15em] text-foreground/42">Переименовать папку</div>
+          <input 
+            className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none focus:border-accent text-foreground"
+            value={nameVal}
+            onChange={(e) => setNameVal(e.target.value)}
+            placeholder="Имя папки"
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSaveRename();
+              if (e.key === "Escape") setIsRenaming(false);
+            }}
+          />
+          <div className="flex gap-2">
+            <Button className="flex-1 h-9 rounded-xl text-xs font-black" onClick={handleSaveRename}>Сохранить</Button>
+            <Button className="h-9 rounded-xl text-xs font-bold" variant="secondary" onClick={() => setIsRenaming(false)}>Отмена</Button>
+          </div>
+        </div>
+      ) : isEditingDesc ? (
+        <div className="p-3.5 rounded-2xl border border-border bg-surface-strong/50 space-y-3 animate-premium-sheet">
+          <div className="text-[10px] font-black uppercase tracking-[0.15em] text-foreground/42">Изменить описание</div>
+          <textarea 
+            className="min-h-20 w-full rounded-xl border border-border bg-background p-3 text-sm outline-none focus:border-accent text-foreground resize-none"
+            value={descVal}
+            onChange={(e) => setDescVal(e.target.value)}
+            placeholder="Описание папки"
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSaveDesc();
+              }
+              if (e.key === "Escape") setIsEditingDesc(false);
+            }}
+          />
+          <div className="flex gap-2">
+            <Button className="flex-1 h-9 rounded-xl text-xs font-black" onClick={handleSaveDesc}>Сохранить</Button>
+            <Button className="h-9 rounded-xl text-xs font-bold" variant="secondary" onClick={() => setIsEditingDesc(false)}>Отмена</Button>
+          </div>
+        </div>
       ) : (
-        <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left text-sm font-bold hover:bg-surface-strong" onClick={() => void hideFolder(folder.id)} type="button">
-          <EyeOff className="h-4 w-4 text-foreground/64" />
-          {copy.shell.actions.hide}
-        </button>
+        <>
+          {/* Block 1: Info & Management */}
+          <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left text-sm font-bold hover:bg-surface-strong transition-all" onClick={() => setIsRenaming(true)} type="button">
+            <Pencil className="h-4 w-4 text-foreground/64" />
+            {copy.shell.actions.rename}
+          </button>
+          <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left text-sm font-bold hover:bg-surface-strong transition-all" onClick={() => setIsEditingDesc(true)} type="button">
+            <FileText className="h-4 w-4 text-foreground/64" />
+            {dlgs?.folderDescriptionPrompt || "Изменить описание"}
+          </button>
+          <div className="h-px bg-border my-2" />
+
+          {folder.isHidden ? (
+            <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left text-sm font-bold hover:bg-surface-strong transition-all" onClick={() => void unhideFolder(folder.id)} type="button">
+              <Eye className="h-4 w-4 text-foreground/64" />
+              {copy.shell.actions.unhide}
+            </button>
+          ) : (
+            <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left text-sm font-bold hover:bg-surface-strong transition-all" onClick={() => void hideFolder(folder.id)} type="button">
+              <EyeOff className="h-4 w-4 text-foreground/64" />
+              {copy.shell.actions.hide}
+            </button>
+          )}
+
+          <div className="h-px bg-border my-2" />
+
+          {/* Block 3: Access & Sharing */}
+          <button 
+            className={`flex w-full items-center gap-3 rounded-2xl p-3 text-left text-sm font-bold transition-all ${
+              isCopied 
+                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" 
+                : "hover:bg-surface-strong"
+            }`} 
+            onClick={handleShare} 
+            type="button"
+          >
+            <Users className={`h-4 w-4 ${isCopied ? "text-emerald-400" : "text-foreground/64"}`} />
+            <span>{isCopied ? "Скопировано в буфер! ✓" : copy.shell.actions.share}</span>
+          </button>
+
+          <div className="h-px bg-border my-2" />
+
+          {/* Block 4: Destruction */}
+          <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left text-sm font-bold text-rose-500 hover:bg-rose-500/10 transition-all" onClick={handleDelete} type="button">
+            <Trash2 className="h-4 w-4 text-rose-500" />
+            {copy.shell.actions.delete}
+          </button>
+        </>
       )}
-
-      <div className="h-px bg-border my-2" />
-
-      {/* Block 3: Access & Sharing */}
-      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left text-sm font-bold hover:bg-surface-strong" onClick={() => void shareFolder(folder)} type="button">
-        <Users className="h-4 w-4 text-foreground/64" />
-        {copy.shell.actions.share}
-      </button>
-
-      <div className="h-px bg-border my-2" />
-
-      {/* Block 4: Destruction */}
-      <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left text-sm font-bold text-rose-500 hover:bg-rose-500/10" onClick={handleDelete} type="button">
-        <Trash2 className="h-4 w-4 text-rose-500" />
-        {copy.shell.actions.delete}
-      </button>
     </div>
   );
 }
@@ -425,20 +514,26 @@ function PagesContent({ copy }: { copy: ReturnType<typeof getUiCopy> }) {
   const { noteId } = useNoteCollabSession();
   const { pages, addPage, removePage: removeCollabPage, setPageTitle } = useNoteCollabPage(currentNotePageIndex);
 
+  const [editingPageId, setEditingPageId] = useState<string | null>(null);
+  const [pageNameVal, setPageNameVal] = useState("");
+
   if (!currentNoteId || currentNoteId !== noteId) {
     return null;
   }
 
   const dlgs = copy.shell.dialogs;
 
-  function renamePage(pageId: string, currentTitle: string) {
-    const nextTitle = window.prompt(dlgs?.pageRenamePrompt || "Название страницы", currentTitle)?.trim();
+  function handleStartRename(pageId: string, currentTitle: string) {
+    setEditingPageId(pageId);
+    setPageNameVal(currentTitle);
+  }
 
-    if (!nextTitle) {
-      return;
+  function handleSaveRename(pageId: string) {
+    const nextTitle = pageNameVal.trim();
+    if (nextTitle) {
+      setPageTitle(pageId, nextTitle);
     }
-
-    setPageTitle(pageId, nextTitle);
+    setEditingPageId(null);
   }
 
   function removePage(pageId: string) {
@@ -452,25 +547,51 @@ function PagesContent({ copy }: { copy: ReturnType<typeof getUiCopy> }) {
   return (
     <div className="mt-4 space-y-3">
       <div className="grid gap-2">
-        {pages.map((page, index) => (
-          <div className={`flex items-center gap-3 rounded-2xl p-3 transition ${currentNotePageIndex === index ? "bg-accent/10 text-accent" : "bg-surface-strong hover:bg-background"}`} key={page.id}>
-            <button className="flex min-w-0 flex-1 items-center gap-3 text-left" onClick={() => setCurrentNotePageIndex(index)} type="button">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/12 text-sm font-black text-accent">{index + 1}</span>
-              <span className="min-w-0 flex-1 truncate font-bold">{page.title}</span>
-            </button>
-            <button className="rounded-xl p-2 text-foreground/60 hover:bg-background" onClick={() => renamePage(page.id, page.title)} type="button"><Pencil className="h-4 w-4" /></button>
-            {pages.length > 1 ? (
-              <button 
-                className="rounded-xl p-2 text-rose-500 hover:bg-background hover:text-rose-600 transition" 
-                onClick={() => removePage(page.id)} 
-                type="button"
-                title={copy.shell.actions.removePage || "Удалить"}
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            ) : null}
-          </div>
-        ))}
+        {pages.map((page, index) => {
+          const isEditing = editingPageId === page.id;
+          return (
+            <div className={`flex flex-col gap-2 rounded-2xl p-3 transition ${currentNotePageIndex === index ? "bg-accent/10 text-accent" : "bg-surface-strong hover:bg-background"}`} key={page.id}>
+              {isEditing ? (
+                <div className="flex flex-col gap-2 w-full animate-premium-sheet">
+                  <div className="text-[10px] font-black uppercase tracking-[0.15em] text-foreground/42">Переименовать страницу</div>
+                  <input
+                    className="h-10 w-full rounded-xl border border-border bg-background px-3 text-sm outline-none focus:border-accent text-foreground"
+                    value={pageNameVal}
+                    onChange={(e) => setPageNameVal(e.target.value)}
+                    placeholder="Название страницы"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleSaveRename(page.id);
+                      if (e.key === "Escape") setEditingPageId(null);
+                    }}
+                  />
+                  <div className="flex gap-2 justify-end">
+                    <Button className="h-8 rounded-xl text-xs font-black px-3" onClick={() => handleSaveRename(page.id)}>Сохранить</Button>
+                    <Button className="h-8 rounded-xl text-xs font-bold px-3" variant="secondary" onClick={() => setEditingPageId(null)}>Отмена</Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3 w-full">
+                  <button className="flex min-w-0 flex-1 items-center gap-3 text-left" onClick={() => setCurrentNotePageIndex(index)} type="button">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/12 text-sm font-black text-accent">{index + 1}</span>
+                    <span className="min-w-0 flex-1 truncate font-bold">{page.title}</span>
+                  </button>
+                  <button className="rounded-xl p-2 text-foreground/60 hover:bg-background" onClick={() => handleStartRename(page.id, page.title)} type="button"><Pencil className="h-4 w-4" /></button>
+                  {pages.length > 1 ? (
+                    <button 
+                      className="rounded-xl p-2 text-rose-500 hover:bg-background hover:text-rose-600 transition" 
+                      onClick={() => removePage(page.id)} 
+                      type="button"
+                      title={copy.shell.actions.removePage || "Удалить"}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  ) : null}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
       <Button className="w-full rounded-2xl" onClick={() => currentNoteId ? addPage() : null} type="button" variant="secondary">{copy.shell.actions.addPage || "Добавить страницу"}</Button>
     </div>

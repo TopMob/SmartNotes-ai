@@ -481,7 +481,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/96 backdrop-blur-2xl">
+    <div className="fixed inset-0 z-50 bg-background/96 backdrop-blur-2xl animate-premium-overlay">
       <div className="mx-auto flex h-full max-w-6xl flex-col px-0 py-2 sm:px-5 sm:py-3">
         <header className="mx-3 sm:mx-0 flex items-center gap-1 overflow-x-auto no-scrollbar rounded-[1.5rem] border border-border bg-surface/90 p-2 shadow-xl shadow-violet-950/8 sm:gap-2">
           <button title="Назад к списку заметок" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={handleClose} type="button"><ChevronLeft className="h-6 w-6 sm:h-5 sm:w-5" /></button>
@@ -549,7 +549,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
         >
            <input 
              disabled={role === "viewer"} 
-             className="w-full border-0 bg-transparent px-0 py-2 text-2xl font-black tracking-tight outline-none focus:ring-0 placeholder:text-foreground/28 sm:text-4xl disabled:opacity-60" 
+             className="w-full border-0 bg-transparent px-0 py-2 text-2xl font-black tracking-tight outline-none focus:ring-0 placeholder:text-foreground/28 sm:text-4xl disabled:opacity-60 borderless-input" 
              onChange={(event) => handleTitleChange(event.target.value)} 
              placeholder={lang === "ru" ? "Заголовок" : "Title"} 
              value={(title === "Untitled note" || title === "Untitled Note" ? "" : title) || ""} 
@@ -646,11 +646,11 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
 
         <footer className="mx-3 sm:mx-0 mt-3 flex flex-col gap-3 rounded-[1.5rem] border border-border bg-surface/92 p-3 shadow-xl shadow-violet-950/8 sm:flex-row sm:items-center sm:p-2">
           <div className="relative flex-1">
-            <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-surface-strong px-3 py-1.5 border border-border min-h-11">
+            <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-surface-strong px-3 py-1.5 border border-border min-h-11 focus-within:border-accent/80 focus-within:ring-2 focus-within:ring-accent/15 transition-all duration-200">
               <Tag className="h-4 w-4 text-accent shrink-0" />
               {userTags.map((tag) => (
                 <span key={tag} className="inline-flex items-center gap-1.5 rounded-lg bg-accent/10 border border-accent/20 px-2.5 py-1 text-xs font-bold text-accent">
-                  #{tag}
+                  #{tag.replace(/^#+/, "")}
                   {role !== "viewer" && (
                     <button 
                       type="button" 

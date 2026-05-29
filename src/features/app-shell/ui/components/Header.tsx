@@ -1,7 +1,7 @@
 "use client";
 
 import { Command, Menu, MoreHorizontal, Search, SlidersHorizontal, Sparkles } from "lucide-react";
-import type React from "react";
+import React, { useState, useEffect } from "react";
 
 import type { Folder as FolderEntity } from "@/entities/folder";
 import { getUiCopy } from "@/shared/lib/i18n";
@@ -38,6 +38,12 @@ export function Header({
   aiChatOpen = false,
   onToggleAiChat,
 }: HeaderProps) {
+  const [isMac, setIsMac] = useState(true);
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setIsMac(navigator.userAgent.indexOf("Mac") !== -1);
+    }
+  }, []);
   const title =
     view === "folder" && activeFolder
       ? activeFolder.name
@@ -93,7 +99,7 @@ export function Header({
           ) : null}
         </div>
 
-        <label className="hidden md:flex md:static md:mx-auto md:flex-1 md:h-10 md:max-w-[560px] md:shadow-inner md:shadow-violet-950/4 items-center gap-3 rounded-full border border-border bg-surface-strong px-4">
+        <div className="hidden md:flex md:static md:mx-auto md:flex-1 md:h-10 md:max-w-[560px] md:shadow-inner md:shadow-violet-950/4 items-center gap-3 rounded-full border border-border bg-surface-strong px-4 focus-within:border-accent/80 focus-within:ring-2 focus-within:ring-accent/15 transition-all duration-200">
           <Search className="h-5 w-5 shrink-0 text-foreground/38" />
           <input
             type="search"
@@ -105,13 +111,21 @@ export function Header({
             placeholder={copy.shell.search}
             value={searchQuery}
           />
-          <kbd
-            className="hidden items-center gap-1 rounded-lg border border-border bg-surface px-1.5 py-0.5 text-[10px] font-bold text-foreground/32 md:flex"
-            title="Command Palette"
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent("open-command-palette"))}
+            className="hidden items-center gap-1 rounded-lg border border-border bg-surface hover:bg-surface-strong px-2 py-0.5 text-[10px] font-black text-foreground/45 md:flex transition cursor-pointer"
+            title={copy.shell.search || "Поиск..."}
+            type="button"
           >
-            <Command className="h-2.5 w-2.5" />K
-          </kbd>
-        </label>
+            {isMac ? (
+              <>
+                <Command className="h-2.5 w-2.5 text-foreground/32" />K
+              </>
+            ) : (
+              "Ctrl K"
+            )}
+          </button>
+        </div>
 
         <div className="flex shrink-0 items-center gap-2">
           {/* Glowing AI Chat Button */}
