@@ -14,8 +14,9 @@
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (server-side only, never expose to client) | Supabase Dashboard → Settings → API |
 | `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | Google OAuth Client ID (inlined into client bundle for One Tap) | Google Cloud Console → Credentials |
 | `GOOGLE_CLIENT_ID` | Server-side fallback for Google Client ID (used in `/api/supabase/config` if `NEXT_PUBLIC_GOOGLE_CLIENT_ID` is absent) | Google Cloud Console → Credentials |
-| `OPENROUTER_API_KEY` | OpenRouter API key for AI chat and note analysis | https://openrouter.ai/keys |
-| `OPENROUTER_MODEL` | OpenRouter model identifier (defaults to `openai/gpt-4o-mini` if not set) | https://openrouter.ai/models |
+| `OPENROUTER_BASE_URL` | Base URL for the OpenAI-compatible completions API (defaults to `https://openrouter.ai/api/v1`. Configure as `https://codex.sale/v1` for Codex Sale) | https://openrouter.ai/ or https://codex.sale |
+| `OPENROUTER_API_KEY` | API key for OpenRouter or Codex Sale completions | Provider's Dashboard |
+| `OPENROUTER_MODEL` | Completions model identifier (defaults to `openai/gpt-4o-mini`. Set to `gpt-5.4` or `gpt-5.5` for Codex Sale) | Provider's Dashboard |
 | `AI_ADMIN_SECRET` | Secret token for admin-level AI API calls (bypasses user auth when `x-secret` header matches) | Generate: `openssl rand -hex 32` |
 | `ALLOWED_ORIGINS` | Comma-separated CORS origins for AI API routes (defaults to `http://localhost:3000`) | Set to your production domain(s) |
 
