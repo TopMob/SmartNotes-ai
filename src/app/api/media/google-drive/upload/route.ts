@@ -1,3 +1,4 @@
+// НИКАКОГО Base64 ВООБЩЕ - Использовать только сырые бинарные буферы для работы с файлами!
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
