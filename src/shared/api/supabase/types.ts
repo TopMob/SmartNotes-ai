@@ -16,6 +16,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_agent_runs: {
+        Row: {
+          actions: Json
+          conversation_excerpt: Json
+          created_at: string
+          error_message: string | null
+          id: string
+          owner_id: string
+          request_message: string
+          results: Json
+          status: string
+        }
+        Insert: {
+          actions?: Json
+          conversation_excerpt?: Json
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          owner_id: string
+          request_message?: string
+          results?: Json
+          status: string
+        }
+        Update: {
+          actions?: Json
+          conversation_excerpt?: Json
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          owner_id?: string
+          request_message?: string
+          results?: Json
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_agent_runs_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_jobs: {
         Row: {
           attempts: number

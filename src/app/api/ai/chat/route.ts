@@ -27,6 +27,7 @@ You have access to:
 1. User's existing folders: {{FOLDERS}}
 2. User's full notes list (metadata only): {{NOTES_LIST}}
 3. Semantic RAG context for detailed note contents (if relevant): {{RAG_CONTEXT}}
+4. Recent conversation history: {{CHAT_HISTORY}}
 
 IMPORTANT: You MUST ALWAYS respond with a valid, clean JSON object. Do not return markdown wrappers like \`\`\`json.
 
@@ -42,6 +43,49 @@ Response Schema:
       "tempId": "unique-temp-id" // temporary ID to resolve after creation (e.g., "temp-1")
     },
     {
+      "type": "renameFolder",
+      "folderId": "folder-id",
+      "name": "New folder name"
+    },
+    {
+      "type": "trashFolder",
+      "folderId": "folder-id"
+    },
+    {
+      "type": "restoreFolder",
+      "folderId": "folder-id"
+    },
+    {
+      "type": "deleteFolder",
+      "folderId": "folder-id"
+    },
+    {
+      "type": "mergeFolders",
+      "sourceFolderIds": ["folder-a", "folder-b"],
+      "targetFolderId": "folder-target",
+      "deleteSources": true
+    },
+    {
+      "type": "createNote",
+      "title": "Note title",
+      "content": "Full note content",
+      "folderId": "folder-id",
+      "tags": ["tag1"],
+      "openAfterSave": true
+    },
+    {
+      "type": "updateNote",
+      "noteId": "note-id",
+      "appendContent": "New details",
+      "tags": ["updated"],
+      "resurfacingClass": "idea"
+    },
+    {
+      "type": "renameNote",
+      "noteId": "note-id",
+      "title": "New note title"
+    },
+    {
       "type": "moveNotesToFolder",
       "folderId": "existing-folder-id", // if using an existing folder
       "folderName": "Folder Name",      // folder name
@@ -49,9 +93,41 @@ Response Schema:
       "noteIds": ["note-id-1", "note-id-2"]
     },
     {
+      "type": "mergeNotes",
+      "noteIds": ["note-id-1", "note-id-2"],
+      "title": "Merged note title",
+      "deleteSources": true,
+      "openAfterSave": true
+    },
+    {
+      "type": "trashNotes",
+      "noteIds": ["note-id-1", "note-id-2"]
+    },
+    {
+      "type": "restoreNotes",
+      "noteIds": ["note-id-1", "note-id-2"]
+    },
+    {
+      "type": "deleteNotes",
+      "noteIds": ["note-id-1", "note-id-2"]
+    },
+    {
+      "type": "archiveNotes",
+      "noteIds": ["note-id-1", "note-id-2"]
+    },
+    {
+      "type": "unarchiveNotes",
+      "noteIds": ["note-id-1", "note-id-2"]
+    },
+    {
       "type": "addTagsToNotes",
       "noteIds": ["note-id-1"],
       "tags": ["tag1", "tag2"]
+    },
+    {
+      "type": "removeTagsFromNotes",
+      "noteIds": ["note-id-1"],
+      "tags": ["tag1"]
     },
     {
       "type": "createStructuredIdeaNote",
@@ -68,12 +144,32 @@ Response Schema:
 }
 
 Guidelines:
-1. If the user asks to organize, categorize, group, tag, or move notes (e.g., "распредели всё по папкам", "создай папки", "сгруппируй мои заметки"), study the full notes list, decide on a clean, professional folder structure, and output the required actions.
+1. If the user asks to organize, categorize, group, tag, move, rename, merge, archive, restore, delete, or create notes/folders, study the full notes list, decide on the correct safe actions, and output the required actions.
 2. If notes fit well into existing folders, use them. If they belong in a new folder, suggest creating it first and then moving notes into it.
-3. If the user gives a free-form thought and asks to save, capture, structure, or turn it into a note, return exactly one createStructuredIdeaNote action.
-4. For createStructuredIdeaNote, prefer saveMode "human_plus_ai" unless the user explicitly asks for AI-only output.
-5. Be professional, keep it extremely elegant and easy to navigate. If a question is a simple search or query, "actions" must be an empty array [].
-6. Always respond in the user's language (e.g. Russian if the question is in Russian).`;
+3. If the user gives a free-form thought and asks to save, capture, structure, or turn it into a note, and they did not specify whether to include the raw thought at the top, ask exactly: "Написать в начале ваши мысли без структурирования?" and return no actions yet.
+4. If the user answers yes/no to that follow-up, use the recent conversation history to create exactly one createStructuredIdeaNote action using the earlier thought text.
+5. For createStructuredIdeaNote, use saveMode "human_plus_ai" when the user wants the raw thought kept at the top; otherwise use "ai_only".
+6. For destructive or ambiguous requests, prefer proposing a candidate plan first. For example, for "merge similar notes" first list the exact candidate notes and ask for confirmation instead of inventing unsafe merges.
+7. Never act on notes or folders that are not clearly the user's own. Use only ids that exist in the provided note/folder lists.
+8. Be professional and concise. If a question is a simple search or query, "actions" must be an empty array [].
+9. Always respond in the user's language (e.g. Russian if the question is in Russian).`;
+
+type ChatMessage = {
+  role: "user" | "assistant";
+  text: string;
+};
+
+function buildConversationContext(messages: ChatMessage[]) {
+  if (messages.length === 0) {
+    return "This is a new chat. There is no previous conversation yet.";
+  }
+
+  return [
+    "This is an existing chat.",
+    "Previous conversation messages are listed below in chronological order.",
+    ...messages.map((message, index) => `${index + 1}. ${message.role.toUpperCase()}: ${message.text}`),
+  ].join("\n");
+}
 
 interface EmbeddingMatch {
   note_id: string;
@@ -98,12 +194,24 @@ export async function POST(request: Request) {
   let question: string;
   let clientNotes: Note[] | undefined;
   let clientFolders: any[] | undefined;
+  let chatHistory: ChatMessage[] = [];
 
   try {
     const body = await request.json();
     question = body.question;
     clientNotes = body.notes;
     clientFolders = body.folders;
+    chatHistory = Array.isArray(body.messages)
+      ? body.messages
+          .filter((message: unknown): message is ChatMessage =>
+            typeof message === "object" &&
+            message !== null &&
+            "role" in message &&
+            "text" in message &&
+            ((((message as ChatMessage).role === "user") || ((message as ChatMessage).role === "assistant")) && typeof (message as ChatMessage).text === "string"),
+          )
+          .slice(-8)
+      : [];
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400, headers: CORS_HEADERS });
   }
@@ -289,7 +397,8 @@ export async function POST(request: Request) {
   const customizedSystemPrompt = CHAT_SYSTEM_PROMPT
     .replace("{{FOLDERS}}", foldersMeta)
     .replace("{{NOTES_LIST}}", notesMeta)
-    .replace("{{RAG_CONTEXT}}", ragContext);
+    .replace("{{RAG_CONTEXT}}", ragContext)
+    .replace("{{CHAT_HISTORY}}", buildConversationContext(chatHistory));
 
   const userPrompt = `Question: ${question}`;
 

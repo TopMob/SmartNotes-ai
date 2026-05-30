@@ -28,6 +28,34 @@ type InfiniteNotesData = {
 
 type NotesSnapshot = { previousNotes: Note[] | undefined };
 
+function shouldScheduleAnalysisFromPatch(patch: Partial<Note>) {
+  if (patch.aiStatus === "pending" || patch.aiProcessed === false || patch.analyzed === false) {
+    return true;
+  }
+
+  return ANALYSIS_FIELD_KEYS.some((field) => {
+    if (!(field in patch)) {
+      return false;
+    }
+
+    const value = patch[field];
+
+    if (field === "title" || field === "content") {
+      return typeof value === "string";
+    }
+
+    if (field === "pages") {
+      return Array.isArray(value);
+    }
+
+    if (field === "userTags" || field === "hiddenTags" || field === "media") {
+      return Array.isArray(value);
+    }
+
+    return value !== undefined;
+  });
+}
+
 function updateNoteDetailCache(queryClient: ReturnType<typeof useQueryClient>, userId: string | null, noteId: string, updater: (note: Note | null) => Note | null) {
   if (!userId) {
     return;
@@ -142,7 +170,7 @@ export function useUpdateNoteMutation() {
     onSuccess: (_note, { noteId, patch }) => {
       enqueueSyncItem({ id: noteId, entity: "note", operation: "patch", payload: patch });
 
-      if (patch.aiStatus === "pending" || patch.aiProcessed === false || patch.analyzed === false || ANALYSIS_FIELD_KEYS.some((field) => field in patch)) {
+      if (shouldScheduleAnalysisFromPatch(patch)) {
         scheduleAiAnalysis(noteId);
       }
     },

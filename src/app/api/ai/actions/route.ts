@@ -15,13 +15,31 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { actions } = parseAiResponse({ answer: "", actions: (body as { actions?: unknown })?.actions ?? [] });
+    const typedBody = (body as {
+      actions?: unknown;
+      requestMessage?: unknown;
+      conversationExcerpt?: unknown;
+    }) ?? {};
+    const { actions } = parseAiResponse({ answer: "", actions: typedBody.actions ?? [] });
 
     if (!actions.length) {
       return NextResponse.json({ error: "No actions to execute." }, { status: 400 });
     }
 
-    const execution = await executeAgentActions(actions);
+    const execution = await executeAgentActions(actions, {
+      requestMessage: typeof typedBody.requestMessage === "string" ? typedBody.requestMessage : undefined,
+      conversationExcerpt: Array.isArray(typedBody.conversationExcerpt)
+        ? typedBody.conversationExcerpt.filter(
+            (message): message is { role: "user" | "assistant"; text: string } =>
+              typeof message === "object" &&
+              message !== null &&
+              "role" in message &&
+              "text" in message &&
+              (((message as { role?: unknown }).role === "user") || ((message as { role?: unknown }).role === "assistant")) &&
+              typeof (message as { text?: unknown }).text === "string",
+          )
+        : undefined,
+    });
     return NextResponse.json(execution);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to execute actions.";

@@ -15,6 +15,11 @@ import {
   Loader2,
   Play,
   AlertTriangle,
+  FilePlus2,
+  Pencil,
+  Trash2,
+  Archive,
+  Combine,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
@@ -42,6 +47,7 @@ type Message = {
   actions?: AiAction[];
   actionsStatus?: "pending" | "running" | "completed" | "error";
   actionResults?: AiActionExecutionResult[];
+  confirmDanger?: boolean;
 };
 
 type AiChatPanelProps = {
@@ -54,6 +60,10 @@ type AiChatPanelProps = {
 
 function generateId() {
   return Math.random().toString(36).slice(2);
+}
+
+function isDangerousAction(action: AiAction) {
+  return action.type === "deleteFolder" || action.type === "deleteNotes" || action.type === "mergeFolders" || action.type === "mergeNotes";
 }
 
 /** Lightweight markdown → HTML (bold, italic, lists, links) */
@@ -143,6 +153,7 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           question,
+          messages: messages.map((message) => ({ role: message.role, text: message.text })),
           notes: notes.map((n) => ({
             id: n.id,
             title: n.title,
@@ -204,7 +215,7 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
       setLoading(false);
       setTimeout(() => inputRef.current?.focus(), 50);
     }
-  }, [input, loading, notes, rawFolders]);
+  }, [input, loading, messages, notes, rawFolders]);
 
   const handleExecuteActions = useCallback(async (msgId: string, actionsList: AiAction[] = []) => {
     setMessages((prev) =>
@@ -219,7 +230,11 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
       const response = await fetch("/api/ai/actions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actions: actionsList }),
+        body: JSON.stringify({
+          actions: actionsList,
+          requestMessage: messages.find((message) => message.id === msgId)?.text ?? "",
+          conversationExcerpt: messages.slice(-8).map((message) => ({ role: message.role, text: message.text })),
+        }),
       });
 
       const payload = (await response.json()) as {
@@ -261,7 +276,11 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
         prev.map((m) => (m.id === msgId ? { ...m, actionsStatus: "error" } : m))
       );
     }
-  }, [onOpenNote, queryClient, user?.id]);
+  }, [messages, onOpenNote, queryClient, user?.id]);
+
+  const handleConfirmDanger = useCallback((msgId: string) => {
+    setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, confirmDanger: true } : m)));
+  }, []);
 
   const handleDismissActions = useCallback((msgId: string) => {
     setMessages((prev) =>
@@ -487,6 +506,48 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
                               </div>
                             );
                           }
+                          if (act.type === "renameFolder") {
+                            return (
+                              <div key={idx} className="flex items-start gap-2.5 text-xs text-foreground/80">
+                                <Pencil className="mt-0.5 h-3.5 w-3.5 shrink-0 text-violet-500" />
+                                <span>Переименовать папку в <strong className="font-semibold text-violet-700 dark:text-violet-400">«{act.name}»</strong></span>
+                              </div>
+                            );
+                          }
+                          if (act.type === "trashFolder" || act.type === "restoreFolder" || act.type === "deleteFolder") {
+                            return (
+                              <div key={idx} className="flex items-start gap-2.5 text-xs text-foreground/80">
+                                <Trash2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-violet-500" />
+                                <span>
+                                  {act.type === "trashFolder" ? "Переместить папку в корзину" : act.type === "restoreFolder" ? "Восстановить папку" : "Удалить папку навсегда"}
+                                </span>
+                              </div>
+                            );
+                          }
+                          if (act.type === "mergeFolders") {
+                            return (
+                              <div key={idx} className="flex items-start gap-2.5 text-xs text-foreground/80">
+                                <Combine className="mt-0.5 h-3.5 w-3.5 shrink-0 text-violet-500" />
+                                <span>Объединить {act.sourceFolderIds.length} папки</span>
+                              </div>
+                            );
+                          }
+                          if (act.type === "createNote") {
+                            return (
+                              <div key={idx} className="flex items-start gap-2.5 text-xs text-foreground/80">
+                                <FilePlus2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-violet-500" />
+                                <span>Создать заметку <strong className="font-semibold text-violet-700 dark:text-violet-400">«{act.title}»</strong></span>
+                              </div>
+                            );
+                          }
+                          if (act.type === "updateNote" || act.type === "renameNote") {
+                            return (
+                              <div key={idx} className="flex items-start gap-2.5 text-xs text-foreground/80">
+                                <Pencil className="mt-0.5 h-3.5 w-3.5 shrink-0 text-violet-500" />
+                                <span>{act.type === "renameNote" ? `Переименовать заметку в «${act.title}»` : "Обновить содержимое заметки"}</span>
+                              </div>
+                            );
+                          }
                           if (act.type === "moveNotesToFolder") {
                             const notesCount = act.noteIds?.length ?? 0;
                             const noteNames = act.noteIds
@@ -504,6 +565,32 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
                               </div>
                             );
                           }
+                          if (act.type === "mergeNotes") {
+                            return (
+                              <div key={idx} className="flex items-start gap-2.5 text-xs text-foreground/80">
+                                <Combine className="mt-0.5 h-3.5 w-3.5 shrink-0 text-violet-500" />
+                                <span>Объединить {act.noteIds.length} заметки в <strong className="font-semibold text-violet-700 dark:text-violet-400">«{act.title}»</strong></span>
+                              </div>
+                            );
+                          }
+                          if (act.type === "trashNotes" || act.type === "restoreNotes" || act.type === "deleteNotes") {
+                            return (
+                              <div key={idx} className="flex items-start gap-2.5 text-xs text-foreground/80">
+                                <Trash2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-violet-500" />
+                                <span>
+                                  {act.type === "trashNotes" ? "Переместить заметки в корзину" : act.type === "restoreNotes" ? "Восстановить заметки" : "Удалить заметки навсегда"}
+                                </span>
+                              </div>
+                            );
+                          }
+                          if (act.type === "archiveNotes" || act.type === "unarchiveNotes") {
+                            return (
+                              <div key={idx} className="flex items-start gap-2.5 text-xs text-foreground/80">
+                                <Archive className="mt-0.5 h-3.5 w-3.5 shrink-0 text-violet-500" />
+                                <span>{act.type === "archiveNotes" ? "Архивировать заметки" : "Убрать заметки из архива"}</span>
+                              </div>
+                            );
+                          }
                           if (act.type === "addTagsToNotes") {
                             const notesCount = act.noteIds?.length ?? 0;
                             const tagsList = act.tags?.join(", ") ?? "";
@@ -513,6 +600,16 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
                                 <span>
                                   Добавить теги <strong className="font-semibold text-violet-700 dark:text-violet-400">[{tagsList}]</strong> к {notesCount} заметке(-ам)
                                 </span>
+                              </div>
+                            );
+                          }
+                          if (act.type === "removeTagsFromNotes") {
+                            const notesCount = act.noteIds?.length ?? 0;
+                            const tagsList = act.tags?.join(", ") ?? "";
+                            return (
+                              <div key={idx} className="flex items-start gap-2.5 text-xs text-foreground/80">
+                                <Tag className="mt-0.5 h-3.5 w-3.5 shrink-0 text-violet-500" />
+                                <span>Убрать теги <strong className="font-semibold text-violet-700 dark:text-violet-400">[{tagsList}]</strong> у {notesCount} заметке(-ок)</span>
                               </div>
                             );
                           }
@@ -533,54 +630,73 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
                         })}
                       </div>
 
-                      <div className="mt-3.5 flex items-center justify-end border-t border-violet-100/50 pt-3 dark:border-violet-950/20">
-                        {msg.actionsStatus === "pending" && (
-                          <div className="flex gap-2">
-                            <button
-                              className="rounded-xl bg-background border border-border px-3 py-1.5 text-xs font-bold text-foreground/70 transition hover:bg-surface-strong"
-                              type="button"
-                              onClick={() => handleDismissActions(msg.id)}
-                            >
-                              Пропустить
-                            </button>
-                            <button
-                              className="flex items-center gap-1.5 rounded-xl bg-violet-600 px-3.5 py-1.5 text-xs font-black text-white shadow-sm shadow-violet-600/20 transition hover:bg-violet-500 active:scale-95"
-                              type="button"
-                              onClick={() => void handleExecuteActions(msg.id, msg.actions)}
-                            >
-                              <Play className="h-3 w-3 fill-current" />
-                              Выполнить
-                            </button>
+                      <div className="mt-3.5 border-t border-violet-100/50 pt-3 dark:border-violet-950/20">
+                        {msg.actions.some(isDangerousAction) && msg.actionsStatus === "pending" ? (
+                          <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-semibold text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300">
+                            Это опасное действие: удаление или объединение. Нужна отдельная явная проверка.
                           </div>
-                        )}
+                        ) : null}
 
-                        {msg.actionsStatus === "running" && (
-                          <div className="flex items-center gap-2 text-xs font-bold text-violet-600 dark:text-violet-400">
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            <span>Применяю изменения...</span>
-                          </div>
-                        )}
+                        <div className="flex items-center justify-end">
+                          {msg.actionsStatus === "pending" && (
+                            <div className="flex gap-2">
+                              <button
+                                className="rounded-xl border border-border bg-background px-3 py-1.5 text-xs font-bold text-foreground/70 transition hover:bg-surface-strong"
+                                type="button"
+                                onClick={() => handleDismissActions(msg.id)}
+                              >
+                                Пропустить
+                              </button>
+                              {msg.actions.some(isDangerousAction) && !msg.confirmDanger ? (
+                                <button
+                                  className="flex items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-100 px-3.5 py-1.5 text-xs font-black text-amber-900 transition hover:bg-amber-200 active:scale-95 dark:border-amber-800 dark:bg-amber-900/40 dark:text-amber-100"
+                                  type="button"
+                                  onClick={() => handleConfirmDanger(msg.id)}
+                                >
+                                  <AlertTriangle className="h-3 w-3" />
+                                  Подтвердить риск
+                                </button>
+                              ) : (
+                                <button
+                                  className="flex items-center gap-1.5 rounded-xl bg-violet-600 px-3.5 py-1.5 text-xs font-black text-white shadow-sm shadow-violet-600/20 transition hover:bg-violet-500 active:scale-95"
+                                  type="button"
+                                  onClick={() => void handleExecuteActions(msg.id, msg.actions)}
+                                >
+                                  <Play className="h-3 w-3 fill-current" />
+                                  {msg.actions.some(isDangerousAction) ? "Выполнить опасное действие" : "Выполнить"}
+                                </button>
+                              )}
+                            </div>
+                          )}
 
-                        {msg.actionsStatus === "completed" && (
-                          <div className="flex items-center gap-2 text-xs font-black text-emerald-600 dark:text-emerald-400">
-                            <CheckCircle2 className="h-4 w-4" />
-                            <span>Готово! Изменения применены.</span>
-                          </div>
-                        )}
+                          {msg.actionsStatus === "running" && (
+                            <div className="flex items-center gap-2 text-xs font-bold text-violet-600 dark:text-violet-400">
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              <span>Применяю изменения...</span>
+                            </div>
+                          )}
 
-                        {msg.actionsStatus === "error" && (
-                          <div className="flex items-center gap-2 text-xs font-bold text-rose-600 dark:text-rose-400">
-                            <AlertTriangle className="h-4 w-4" />
-                            <span>Ошибка применения.</span>
-                            <button
-                              className="ml-2 underline"
-                              type="button"
-                              onClick={() => void handleExecuteActions(msg.id, msg.actions)}
-                            >
-                              Повторить
-                            </button>
-                          </div>
-                        )}
+                          {msg.actionsStatus === "completed" && (
+                            <div className="flex items-center gap-2 text-xs font-black text-emerald-600 dark:text-emerald-400">
+                              <CheckCircle2 className="h-4 w-4" />
+                              <span>Готово! Изменения применены.</span>
+                            </div>
+                          )}
+
+                          {msg.actionsStatus === "error" && (
+                            <div className="flex items-center gap-2 text-xs font-bold text-rose-600 dark:text-rose-400">
+                              <AlertTriangle className="h-4 w-4" />
+                              <span>Ошибка применения.</span>
+                              <button
+                                className="ml-2 underline"
+                                type="button"
+                                onClick={() => void handleExecuteActions(msg.id, msg.actions)}
+                              >
+                                Повторить
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   )}
