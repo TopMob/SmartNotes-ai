@@ -162,6 +162,7 @@ export function AiChatPanel({ onOpenNote, activeNote }: AiChatPanelProps) {
             title: n.title,
             folderId: n.folderId,
             userTags: n.userTags || [],
+            content: n.content || "",
           })),
           folders: rawFolders.map((f) => ({
             id: f.id,

@@ -25,7 +25,7 @@ Your goal is to answer user queries and organize their workspace.
 
 You have access to:
 1. User's existing folders: {{FOLDERS}}
-2. User's full notes list (metadata only): {{NOTES_LIST}}
+2. User's notes list (with contents where relevant): {{NOTES_LIST}}
 3. Semantic RAG context for detailed note contents (if relevant): {{RAG_CONTEXT}}
 4. Recent conversation history: {{CHAT_HISTORY}}
 5. Active open note the user is currently editing: {{ACTIVE_NOTE_CONTEXT}}
@@ -159,7 +159,7 @@ Guidelines:
 11. Always respond in the user's language (e.g. Russian if the question is in Russian).
 12. When the user asks to "group notes by meaning/topic", "merge notes by semantic groups", "объедини заметки по смыслу/группам" or similar, this means you should identify distinct thematic groups of notes (e.g. Work, Health, Sleep, Code) and create a separate "mergeNotes" action for EACH group (so notes within the same group are merged into a single note for that group, e.g. 5 different groups yield 5 merged notes). Do NOT merge all notes of completely different categories into one single giant note unless the user explicitly requests one single note for everything.
 13. Avoid double confirmation loops. If the user has already given approval (e.g., "да", "делай", "ок", "подтверждаю", "go ahead", "do it") to a plan you proposed in a previous turn, do not repeat the plan or ask for confirmation again. Generate and output the corresponding "actions" immediately.
-14. If the user asks to edit, rewrite, clean up, format, remove extra characters or analyze "this note", "current note", "последняя заметка" or refers to the note they are currently viewing/editing, use the {{ACTIVE_NOTE_CONTEXT}} content to understand what they are talking about. You have full edit access to it via the "updateNote" action.`;
+14. If the user asks to edit, rewrite, clean up, format, remove extra characters, or analyze a note (whether active/currently open, or any other note in their workspace, e.g., "Сводная заметка по смысловым группам"), you have full access to its content directly in the {{NOTES_LIST}} or {{ACTIVE_NOTE_CONTEXT}}. Do NOT ask the user to open the note or claim you cannot see its content. You can read its content directly from the notes list, perform the cleanup, rewriting, or edits, and execute the "updateNote" action immediately to save the changes. Provide the complete modified content in the "content" field of the "updateNote" action.`;
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -255,7 +255,7 @@ export async function POST(request: Request) {
   let notesForContext = clientNotes || [];
   let foldersForContext = clientFolders || [];
 
-  if (userId && (!clientNotes || !clientFolders)) {
+  if (userId) {
     try {
       const cookieStore = await cookies();
       const supabase = createServerClient(
@@ -264,31 +264,30 @@ export async function POST(request: Request) {
         { cookies: { getAll: () => cookieStore.getAll(), setAll: () => undefined } },
       );
       
-      if (!clientNotes) {
-        const { data: dbNotes } = await supabase
-          .from("notes")
-          .select("id, title, folder_id, user_tags")
-          .eq("owner_id", userId)
-          .is("trashed_at", null);
-        if (dbNotes) {
-          notesForContext = dbNotes.map(n => ({
-            id: n.id,
-            title: n.title,
-            folderId: n.folder_id,
-            userTags: n.user_tags || [],
-          } as any));
-        }
+      const { data: dbNotes } = await supabase
+        .from("notes")
+        .select("id, title, folder_id, user_tags, content, updated_at")
+        .is("trashed_at", null)
+        .order("updated_at", { ascending: false });
+
+      if (dbNotes) {
+        notesForContext = dbNotes.map(n => ({
+          id: n.id,
+          title: n.title,
+          folderId: n.folder_id,
+          userTags: n.user_tags || [],
+          content: n.content || "",
+          updatedAt: n.updated_at,
+        } as any));
       }
       
-      if (!clientFolders) {
-        const { data: dbFolders } = await supabase
-          .from("folders")
-          .select("id, name")
-          .eq("owner_id", userId)
-          .is("trashed_at", null);
-        if (dbFolders) {
-          foldersForContext = dbFolders;
-        }
+      const { data: dbFolders } = await supabase
+        .from("folders")
+        .select("id, name")
+        .is("trashed_at", null);
+
+      if (dbFolders) {
+        foldersForContext = dbFolders;
       }
     } catch (dbErr) {
       console.error("Database fetch failed in AI route:", dbErr);
@@ -394,14 +393,70 @@ export async function POST(request: Request) {
     }
   }
 
+  // Find which note IDs are explicitly mentioned by title in the question or messages
+  const mentionedNoteIds = new Set<string>();
+  const textToSearch = (question + " " + chatHistory.map(h => h.text).join(" ")).toLowerCase();
+  
+  for (const note of notesForContext) {
+    if (!note.title) continue;
+    const titleLower = note.title.toLowerCase();
+    if (titleLower.length >= 4 && textToSearch.includes(titleLower)) {
+      mentionedNoteIds.add(note.id);
+    } else {
+      // Check for exact word boundaries for shorter titles
+      try {
+        const escapedTitle = titleLower.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+        const regex = new RegExp(`\\b${escapedTitle}\\b`, 'i');
+        if (regex.test(textToSearch)) {
+          mentionedNoteIds.add(note.id);
+        }
+      } catch (e) {
+        // Fallback
+        if (textToSearch.includes(titleLower)) {
+          mentionedNoteIds.add(note.id);
+        }
+      }
+    }
+  }
+
+  // Build the prioritized notes context
+  let totalCharactersUsed = 0;
+  const CHAR_LIMIT = 150000; // Limit for full content context (~40k tokens)
+  
+  const formattedNotes = notesForContext.map((note, idx) => {
+    const isNoteActive = note.id === activeNoteId;
+    const isNoteMentioned = mentionedNoteIds.has(note.id);
+    // Prioritize active, mentioned, or top 10 most recent notes
+    const isHighPriority = isNoteActive || isNoteMentioned || idx < 10;
+    
+    const baseMeta = {
+      id: note.id,
+      title: note.title || "Без названия",
+      folderId: note.folderId,
+      tags: note.userTags || [],
+    };
+
+    const noteContent = note.content || "";
+    
+    if (isHighPriority && totalCharactersUsed + noteContent.length < CHAR_LIMIT) {
+      totalCharactersUsed += noteContent.length;
+      return {
+        ...baseMeta,
+        content: noteContent,
+      };
+    } else {
+      // Snippet for lower priority or when limit is reached
+      const snippet = noteContent.slice(0, 200);
+      return {
+        ...baseMeta,
+        contentSnippet: snippet ? `${snippet}...` : "",
+      };
+    }
+  });
+
   // Construct prompts with structured metadata
   const foldersMeta = JSON.stringify(foldersForContext.map(f => ({ id: f.id, name: f.name })));
-  const notesMeta = JSON.stringify(notesForContext.map(n => ({
-    id: n.id,
-    title: n.title || "Без названия",
-    folderId: n.folderId,
-    tags: n.userTags || [],
-  })));
+  const notesMeta = JSON.stringify(formattedNotes, null, 2);
   
   const ragContext = chunks.length > 0 
     ? chunks.map((chunk, i) => `[Note ${i + 1}: "${chunk.note_title || "Без названия"}"]\n${chunk.content}`).join("\n\n---\n\n")

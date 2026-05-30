@@ -169,7 +169,7 @@ export const Sidebar = React.memo(function Sidebar({ copy, currentView, folders,
           {copy.shell.about}
         </button>
         <Button asChild className="min-h-10 w-full rounded-xl border border-border bg-background/40 px-4 py-2.5 text-sm font-bold shadow-none hover:bg-background/70" variant="ghost">
-          <Link href="/settings">{copy.common.settings}</Link>
+          <Link href="/settings" onClick={onClose}>{copy.common.settings}</Link>
         </Button>
         </div>
       </div>
