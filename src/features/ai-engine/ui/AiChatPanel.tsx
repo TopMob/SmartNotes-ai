@@ -17,13 +17,14 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useUiStore } from "@/shared/store/ui-store";
 import { useNotesFlat } from "@/features/notes/hooks/use-notes-query";
 import { useAuthStore } from "@/features/auth/model/auth-store";
 import { useFoldersQuery } from "@/features/folders/hooks/use-folders-query";
-import { useFolderActions } from "@/features/folders/hooks/use-folder-mutations";
-import { useNoteActions } from "@/features/notes/hooks/use-note-mutations";
+import type { AiAction, AiActionExecutionResult } from "@/features/ai-engine/model/agent-actions";
+import { queryKeys } from "@/shared/lib/react-query/query-keys";
 
 
 
@@ -38,8 +39,9 @@ type Message = {
   citations?: Citation[];
   error?: boolean;
   streaming?: boolean;
-  actions?: any[];
+  actions?: AiAction[];
   actionsStatus?: "pending" | "running" | "completed" | "error";
+  actionResults?: AiActionExecutionResult[];
 };
 
 type AiChatPanelProps = {
@@ -83,15 +85,12 @@ const QUICK_PROMPTS = [
 
 
 export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
+  const queryClient = useQueryClient();
   const open = useUiStore((s) => s.aiChatOpen);
   const setAiChatOpen = useUiStore((s) => s.setAiChatOpen);
   const { data: notes = [] } = useNotesFlat();
   const user = useAuthStore((s) => s.user);
-
-  // Folder & Note mutation hooks
   const { data: rawFolders = [] } = useFoldersQuery();
-  const { addFolder } = useFolderActions();
-  const { moveNoteToFolder, patchNote } = useNoteActions();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -162,10 +161,10 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
         throw new Error(`Ошибка сервера: ${response.status}`);
       }
 
-      const data = (await response.json()) as { 
-        answer: string; 
-        citations: Citation[]; 
-        actions?: any[];
+      const data = (await response.json()) as {
+        answer: string;
+        citations: Citation[];
+        actions?: AiAction[];
       };
 
       const citations = data.citations ?? [];
@@ -207,66 +206,62 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
     }
   }, [input, loading, notes, rawFolders]);
 
-  const handleExecuteActions = useCallback(async (msgId: string, actionsList: any[] = []) => {
+  const handleExecuteActions = useCallback(async (msgId: string, actionsList: AiAction[] = []) => {
     setMessages((prev) =>
       prev.map((m) => (m.id === msgId ? { ...m, actionsStatus: "running" } : m))
     );
 
     try {
-      const tempIdMap: Record<string, string> = {};
-      const ownerId = user?.id ?? "local-user";
-
-      for (const action of actionsList) {
-        if (action.type === "createFolder") {
-          const folder = await addFolder(
-            { name: action.folderName, isHidden: false, description: null },
-            ownerId
-          );
-          if (folder && folder.id) {
-            tempIdMap[action.tempId] = folder.id;
-          }
-        } else if (action.type === "moveNotesToFolder") {
-          let resolvedFolderId: string | null = null;
-          if (action.folderId && action.folderId !== "null") {
-            resolvedFolderId = action.folderId;
-          } else if (action.tempId && tempIdMap[action.tempId]) {
-            resolvedFolderId = tempIdMap[action.tempId];
-          } else if (action.folderName) {
-            const existing = rawFolders.find(
-              (f) => f.name.toLowerCase() === action.folderName.toLowerCase()
-            );
-            if (existing) {
-              resolvedFolderId = existing.id;
-            }
-          }
-
-          if (action.noteIds && Array.isArray(action.noteIds)) {
-            for (const noteId of action.noteIds) {
-              await moveNoteToFolder(noteId, resolvedFolderId);
-            }
-          }
-        } else if (action.type === "addTagsToNotes") {
-          if (action.noteIds && Array.isArray(action.noteIds) && action.tags && Array.isArray(action.tags)) {
-            for (const noteId of action.noteIds) {
-              const note = notes.find((n) => n.id === noteId);
-              const currentTags = note?.userTags || [];
-              const mergedTags = Array.from(new Set([...currentTags, ...action.tags]));
-              await patchNote(noteId, { userTags: mergedTags });
-            }
-          }
-        }
+      if (!user?.id) {
+        throw new Error("Для выполнения AI-действий нужен авторизованный аккаунт.");
       }
 
+      const response = await fetch("/api/ai/actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ actions: actionsList }),
+      });
+
+      const payload = (await response.json()) as {
+        error?: string;
+        results?: AiActionExecutionResult[];
+      };
+
+      if (!response.ok) {
+        throw new Error(payload.error || `Ошибка сервера: ${response.status}`);
+      }
+
+      const results = payload.results ?? [];
+      const failed = results.find((result) => !result.success);
+
+      if (failed) {
+        throw new Error(failed.message);
+      }
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.notes(user.id) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.folders(user.id) }),
+      ]);
+
+      const createdNoteResult = results.find((result) => result.createdNoteId);
+
       setMessages((prev) =>
-        prev.map((m) => (m.id === msgId ? { ...m, actionsStatus: "completed" } : m))
+        prev.map((m) =>
+          m.id === msgId ? { ...m, actionsStatus: "completed", actionResults: results } : m,
+        )
       );
+
+      if (createdNoteResult?.createdNoteId) {
+        onOpenNote?.(createdNoteResult.createdNoteId);
+      }
+
     } catch (error) {
       console.error("Failed to execute agent actions:", error);
       setMessages((prev) =>
         prev.map((m) => (m.id === msgId ? { ...m, actionsStatus: "error" } : m))
       );
     }
-  }, [user, notes, rawFolders, addFolder, moveNoteToFolder, patchNote]);
+  }, [onOpenNote, queryClient, user?.id]);
 
   const handleDismissActions = useCallback((msgId: string) => {
     setMessages((prev) =>
@@ -481,7 +476,7 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
                       </div>
 
                       <div className="mt-2.5 space-y-2">
-                        {msg.actions.map((act: any, idx: number) => {
+                        {msg.actions.map((act, idx: number) => {
                           if (act.type === "createFolder") {
                             return (
                               <div key={idx} className="flex items-start gap-2.5 text-xs text-foreground/80">
@@ -517,6 +512,19 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
                                 <Tag className="mt-0.5 h-3.5 w-3.5 shrink-0 text-violet-500" />
                                 <span>
                                   Добавить теги <strong className="font-semibold text-violet-700 dark:text-violet-400">[{tagsList}]</strong> к {notesCount} заметке(-ам)
+                                </span>
+                              </div>
+                            );
+                          }
+                          if (act.type === "createStructuredIdeaNote") {
+                            return (
+                              <div key={idx} className="flex items-start gap-2.5 text-xs text-foreground/80">
+                                <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-violet-500" />
+                                <span>
+                                  Создать структурированную заметку <strong className="font-semibold text-violet-700 dark:text-violet-400">«{act.title}»</strong>
+                                  <span className="mt-0.5 block text-[10px] text-foreground/45">
+                                    Режим: {act.saveMode === "human_plus_ai" ? "Human + AI" : "AI only"}
+                                  </span>
                                 </span>
                               </div>
                             );

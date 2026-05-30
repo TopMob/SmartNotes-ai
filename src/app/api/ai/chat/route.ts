@@ -6,6 +6,7 @@ import { openRouterComplete } from "@/shared/api/openrouter/openrouter-client";
 import { requireSupabaseUrl, requireSupabasePublishableKey } from "@/shared/api/supabase/env";
 import { getEmbedding } from "@/shared/lib/ai/local-embeddings";
 import type { Note } from "@/entities/note";
+import { parseAiResponse } from "@/features/ai-engine/model/agent-actions";
 
 export const runtime = "nodejs";
 
@@ -51,6 +52,17 @@ Response Schema:
       "type": "addTagsToNotes",
       "noteIds": ["note-id-1"],
       "tags": ["tag1", "tag2"]
+    },
+    {
+      "type": "createStructuredIdeaNote",
+      "title": "Short title",
+      "sourceText": "Original free-form user thought",
+      "summary": "Concise summary",
+      "keyIdeas": ["idea 1", "idea 2"],
+      "nextSteps": ["step 1", "step 2"],
+      "tags": ["idea", "research"],
+      "saveMode": "human_plus_ai",
+      "openAfterSave": true
     }
   ]
 }
@@ -58,8 +70,10 @@ Response Schema:
 Guidelines:
 1. If the user asks to organize, categorize, group, tag, or move notes (e.g., "распредели всё по папкам", "создай папки", "сгруппируй мои заметки"), study the full notes list, decide on a clean, professional folder structure, and output the required actions.
 2. If notes fit well into existing folders, use them. If they belong in a new folder, suggest creating it first and then moving notes into it.
-3. Be professional, keep it extremely elegant and easy to navigate. If a question is a simple search or query, "actions" must be an empty array [].
-4. Always respond in the user's language (e.g. Russian if the question is in Russian).`;
+3. If the user gives a free-form thought and asks to save, capture, structure, or turn it into a note, return exactly one createStructuredIdeaNote action.
+4. For createStructuredIdeaNote, prefer saveMode "human_plus_ai" unless the user explicitly asks for AI-only output.
+5. Be professional, keep it extremely elegant and easy to navigate. If a question is a simple search or query, "actions" must be an empty array [].
+6. Always respond in the user's language (e.g. Russian if the question is in Russian).`;
 
 interface EmbeddingMatch {
   note_id: string;
@@ -280,7 +294,7 @@ export async function POST(request: Request) {
   const userPrompt = `Question: ${question}`;
 
   let answerText = "";
-  let actionsList: any[] = [];
+  let actionsList: ReturnType<typeof parseAiResponse>["actions"] = [];
   try {
     const rawCompletion = await openRouterComplete(customizedSystemPrompt, userPrompt, {
       max_tokens: 1500,
@@ -288,7 +302,7 @@ export async function POST(request: Request) {
     });
     
     const cleaned = cleanJsonResponse(rawCompletion);
-    const parsed = JSON.parse(cleaned);
+    const parsed = parseAiResponse(JSON.parse(cleaned));
     
     answerText = parsed.answer || "";
     actionsList = parsed.actions || [];
@@ -302,7 +316,7 @@ export async function POST(request: Request) {
     );
     try {
       const cleaned = cleanJsonResponse(rawCompletion);
-      const parsed = JSON.parse(cleaned);
+      const parsed = parseAiResponse(JSON.parse(cleaned));
       answerText = parsed.answer || cleaned;
       actionsList = parsed.actions || [];
     } catch {
