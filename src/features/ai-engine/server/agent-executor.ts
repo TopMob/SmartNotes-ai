@@ -425,6 +425,11 @@ async function getFolderNoteIds(supabase: ServerSupabase, userId: string, folder
 
 async function getOwnedNotes(supabase: ServerSupabase, userId: string, noteIds: string[]) {
   const uniqueNoteIds = Array.from(new Set(noteIds));
+
+  if (!uniqueNoteIds.length) {
+    return [];
+  }
+
   const { data, error } = await supabase
     .from("notes")
     .select("id, owner_id, title, content, folder_id, user_tags, hidden_tags, pinned, favorite, is_archived, reminder_at, manual_order, folder_order, ai_status, ai_processed, analyzed, ai_error, ai_relevance, resurfacing_class, metadata, created_at, updated_at, trashed_at")

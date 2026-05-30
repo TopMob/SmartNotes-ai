@@ -47,6 +47,7 @@ type Message = {
   actions?: AiAction[];
   actionsStatus?: "pending" | "running" | "completed" | "error";
   actionResults?: AiActionExecutionResult[];
+  actionError?: string;
   confirmDanger?: boolean;
 };
 
@@ -218,9 +219,9 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
   }, [input, loading, messages, notes, rawFolders]);
 
   const handleExecuteActions = useCallback(async (msgId: string, actionsList: AiAction[] = []) => {
-    setMessages((prev) =>
-      prev.map((m) => (m.id === msgId ? { ...m, actionsStatus: "running" } : m))
-    );
+      setMessages((prev) =>
+        prev.map((m) => (m.id === msgId ? { ...m, actionsStatus: "running", actionError: undefined } : m))
+      );
 
     try {
       if (!user?.id) {
@@ -262,7 +263,7 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
 
       setMessages((prev) =>
         prev.map((m) =>
-          m.id === msgId ? { ...m, actionsStatus: "completed", actionResults: results } : m,
+          m.id === msgId ? { ...m, actionsStatus: "completed", actionResults: results, actionError: undefined } : m,
         )
       );
 
@@ -273,7 +274,15 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
     } catch (error) {
       console.error("Failed to execute agent actions:", error);
       setMessages((prev) =>
-        prev.map((m) => (m.id === msgId ? { ...m, actionsStatus: "error" } : m))
+        prev.map((m) => (
+          m.id === msgId
+            ? {
+                ...m,
+                actionsStatus: "error",
+                actionError: error instanceof Error ? error.message : "Ошибка применения.",
+              }
+            : m
+        ))
       );
     }
   }, [messages, onOpenNote, queryClient, user?.id]);
@@ -686,7 +695,7 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
                           {msg.actionsStatus === "error" && (
                             <div className="flex items-center gap-2 text-xs font-bold text-rose-600 dark:text-rose-400">
                               <AlertTriangle className="h-4 w-4" />
-                              <span>Ошибка применения.</span>
+                              <span>{msg.actionError || "Ошибка применения."}</span>
                               <button
                                 className="ml-2 underline"
                                 type="button"
