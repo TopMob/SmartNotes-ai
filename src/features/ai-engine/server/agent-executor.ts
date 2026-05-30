@@ -591,18 +591,28 @@ async function patchNotesAction(
 async function deleteNotesAction(supabase: ServerSupabase, userId: string, noteIds: string[]) {
   const notes = await getOwnedNotes(supabase, userId, noteIds);
   
-  if (notes.some((note) => note.owner_id !== userId)) {
-    throw new Error("One or more notes cannot be deleted because they are shared notes you do not own.");
+  const ownedNoteIds = notes.filter((note) => note.owner_id === userId).map((note) => note.id);
+  const sharedNoteIds = notes.filter((note) => note.owner_id !== userId).map((note) => note.id);
+
+  if (ownedNoteIds.length > 0) {
+    const { error } = await supabase.from("notes").delete().in("id", ownedNoteIds);
+    if (error) {
+      throw error;
+    }
   }
 
-  const ids = notes.map((note) => note.id);
-  const { error } = await supabase.from("notes").delete().in("id", ids);
-
-  if (error) {
-    throw error;
+  if (sharedNoteIds.length > 0) {
+    const { error } = await supabase
+      .from("note_access")
+      .delete()
+      .eq("user_id", userId)
+      .in("note_id", sharedNoteIds);
+    if (error) {
+      throw error;
+    }
   }
 
-  return ids;
+  return notes.map((note) => note.id);
 }
 
 async function updateOwnedNote(supabase: ServerSupabase, userId: string, noteId: string, patch: Partial<Note>) {
