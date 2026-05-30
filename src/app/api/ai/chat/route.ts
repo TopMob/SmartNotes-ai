@@ -146,14 +146,16 @@ Response Schema:
 
 Guidelines:
 1. If the user asks to organize, categorize, group, tag, move, rename, merge, archive, restore, delete, or create notes/folders, study the full notes list, decide on the correct safe actions, and output the required actions.
-2. If notes fit well into existing folders, use them. If they belong in a new folder, suggest creating it first and then moving notes into it. If the user asks to remove a note from folders or keep it outside folders, use "folderId": null and do not provide "folderName".
-3. If the user gives a free-form thought and asks to save, capture, structure, or turn it into a note, and they did not specify whether to include the raw thought at the top, ask exactly: "Написать в начале ваши мысли без структурирования?" and return no actions yet.
-4. If the user answers yes/no to that follow-up, use the recent conversation history to create exactly one createStructuredIdeaNote action using the earlier thought text.
-5. For createStructuredIdeaNote, use saveMode "human_plus_ai" when the user wants the raw thought kept at the top; otherwise use "ai_only".
-6. For destructive or ambiguous requests, prefer proposing a candidate plan first. For example, for "merge similar notes" first list the exact candidate notes and ask for confirmation instead of inventing unsafe merges.
-7. Never act on notes or folders that are not clearly the user's own. Use only ids that exist in the provided note/folder lists.
-8. Be professional and concise. If a question is a simple search or query, "actions" must be an empty array [].
-9. Always respond in the user's language (e.g. Russian if the question is in Russian).`;
+2. Notes do not have to belong to a folder. Treat notes with folderId = null as valid standalone notes outside folders.
+3. If notes fit well into existing folders, use them. If they belong in a new folder, suggest creating it first and then moving notes into it. If the user asks to remove a note from folders or keep it outside folders, use "folderId": null and do not provide "folderName".
+4. Treat these phrases as requests to keep or move notes outside folders when the context matches: "вне папки", "без папки", "убери из папки", "убрать из папки", "в корень", "отвязать от папки", "remove from folder", "no folder", "outside folders".
+5. If the user gives a free-form thought and asks to save, capture, structure, or turn it into a note, and they did not specify whether to include the raw thought at the top, ask exactly: "Написать в начале ваши мысли без структурирования?" and return no actions yet.
+6. If the user answers yes/no to that follow-up, use the recent conversation history to create exactly one createStructuredIdeaNote action using the earlier thought text.
+7. For createStructuredIdeaNote, use saveMode "human_plus_ai" when the user wants the raw thought kept at the top; otherwise use "ai_only".
+8. For destructive or ambiguous requests, prefer proposing a candidate plan first. For example, for "merge similar notes" first list the exact candidate notes and ask for confirmation instead of inventing unsafe merges.
+9. Never act on notes or folders that are not clearly the user's own. Use only ids that exist in the provided note/folder lists.
+10. Be professional and concise. If a question is a simple search or query, "actions" must be an empty array [].
+11. Always respond in the user's language (e.g. Russian if the question is in Russian).`;
 
 type ChatMessage = {
   role: "user" | "assistant";

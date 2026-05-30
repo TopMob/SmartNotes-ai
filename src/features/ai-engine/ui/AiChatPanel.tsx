@@ -559,6 +559,7 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
                           }
                           if (act.type === "moveNotesToFolder") {
                             const notesCount = act.noteIds?.length ?? 0;
+                            const targetFolderName = act.folderName ?? rawFolders.find((folder) => folder.id === act.folderId)?.name ?? null;
                             const noteNames = act.noteIds
                               ? act.noteIds
                                   .map((nid: string) => notes.find((n) => n.id === nid)?.title || "Без названия")
@@ -568,7 +569,15 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
                               <div key={idx} className="flex items-start gap-2.5 text-xs text-foreground/80">
                                 <FolderInput className="mt-0.5 h-3.5 w-3.5 shrink-0 text-violet-500" />
                                 <span>
-                                  Перенести {notesCount} заметку(-и) в папку <strong className="font-semibold text-violet-700 dark:text-violet-400">«{act.folderName}»</strong>
+                                  {targetFolderName ? (
+                                    <>
+                                      Перенести {notesCount} заметку(-и) в папку <strong className="font-semibold text-violet-700 dark:text-violet-400">«{targetFolderName}»</strong>
+                                    </>
+                                  ) : (
+                                    <>
+                                      Убрать папку у {notesCount} заметки(-ок)
+                                    </>
+                                  )}
                                   <span className="block mt-0.5 text-[10px] text-foreground/45">({noteNames})</span>
                                 </span>
                               </div>
