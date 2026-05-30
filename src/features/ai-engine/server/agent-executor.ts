@@ -433,7 +433,6 @@ async function getOwnedNotes(supabase: ServerSupabase, userId: string, noteIds: 
   const { data, error } = await supabase
     .from("notes")
     .select("id, owner_id, title, content, folder_id, user_tags, hidden_tags, pinned, favorite, is_archived, reminder_at, manual_order, folder_order, ai_status, ai_processed, analyzed, ai_error, ai_relevance, resurfacing_class, metadata, created_at, updated_at, trashed_at")
-    .eq("owner_id", userId)
     .in("id", uniqueNoteIds);
 
   if (error) {
@@ -442,6 +441,30 @@ async function getOwnedNotes(supabase: ServerSupabase, userId: string, noteIds: 
 
   if ((data ?? []).length !== uniqueNoteIds.length) {
     throw new Error("One or more notes were not found or access was denied.");
+  }
+
+  const sharedNoteIds = (data ?? []).filter((note) => note.owner_id !== userId).map((note) => note.id);
+
+  if (sharedNoteIds.length > 0) {
+    const { data: accessRows, error: accessError } = await supabase
+      .from("note_effective_access")
+      .select("note_id, role")
+      .eq("user_id", userId)
+      .in("note_id", sharedNoteIds);
+
+    if (accessError) {
+      throw accessError;
+    }
+
+    const editableIds = new Set(
+      (accessRows ?? [])
+        .filter((row) => row.role === "owner" || row.role === "editor")
+        .map((row) => row.note_id),
+    );
+
+    if (sharedNoteIds.some((noteId) => !editableIds.has(noteId))) {
+      throw new Error("One or more notes are read-only for your account.");
+    }
   }
 
   return data ?? [];
@@ -464,15 +487,15 @@ async function moveNotesToFolderAction(supabase: ServerSupabase, userId: string,
     );
 
     const { error } = await supabase.from("notes").update({
-      folder_id: patch.folderId,
-      folder_order: patch.folderOrder,
-      hidden_tags: patch.hiddenTags,
-      ai_status: patch.aiStatus,
-      ai_processed: patch.aiProcessed,
-      analyzed: patch.analyzed,
-      ai_error: patch.aiError,
-      updated_at: patch.updatedAt,
-    }).eq("id", note.id).eq("owner_id", userId);
+       folder_id: patch.folderId,
+       folder_order: patch.folderOrder,
+       hidden_tags: patch.hiddenTags,
+       ai_status: patch.aiStatus,
+       ai_processed: patch.aiProcessed,
+       analyzed: patch.analyzed,
+       ai_error: patch.aiError,
+       updated_at: patch.updatedAt,
+    }).eq("id", note.id);
 
     if (error) {
       throw error;
@@ -490,13 +513,13 @@ async function addTagsToNotesAction(supabase: ServerSupabase, userId: string, no
     const mergedTags = Array.from(new Set([...(note.user_tags ?? []), ...normalizedTags]));
     const patch = normalizeNotePatch({ userTags: mergedTags }, { scheduleAnalysis: true });
     const { error } = await supabase.from("notes").update({
-      user_tags: patch.userTags,
-      ai_status: patch.aiStatus,
-      ai_processed: patch.aiProcessed,
-      analyzed: patch.analyzed,
-      ai_error: patch.aiError,
-      updated_at: patch.updatedAt,
-    }).eq("id", note.id).eq("owner_id", userId);
+       user_tags: patch.userTags,
+       ai_status: patch.aiStatus,
+       ai_processed: patch.aiProcessed,
+       analyzed: patch.analyzed,
+       ai_error: patch.aiError,
+       updated_at: patch.updatedAt,
+    }).eq("id", note.id);
 
     if (error) {
       throw error;
@@ -513,7 +536,7 @@ async function removeTagsFromNotesAction(supabase: ServerSupabase, userId: strin
   for (const note of notes) {
     const nextTags = (note.user_tags ?? []).filter((tag) => !tagsToRemove.has(tag));
     const patch = normalizeNotePatch({ userTags: nextTags }, { scheduleAnalysis: true });
-    const { error } = await supabase.from("notes").update(mapNotePatchToUpdate(patch)).eq("id", note.id).eq("owner_id", userId);
+    const { error } = await supabase.from("notes").update(mapNotePatchToUpdate(patch)).eq("id", note.id);
 
     if (error) {
       throw error;
@@ -533,7 +556,7 @@ async function patchNotesAction(
 
   for (const note of notes) {
     const patch = buildPatch(note);
-    const { error } = await supabase.from("notes").update(mapNotePatchToUpdate(patch)).eq("id", note.id).eq("owner_id", userId);
+    const { error } = await supabase.from("notes").update(mapNotePatchToUpdate(patch)).eq("id", note.id);
 
     if (error) {
       throw error;
@@ -546,7 +569,7 @@ async function patchNotesAction(
 async function deleteNotesAction(supabase: ServerSupabase, userId: string, noteIds: string[]) {
   const notes = await getOwnedNotes(supabase, userId, noteIds);
   const ids = notes.map((note) => note.id);
-  const { error } = await supabase.from("notes").delete().eq("owner_id", userId).in("id", ids);
+  const { error } = await supabase.from("notes").delete().in("id", ids);
 
   if (error) {
     throw error;
@@ -558,7 +581,7 @@ async function deleteNotesAction(supabase: ServerSupabase, userId: string, noteI
 async function updateOwnedNote(supabase: ServerSupabase, userId: string, noteId: string, patch: Partial<Note>) {
   const notes = await getOwnedNotes(supabase, userId, [noteId]);
   const note = notes[0];
-  const { error } = await supabase.from("notes").update(mapNotePatchToUpdate(patch)).eq("id", noteId).eq("owner_id", userId);
+  const { error } = await supabase.from("notes").update(mapNotePatchToUpdate(patch)).eq("id", noteId);
 
   if (error) {
     throw error;
@@ -659,7 +682,7 @@ async function updateNoteAction(
     resurfacingClass: action.resurfacingClass,
   });
 
-  const { error } = await supabase.from("notes").update(mapNotePatchToUpdate(patch)).eq("id", action.noteId).eq("owner_id", userId);
+  const { error } = await supabase.from("notes").update(mapNotePatchToUpdate(patch)).eq("id", action.noteId);
 
   if (error) {
     throw error;
