@@ -28,6 +28,7 @@ You have access to:
 2. User's full notes list (metadata only): {{NOTES_LIST}}
 3. Semantic RAG context for detailed note contents (if relevant): {{RAG_CONTEXT}}
 4. Recent conversation history: {{CHAT_HISTORY}}
+5. Active open note the user is currently editing: {{ACTIVE_NOTE_CONTEXT}}
 
 IMPORTANT: You MUST ALWAYS respond with a valid, clean JSON object. Do not return markdown wrappers like \`\`\`json.
 
@@ -157,7 +158,8 @@ Guidelines:
 10. Be professional and concise. If a question is a simple search or query, "actions" must be an empty array [].
 11. Always respond in the user's language (e.g. Russian if the question is in Russian).
 12. When the user asks to "group notes by meaning/topic", "merge notes by semantic groups", "объедини заметки по смыслу/группам" or similar, this means you should identify distinct thematic groups of notes (e.g. Work, Health, Sleep, Code) and create a separate "mergeNotes" action for EACH group (so notes within the same group are merged into a single note for that group, e.g. 5 different groups yield 5 merged notes). Do NOT merge all notes of completely different categories into one single giant note unless the user explicitly requests one single note for everything.
-13. Avoid double confirmation loops. If the user has already given approval (e.g., "да", "делай", "ок", "подтверждаю", "go ahead", "do it") to a plan you proposed in a previous turn, do not repeat the plan or ask for confirmation again. Generate and output the corresponding "actions" immediately.`;
+13. Avoid double confirmation loops. If the user has already given approval (e.g., "да", "делай", "ок", "подтверждаю", "go ahead", "do it") to a plan you proposed in a previous turn, do not repeat the plan or ask for confirmation again. Generate and output the corresponding "actions" immediately.
+14. If the user asks to edit, rewrite, clean up, format, remove extra characters or analyze "this note", "current note", "последняя заметка" or refers to the note they are currently viewing/editing, use the {{ACTIVE_NOTE_CONTEXT}} content to understand what they are talking about. You have full edit access to it via the "updateNote" action.`;
 
 type ChatMessage = {
   role: "user" | "assistant";
@@ -200,12 +202,18 @@ export async function POST(request: Request) {
   let clientNotes: Note[] | undefined;
   let clientFolders: any[] | undefined;
   let chatHistory: ChatMessage[] = [];
+  let activeNoteId: string | null = null;
+  let activeNoteTitle: string | null = null;
+  let activeNoteContent: string | null = null;
 
   try {
     const body = await request.json();
     question = body.question;
     clientNotes = body.notes;
     clientFolders = body.folders;
+    activeNoteId = body.activeNoteId ?? null;
+    activeNoteTitle = body.activeNoteTitle ?? null;
+    activeNoteContent = body.activeNoteContent ?? null;
     chatHistory = Array.isArray(body.messages)
       ? body.messages
           .filter((message: unknown): message is ChatMessage =>
@@ -399,10 +407,15 @@ export async function POST(request: Request) {
     ? chunks.map((chunk, i) => `[Note ${i + 1}: "${chunk.note_title || "Без названия"}"]\n${chunk.content}`).join("\n\n---\n\n")
     : "No relevant note content matches found.";
 
+  const activeNoteContext = activeNoteId && activeNoteContent !== null
+    ? `[Active Note: "${activeNoteTitle || "Без названия"}"]\n${activeNoteContent}`
+    : "No active note is currently open.";
+
   const customizedSystemPrompt = CHAT_SYSTEM_PROMPT
     .replace("{{FOLDERS}}", foldersMeta)
     .replace("{{NOTES_LIST}}", notesMeta)
     .replace("{{RAG_CONTEXT}}", ragContext)
+    .replace("{{ACTIVE_NOTE_CONTEXT}}", activeNoteContext)
     .replace("{{CHAT_HISTORY}}", buildConversationContext(chatHistory));
 
   const userPrompt = `Question: ${question}`;

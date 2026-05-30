@@ -341,7 +341,7 @@ export function SmartNotesShell() {
       )}
 
       {/* AI Notes Chat Panel — Gmail-style slide-in from right ✨ */}
-      <AiChatPanel onOpenNote={(id) => openNote(id, notes)} />
+      <AiChatPanel onOpenNote={(id) => openNote(id, notes)} activeNote={currentNote} />
 
       {/* Command Palette — Cmd+K */}
       <CommandPalette

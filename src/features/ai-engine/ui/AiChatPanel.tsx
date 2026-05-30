@@ -30,6 +30,7 @@ import { useAuthStore } from "@/features/auth/model/auth-store";
 import { useFoldersQuery } from "@/features/folders/hooks/use-folders-query";
 import type { AiAction, AiActionExecutionResult } from "@/features/ai-engine/model/agent-actions";
 import { queryKeys } from "@/shared/lib/react-query/query-keys";
+import type { Note } from "@/entities/note";
 
 
 
@@ -53,6 +54,7 @@ type Message = {
 
 type AiChatPanelProps = {
   onOpenNote?: (noteId: string) => void;
+  activeNote?: Note | null;
 };
 
 
@@ -95,7 +97,7 @@ const QUICK_PROMPTS = [
 
 
 
-export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
+export function AiChatPanel({ onOpenNote, activeNote }: AiChatPanelProps) {
   const queryClient = useQueryClient();
   const open = useUiStore((s) => s.aiChatOpen);
   const setAiChatOpen = useUiStore((s) => s.setAiChatOpen);
@@ -165,6 +167,9 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
             id: f.id,
             name: f.name,
           })),
+          activeNoteId: activeNote?.id ?? null,
+          activeNoteTitle: activeNote?.title ?? null,
+          activeNoteContent: activeNote ? (activeNote.content || activeNote.pages?.map(p => p.content).join("\n") || "") : null,
         }),
         signal: abortRef.current.signal,
       });
