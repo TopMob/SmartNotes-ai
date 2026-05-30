@@ -8,6 +8,7 @@ type UiState = {
   view: AppView;
   activeFolderId: string | null;
   searchQuery: string;
+  semanticSearchQuery: string;
   notesFilter: NotesFilter;
   savedFilters: Array<{ id: string; name: string; filter: NotesFilter }>;
   mobileSidebarOpen: boolean;
@@ -17,6 +18,7 @@ type UiState = {
   setView: (view: AppView) => void;
   setActiveFolderId: (folderId: string | null) => void;
   setSearchQuery: (query: string) => void;
+  setSemanticSearchQuery: (query: string) => void;
   setNotesSort: (sort: NotesSort) => void;
   toggleFolderFilter: (folderId: string | null) => void;
   toggleTagFilter: (tag: string) => void;
@@ -42,6 +44,7 @@ export const useUiStore = create<UiState>((set) => ({
   view: "notes",
   activeFolderId: null,
   searchQuery: "",
+  semanticSearchQuery: "",
   notesFilter: DEFAULT_NOTES_FILTER,
   savedFilters: [],
   mobileSidebarOpen: false,
@@ -52,6 +55,7 @@ export const useUiStore = create<UiState>((set) => ({
   setView: (view) => set({ view }),
   setActiveFolderId: (activeFolderId) => set({ activeFolderId }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
+  setSemanticSearchQuery: (semanticSearchQuery) => set({ semanticSearchQuery }),
   setNotesSort: (sort) => set((state) => ({ notesFilter: { ...state.notesFilter, sort } })),
   toggleFolderFilter: (folderId) =>
     set((state) => ({

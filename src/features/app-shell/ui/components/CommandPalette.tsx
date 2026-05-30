@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  useDeferredValue,
   useCallback,
   useEffect,
   useMemo,
@@ -173,6 +174,7 @@ export function CommandPalette({ onOpenNote, onCreateNote }: CommandPaletteProps
   const { data: allNotes = [] } = useNotesFlat();
   const toggleAiChat = useUiStore((s) => s.toggleAiChat);
   const setView = useUiStore((s) => s.setView);
+  const deferredQuery = useDeferredValue(query);
 
 
   useEffect(() => {
@@ -288,24 +290,27 @@ export function CommandPalette({ onOpenNote, onCreateNote }: CommandPaletteProps
 
 
   const matchedNotes = useMemo(() => {
-    const q = query.trim();
+    const q = deferredQuery.trim();
     if (!q) return allNotes.filter((n) => !n.trashedAt).slice(0, 6);
     return allNotes
-      .filter((n) => !n.trashedAt && scoreNote(n, q) > 0)
-      .sort((a, b) => scoreNote(b, query) - scoreNote(a, query))
+      .filter((n) => !n.trashedAt)
+      .map((note) => ({ note, score: scoreNote(note, q) }))
+      .filter(({ score }) => score > 0)
+      .sort((a, b) => b.score - a.score)
+      .map(({ note }) => note)
       .slice(0, 8);
-  }, [query, allNotes]);
+  }, [deferredQuery, allNotes]);
 
 
   const matchedActions = useMemo(() => {
-    const q = query.toLowerCase().trim();
+    const q = deferredQuery.toLowerCase().trim();
     if (!q) return actions;
     return actions.filter(
       (a) =>
         a.label.toLowerCase().includes(q) ||
         (a.description ?? "").toLowerCase().includes(q),
     );
-  }, [query, actions]);
+  }, [deferredQuery, actions]);
 
 
   const selectables = useMemo<Array<{ kind: "note"; note: Note } | { kind: "action"; action: ActionItem }>>(() => {

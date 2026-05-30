@@ -1,6 +1,6 @@
 "use client";
 
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
 import { useAuthStore } from "@/features/auth/model/auth-store";
 import { notesRepository, type PaginationCursor } from "@/features/notes/api/notes-repository";
@@ -31,4 +31,16 @@ export function useNotesFlat() {
     ...query,
     data: query.data?.pages.flatMap((page) => page.data) ?? [],
   };
+}
+
+export function useNoteDetails(noteId: string | null) {
+  const authStatus = useAuthStore((state) => state.status);
+  const userId = useAuthStore((state) => state.user?.id ?? "local-user");
+
+  return useQuery({
+    queryKey: noteId ? queryKeys.noteDetail(userId, noteId) : ["note-detail", userId, "idle"],
+    queryFn: () => (noteId ? notesRepository.getById(noteId) : Promise.resolve(null)),
+    enabled: authStatus !== "loading" && Boolean(noteId),
+    staleTime: 30_000,
+  });
 }

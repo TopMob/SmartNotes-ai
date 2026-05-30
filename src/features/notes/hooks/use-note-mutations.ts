@@ -28,6 +28,15 @@ type InfiniteNotesData = {
 
 type NotesSnapshot = { previousNotes: Note[] | undefined };
 
+function updateNoteDetailCache(queryClient: ReturnType<typeof useQueryClient>, userId: string | null, noteId: string, updater: (note: Note | null) => Note | null) {
+  if (!userId) {
+    return;
+  }
+
+  const queryKey = queryKeys.noteDetail(userId, noteId);
+  queryClient.setQueryData<Note | null>(queryKey, (current) => updater(current ?? null));
+}
+
 function sortNotes(notes: Note[]) {
   return [...notes].sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime());
 }
@@ -89,6 +98,9 @@ export function useCreateNoteMutation() {
       }
     },
     onSuccess: (note) => {
+      if (userId) {
+        queryClient.setQueryData(queryKeys.noteDetail(userId, note.id), note);
+      }
       enqueueSyncItem({ id: note.id, entity: "note", operation: "create", payload: { noteId: note.id } });
       scheduleAiAnalysis(note.id);
     },
@@ -118,6 +130,7 @@ export function useUpdateNoteMutation() {
       queryClient.setQueryData<InfiniteNotesData>(queryKey, updateFirstPageNotes(previousData, (notes) =>
         sortNotes(notes.map((note) => (note.id === noteId ? { ...note, ...patch } : note)))
       ));
+      updateNoteDetailCache(queryClient, userId, noteId, (note) => (note ? { ...note, ...patch } : note));
 
       return { previousNotes } satisfies NotesSnapshot;
     },
@@ -139,6 +152,7 @@ export function useUpdateNoteMutation() {
       }
 
       void queryClient.invalidateQueries({ queryKey: queryKeys.notes(userId) });
+      void queryClient.invalidateQueries({ queryKey: ["note-detail", userId] });
     },
   });
 }
@@ -162,6 +176,7 @@ export function useDeleteNoteMutation() {
       queryClient.setQueryData<InfiniteNotesData>(queryKey, updateFirstPageNotes(previousData, (notes) =>
         notes.filter((note) => note.id !== noteId)
       ));
+      queryClient.removeQueries({ queryKey: queryKeys.noteDetail(userId, noteId) });
 
       return { previousNotes } satisfies NotesSnapshot;
     },
@@ -277,7 +292,13 @@ export function useNoteActions() {
   const reorderMutation = useReorderNotesMutation();
   const userId = useAuthStore((state) => state.user?.id ?? null);
 
-  function findNote(noteId: string) {
+    function findNote(noteId: string) {
+    const detail = queryClient.getQueryData<Note | null>(queryKeys.noteDetail(userId ?? "local-user", noteId));
+
+    if (detail) {
+      return detail;
+    }
+
     const queryData = queryClient.getQueryData<{ pages: Array<{ data: Note[] }> }>(queryKeys.notes(userId ?? "local-user"));
     const notes = queryData?.pages.flatMap((page) => page.data) ?? [];
     return notes.find((item) => item.id === noteId) ?? null;

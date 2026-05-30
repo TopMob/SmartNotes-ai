@@ -33,6 +33,8 @@ type MainSurfaceProps = {
   hiddenFolders: FolderEntity[];
   trashedFolders: FolderEntity[];
   notes: Note[];
+  semanticNotes: Note[];
+  semanticLoading: boolean;
   activeFolder: FolderEntity | null;
   folderViewMode: "compact" | "full";
   notesPerPage: 5 | 10 | 20 | 50;
@@ -42,7 +44,7 @@ type MainSurfaceProps = {
   onRefreshInvites?: () => void;
 };
 
-export function MainSurface({ copy, view, folders, hiddenFolders, trashedFolders, notes, activeFolder, folderViewMode, notesPerPage, onOpenFolder, onOpenNote, onOpenSheet, onRefreshInvites }: MainSurfaceProps) {
+export function MainSurface({ copy, view, folders, hiddenFolders, trashedFolders, notes, semanticNotes, semanticLoading, activeFolder, folderViewMode, notesPerPage, onOpenFolder, onOpenNote, onOpenSheet, onRefreshInvites }: MainSurfaceProps) {
   const user = useAuthStore((s) => s.user);
 
   if (view === "invites") {
@@ -80,7 +82,7 @@ export function MainSurface({ copy, view, folders, hiddenFolders, trashedFolders
   }
 
   if (view === "folder" && activeFolder) {
-    return <section className="panel-card flex flex-col flex-1 min-h-0 border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><NotesView copy={copy} emptyText={copy.shell.prompts.noMatches} notes={notes} notesPerPage={notesPerPage} onOpenNote={onOpenNote} onOpenSheet={onOpenSheet} title={activeFolder.name} view={view} /></section>;
+    return <section className="panel-card flex flex-col flex-1 min-h-0 border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><NotesView copy={copy} emptyText={copy.shell.prompts.noMatches} notes={notes} semanticLoading={semanticLoading} semanticNotes={semanticNotes} notesPerPage={notesPerPage} onOpenNote={onOpenNote} onOpenSheet={onOpenSheet} title={activeFolder.name} view={view} /></section>;
   }
 
   return (
@@ -89,6 +91,8 @@ export function MainSurface({ copy, view, folders, hiddenFolders, trashedFolders
         copy={copy}
         emptyText="Здесь пока пусто"
         notes={notes}
+        semanticLoading={semanticLoading}
+        semanticNotes={semanticNotes}
         notesPerPage={notesPerPage}
         onOpenNote={onOpenNote}
         onOpenSheet={onOpenSheet}
@@ -112,6 +116,19 @@ export function MainSurface({ copy, view, folders, hiddenFolders, trashedFolders
 function FoldersGrid({ folders, mode, emptyText, folderViewMode, onOpenFolder }: { folders: FolderEntity[]; mode: "active" | "hidden"; emptyText: string; folderViewMode: "compact" | "full"; onOpenFolder: (folder: FolderEntity) => void }) {
   const { data: notes = [] } = useNotesFlat();
   const { unhideFolder } = useFolderActions();
+  const notesCountByFolderId = useMemo(() => {
+    const counts = new Map<string, number>();
+
+    for (const note of notes) {
+      if (!note.folderId || note.trashedAt) {
+        continue;
+      }
+
+      counts.set(note.folderId, (counts.get(note.folderId) ?? 0) + 1);
+    }
+
+    return counts;
+  }, [notes]);
 
   if (!folders.length) {
     return (
@@ -128,7 +145,7 @@ function FoldersGrid({ folders, mode, emptyText, folderViewMode, onOpenFolder }:
     <div className="content-scrollable flex-1 min-h-0">
       <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3 p-3 sm:gap-[14px] sm:p-5">
         {folders.map((folder) => {
-          const notesCount = notes.filter((note) => note.folderId === folder.id && !note.trashedAt).length;
+          const notesCount = notesCountByFolderId.get(folder.id) ?? 0;
 
           return (
             <div className="folder-card min-h-[15rem] rounded-[1.6rem] border border-border bg-surface-strong p-6 sm:p-8 text-left shadow-lg shadow-violet-950/4 sm:min-h-[16.5rem] flex flex-col justify-between h-full transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-1.5 hover:shadow-xl hover:shadow-violet-950/8" key={folder.id}>
@@ -189,12 +206,12 @@ function TrashView({ copy, notes, notesPerPage, trashedFolders, onOpenNote, onOp
         </section>
       ) : null}
 
-      <NotesView copy={copy} emptyText={copy.shell.sections.trashEmpty} notes={notes} notesPerPage={notesPerPage} onOpenNote={onOpenNote} onOpenSheet={onOpenSheet} title={copy.shell.trash} view="trash" />
+      <NotesView copy={copy} emptyText={copy.shell.sections.trashEmpty} notes={notes} semanticNotes={[]} semanticLoading={false} notesPerPage={notesPerPage} onOpenNote={onOpenNote} onOpenSheet={onOpenSheet} title={copy.shell.trash} view="trash" />
     </div>
   );
 }
 
-function NotesView({ copy, title: _title, notes, notesPerPage, emptyText: _emptyText, onOpenNote, onOpenSheet, view }: { copy: ReturnType<typeof getUiCopy>; title: string; notes: Note[]; notesPerPage: 5 | 10 | 20 | 50; emptyText: string; onOpenNote: (noteId: string) => void; onOpenSheet: (sheet: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void; view: AppView }) {
+function NotesView({ copy, title: _title, notes, semanticNotes, semanticLoading, notesPerPage, emptyText: _emptyText, onOpenNote, onOpenSheet, view }: { copy: ReturnType<typeof getUiCopy>; title: string; notes: Note[]; semanticNotes: Note[]; semanticLoading: boolean; notesPerPage: 5 | 10 | 20 | 50; emptyText: string; onOpenNote: (noteId: string) => void; onOpenSheet: (sheet: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void; view: AppView }) {
   const { data: folders = [] } = useFoldersQuery();
   const [displayLimit, setDisplayLimit] = useState<number>(notesPerPage);
   const visibleFolders = useMemo(() => folders.filter((folder) => !folder.trashedAt && !folder.isHidden), [folders]);
@@ -267,6 +284,26 @@ function NotesView({ copy, title: _title, notes, notesPerPage, emptyText: _empty
                 ))}
               </div>
             </SortableContext>
+          </section>
+        ) : null}
+
+        {semanticLoading || semanticNotes.length ? (
+          <section>
+            <div className="mb-3 flex items-center gap-2 text-sm font-black uppercase tracking-[0.2em] text-violet-600">
+              <Sparkles className="h-4 w-4" />
+              Похожие по смыслу
+            </div>
+            {semanticLoading ? (
+              <div className="rounded-[1.4rem] border border-border bg-surface-strong px-4 py-3 text-sm text-foreground/58">
+                Ищу семантические совпадения...
+              </div>
+            ) : (
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3 sm:gap-[14px]">
+                {semanticNotes.map((note) => (
+                  <NoteCard key={`semantic-${note.id}`} folders={visibleFolders} note={note} onOpenNote={onOpenNote} onOpenSheet={onOpenSheet} view={view} />
+                ))}
+              </div>
+            )}
           </section>
         ) : null}
 

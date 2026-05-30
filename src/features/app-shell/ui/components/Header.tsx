@@ -1,7 +1,7 @@
 "use client";
 
 import { Command, Menu, MoreHorizontal, Search, SlidersHorizontal, Sparkles } from "lucide-react";
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 
 import type { Folder as FolderEntity } from "@/entities/folder";
 import { getUiCopy } from "@/shared/lib/i18n";
@@ -20,6 +20,7 @@ type HeaderProps = {
   onOpenFilters: () => void;
   onOpenFolderMenu: (anchor: SheetAnchor) => void;
   setSearchQuery: (query: string) => void;
+  setSemanticSearchQuery: (query: string) => void;
   aiChatOpen?: boolean;
   onToggleAiChat?: () => void;
 };
@@ -35,15 +36,33 @@ export const Header = React.memo(function Header({
   onOpenFilters,
   onOpenFolderMenu,
   setSearchQuery,
+  setSemanticSearchQuery,
   aiChatOpen = false,
   onToggleAiChat,
 }: HeaderProps) {
   const [isMac, setIsMac] = useState(true);
+  const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       setIsMac(navigator.userAgent.indexOf("Mac") !== -1);
     }
   }, []);
+
+  useEffect(() => {
+    setLocalSearchQuery(searchQuery);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      if (localSearchQuery !== searchQuery) {
+        setSemanticSearchQuery(localSearchQuery);
+      }
+    }, 320);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [localSearchQuery, searchQuery, setSemanticSearchQuery]);
+
   const title =
     view === "folder" && activeFolder
       ? activeFolder.name
@@ -107,9 +126,13 @@ export const Header = React.memo(function Header({
             name="note_search_field"
             id="note_search_field"
             className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-foreground/38"
-            onChange={(event) => setSearchQuery(event.target.value)}
+            onChange={(event) => {
+              const nextQuery = event.target.value;
+              setLocalSearchQuery(nextQuery);
+              setSearchQuery(nextQuery);
+            }}
             placeholder={copy.shell.search}
-            value={searchQuery}
+            value={localSearchQuery}
           />
           <button
             onClick={() => window.dispatchEvent(new CustomEvent("open-command-palette"))}

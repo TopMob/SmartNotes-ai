@@ -21,5 +21,12 @@
       ".idea/**",
       ".vscode/**"
     ]
+  },
+    "mcp": {
+    "supabase": {
+      "type": "remote",
+      "url": "https://mcp.supabase.com/mcp?project_ref=ammpwqfcutlyrjcarubc",
+      "enabled": true
+    }
   }
 }

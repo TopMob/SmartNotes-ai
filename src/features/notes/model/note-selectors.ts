@@ -64,16 +64,7 @@ function matchesSearch(note: Note, searchQuery: string) {
     return true;
   }
 
-  return scoreSearchMatch(
-    [
-      { value: note.title, weight: 8 },
-      { value: note.content, weight: 3 },
-      { value: note.userTags.join(" "), weight: 6 },
-      { value: note.hiddenTags.join(" "), weight: 4 },
-      { value: note.resurfacingClass ?? "", weight: 2 },
-    ],
-    searchQuery,
-  ) > 0;
+  return getSearchScore(note, searchQuery) > 0;
 }
 
 function matchesFilter(note: Note, filter: NotesFilter, now: Date) {
@@ -117,35 +108,31 @@ function compareNotes(left: Note, right: Note, sort: NotesSort) {
   }
 }
 
-function compareBySearchScore(left: Note, right: Note, searchQuery: string) {
-  if (!searchQuery.trim()) {
-    return 0;
-  }
-
-  const scoreNote = (note: Note) =>
-    scoreSearchMatch(
-      [
-        { value: note.title, weight: 8 },
-        { value: note.content, weight: 3 },
-        { value: note.userTags.join(" "), weight: 6 },
-        { value: note.hiddenTags.join(" "), weight: 4 },
-        { value: note.resurfacingClass ?? "", weight: 2 },
-      ],
-      searchQuery,
-    );
-
-  return scoreNote(right) - scoreNote(left);
+function getSearchScore(note: Note, searchQuery: string) {
+  return scoreSearchMatch(
+    [
+      { value: note.title, weight: 8 },
+      { value: note.content, weight: 3 },
+      { value: note.userTags.join(" "), weight: 6 },
+      { value: note.hiddenTags.join(" "), weight: 4 },
+      { value: note.resurfacingClass ?? "", weight: 2 },
+    ],
+    searchQuery,
+  );
 }
 
 export function selectVisibleNotes(input: SelectNotesInput) {
   const filter = { ...DEFAULT_NOTES_FILTER, ...input.filter };
   const now = input.now ?? new Date();
+  const trimmedSearchQuery = input.searchQuery.trim();
 
-  return [...input.notes]
+  return input.notes
     .filter((note) => matchesView(note, input.view, input.activeFolderId))
-    .filter((note) => matchesSearch(note, input.searchQuery))
     .filter((note) => matchesFilter(note, filter, now))
-    .sort((left, right) => compareBySearchScore(left, right, input.searchQuery) || compareNotes(left, right, filter.sort));
+    .map((note) => ({ note, searchScore: trimmedSearchQuery ? getSearchScore(note, trimmedSearchQuery) : 0 }))
+    .filter(({ note, searchScore }) => (!trimmedSearchQuery ? true : matchesSearch(note, trimmedSearchQuery) && searchScore > 0))
+    .sort((left, right) => right.searchScore - left.searchScore || compareNotes(left.note, right.note, filter.sort))
+    .map(({ note }) => note);
 }
 
 export function selectPinnedGroups(notes: Note[]) {

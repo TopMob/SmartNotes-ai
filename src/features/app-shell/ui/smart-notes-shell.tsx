@@ -7,7 +7,7 @@ import type { Folder as FolderEntity } from "@/entities/folder";
 import type { Note } from "@/entities/note";
 import { NoteCollabSessionProvider } from "@/features/editor-collab/hooks/use-note-collab-session";
 import { useFoldersQuery } from "@/features/folders/hooks/use-folders-query";
-import { useNotesFlat } from "@/features/notes/hooks/use-notes-query";
+import { useNoteDetails, useNotesFlat } from "@/features/notes/hooks/use-notes-query";
 import { selectVisibleNotes } from "@/features/notes/model/note-selectors";
 import { useNoteUiStore } from "@/features/notes/model/note-ui-store";
 import { useSettingsQuery } from "@/features/settings/hooks/use-settings-query";
@@ -63,6 +63,7 @@ export function SmartNotesShell() {
   const view = useUiStore((state) => state.view);
   const activeFolderId = useUiStore((state) => state.activeFolderId);
   const searchQuery = useUiStore((state) => state.searchQuery);
+  const semanticSearchQuery = useUiStore((state) => state.semanticSearchQuery);
   const notesFilter = useUiStore((state) => state.notesFilter);
   const mobileSidebarOpen = useUiStore((state) => state.mobileSidebarOpen);
   const desktopSidebarOpen = useUiStore((state) => state.desktopSidebarOpen);
@@ -72,6 +73,7 @@ export function SmartNotesShell() {
   const setView = useUiStore((state) => state.setView);
   const setActiveFolderId = useUiStore((state) => state.setActiveFolderId);
   const setSearchQuery = useUiStore((state) => state.setSearchQuery);
+  const setSemanticSearchQuery = useUiStore((state) => state.setSemanticSearchQuery);
   const setNotesSort = useUiStore((state) => state.setNotesSort);
   const savedFilters = useUiStore((state) => state.savedFilters);
   const saveCurrentFilter = useUiStore((state) => state.saveCurrentFilter);
@@ -107,8 +109,11 @@ export function SmartNotesShell() {
 
 
   const [tagDraft, setTagDraft] = useState("");
+  const [semanticNoteIds, setSemanticNoteIds] = useState<string[]>([]);
+  const [semanticLoading, setSemanticLoading] = useState(false);
   const editorDirty = useNoteUiStore((state) => state.editorDirty);
   const draftNote = useNoteUiStore((state) => state.draftNote);
+  const noteDetailsQuery = useNoteDetails(draftNote ? null : currentNoteId);
 
 
   const folders = useMemo(() => rawFolders.filter((folder) => !folder.trashedAt && !folder.isHidden), [rawFolders]);
@@ -121,12 +126,29 @@ export function SmartNotesShell() {
   );
   const currentNote = useMemo(() => {
     if (draftNote && draftNote.id === currentNoteId) return draftNote;
-    return notes.find((note: Note) => note.id === currentNoteId) ?? null;
-  }, [currentNoteId, notes, draftNote]);
+    return noteDetailsQuery.data ?? null;
+  }, [currentNoteId, draftNote, noteDetailsQuery.data]);
   const visibleNotes = useMemo(
     () => selectVisibleNotes({ notes, view, activeFolderId, searchQuery, filter: notesFilter }),
     [activeFolderId, notes, notesFilter, searchQuery, view],
   );
+  const semanticCandidates = useMemo(
+    () => selectVisibleNotes({ notes, view, activeFolderId, searchQuery: "", filter: notesFilter }),
+    [activeFolderId, notes, notesFilter, view],
+  );
+  const semanticNotes = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return [];
+    }
+
+    const lexicalIds = new Set(visibleNotes.map((note) => note.id));
+    const noteMap = new Map(semanticCandidates.map((note) => [note.id, note]));
+
+    return semanticNoteIds
+      .filter((noteId) => !lexicalIds.has(noteId))
+      .map((noteId) => noteMap.get(noteId))
+      .filter((note): note is Note => Boolean(note));
+  }, [searchQuery, semanticCandidates, semanticNoteIds, visibleNotes]);
 
   const filteredTagSuggestions = useMemo(() => {
     const query = tagDraft.trim().toLowerCase();
@@ -146,6 +168,63 @@ export function SmartNotesShell() {
       delete document.documentElement.dataset.motion;
     };
   }, [reduceMotion]);
+
+  useEffect(() => {
+    const query = semanticSearchQuery.trim();
+
+    if (!query) {
+      setSemanticNoteIds([]);
+      setSemanticLoading(false);
+      return;
+    }
+
+    const candidateNotes = semanticCandidates;
+
+    if (!candidateNotes.length) {
+      setSemanticNoteIds([]);
+      setSemanticLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    setSemanticLoading(true);
+
+    void fetch("/api/search/semantic", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({
+        query,
+        candidateNoteIds: candidateNotes.map((note) => note.id),
+        notes: user ? undefined : candidateNotes,
+      }),
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`Semantic search failed: ${response.status}`);
+        }
+
+        return response.json() as Promise<{ matches?: Array<{ noteId: string; similarity: number }> }>;
+      })
+      .then((payload) => {
+        setSemanticNoteIds((payload.matches ?? []).map((match) => match.noteId));
+      })
+      .catch((error) => {
+        if ((error as Error).name === "AbortError") {
+          return;
+        }
+
+        console.error(error);
+        setSemanticNoteIds([]);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setSemanticLoading(false);
+        }
+      });
+
+    return () => controller.abort();
+  }, [semanticCandidates, semanticSearchQuery, user]);
 
 
   // Note: Global themes and opacities are applied via ThemeBridge in providers.tsx
@@ -195,7 +274,7 @@ export function SmartNotesShell() {
         ) : null}
 
         <div className="main-content min-w-0 flex-1">
-          <Header copy={copy} activeFolder={activeFolder} filtersOpen={shellState.filtersOpen} filtersRef={shellState.filtersRef} onOpenDrawer={toggleSidebar} onOpenFilters={() => shellState.setFiltersOpen((value) => !value)} onOpenFolderMenu={(anchor) => shellState.openSheet("folder", anchor)} searchQuery={searchQuery} setSearchQuery={setSearchQuery} view={view} aiChatOpen={aiChatOpen} onToggleAiChat={toggleAiChat} />
+          <Header copy={copy} activeFolder={activeFolder} filtersOpen={shellState.filtersOpen} filtersRef={shellState.filtersRef} onOpenDrawer={toggleSidebar} onOpenFilters={() => shellState.setFiltersOpen((value) => !value)} onOpenFolderMenu={(anchor) => shellState.openSheet("folder", anchor)} searchQuery={searchQuery} setSearchQuery={setSearchQuery} setSemanticSearchQuery={setSemanticSearchQuery} view={view} aiChatOpen={aiChatOpen} onToggleAiChat={toggleAiChat} />
 
           {shellState.filtersOpen ? (
             <TopFiltersPopup
@@ -222,7 +301,7 @@ export function SmartNotesShell() {
             />
           ) : null}
 
-          <MainSurface copy={copy} activeFolder={activeFolder} folderViewMode={folderViewMode} folders={folders} hiddenFolders={hiddenFolders} notes={visibleNotes} notesPerPage={notesPerPage} onOpenFolder={openFolder} onOpenNote={(id) => openNote(id, notes)} onOpenSheet={shellState.openSheet} trashedFolders={trashedFolders} view={view} onRefreshInvites={loadInvites} />
+          <MainSurface copy={copy} activeFolder={activeFolder} folderViewMode={folderViewMode} folders={folders} hiddenFolders={hiddenFolders} notes={visibleNotes} semanticNotes={semanticNotes} semanticLoading={semanticLoading} notesPerPage={notesPerPage} onOpenFolder={openFolder} onOpenNote={(id) => openNote(id, notes)} onOpenSheet={shellState.openSheet} trashedFolders={trashedFolders} view={view} onRefreshInvites={loadInvites} />
         </div>
       </div>
 

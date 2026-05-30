@@ -25,6 +25,7 @@ export type PaginatedResult<T> = {
 export type NotesRepository = {
   list: (cursor?: PaginationCursor) => Promise<PaginatedResult<Note>>;
   listAll: () => Promise<Note[]>;
+  getById: (noteId: string) => Promise<Note | null>;
   create: (note: Note) => Promise<Note>;
   patch: (noteId: string, patch: Partial<Note>) => Promise<Note>;
   batchCreate: (notes: Note[]) => Promise<Note[]>;
@@ -62,7 +63,7 @@ export const notesRepository: NotesRepository = {
     const limit = cursor?.limit ?? 50;
     let query = supabase
       .from("notes")
-      .select("*, note_pages(*), note_access(user_id, role)")
+      .select("*")
       .order("updated_at", { ascending: false })
       .limit(limit + 1);
 
@@ -97,13 +98,38 @@ export const notesRepository: NotesRepository = {
       return localNotesRepository.list();
     }
 
-    const { data, error } = await supabase.from("notes").select("*, note_pages(*), note_access(user_id, role)").order("updated_at", { ascending: false });
+    const { data, error } = await supabase.from("notes").select("*").order("updated_at", { ascending: false });
 
     if (error) {
       throw error;
     }
 
     return (data as unknown as NoteRow[]).map(mapNoteRow);
+  },
+  async getById(noteId) {
+    if (shouldUseLocal()) {
+      const notes = await localNotesRepository.list();
+      return notes.find((note) => note.id === noteId) ?? null;
+    }
+
+    const supabase = createSupabaseBrowserClient();
+
+    if (!supabase) {
+      const notes = await localNotesRepository.list();
+      return notes.find((note) => note.id === noteId) ?? null;
+    }
+
+    const { data, error } = await supabase
+      .from("notes")
+      .select("*, note_pages(*), note_access(user_id, role)")
+      .eq("id", noteId)
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    return mapNoteRow(data as unknown as NoteRow);
   },
   async create(note) {
     if (shouldUseLocal()) {

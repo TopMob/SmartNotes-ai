@@ -21,7 +21,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useUiStore } from "@/shared/store/ui-store";
 import { useNotesFlat } from "@/features/notes/hooks/use-notes-query";
 import { useAuthStore } from "@/features/auth/model/auth-store";
-import { isGuestUser } from "@/features/auth/lib/guest-session";
 import { useFoldersQuery } from "@/features/folders/hooks/use-folders-query";
 import { useFolderActions } from "@/features/folders/hooks/use-folder-mutations";
 import { useNoteActions } from "@/features/notes/hooks/use-note-mutations";
@@ -169,29 +168,14 @@ export function AiChatPanel({ onOpenNote }: AiChatPanelProps) {
         actions?: any[];
       };
 
-      const fullText = data.answer;
       const citations = data.citations ?? [];
-      const chunkSize = 4;
-      let accumulated = "";
-
-      for (let i = 0; i < fullText.length; i += chunkSize) {
-        if (abortRef.current?.signal.aborted) break;
-        accumulated += fullText.slice(i, i + chunkSize);
-        const snap = accumulated;
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantId ? { ...m, text: snap, streaming: true } : m,
-          ),
-        );
-        await new Promise((resolve) => setTimeout(resolve, 12));
-      }
 
       setMessages((prev) =>
         prev.map((m) =>
           m.id === assistantId
             ? { 
                 ...m, 
-                text: fullText, 
+                text: data.answer,
                 citations, 
                 streaming: false,
                 actions: data.actions ?? [],
