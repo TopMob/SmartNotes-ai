@@ -69,7 +69,7 @@ Response Schema:
       "type": "createNote",
       "title": "Note title",
       "content": "Full note content",
-      "folderId": "folder-id",
+      "folderId": "folder-id", // use null to keep the note outside any folder
       "tags": ["tag1"],
       "openAfterSave": true
     },
@@ -77,6 +77,7 @@ Response Schema:
       "type": "updateNote",
       "noteId": "note-id",
       "appendContent": "New details",
+      "folderId": null, // use null to move the note outside any folder
       "tags": ["updated"],
       "resurfacingClass": "idea"
     },
@@ -87,8 +88,8 @@ Response Schema:
     },
     {
       "type": "moveNotesToFolder",
-      "folderId": "existing-folder-id", // if using an existing folder
-      "folderName": "Folder Name",      // folder name
+      "folderId": "existing-folder-id", // use null to move notes outside any folder
+      "folderName": "Folder Name",      // omit when folderId is null
       "tempId": "unique-temp-id",      // matches tempId from createFolder action above if creating a new one
       "noteIds": ["note-id-1", "note-id-2"]
     },
@@ -145,7 +146,7 @@ Response Schema:
 
 Guidelines:
 1. If the user asks to organize, categorize, group, tag, move, rename, merge, archive, restore, delete, or create notes/folders, study the full notes list, decide on the correct safe actions, and output the required actions.
-2. If notes fit well into existing folders, use them. If they belong in a new folder, suggest creating it first and then moving notes into it.
+2. If notes fit well into existing folders, use them. If they belong in a new folder, suggest creating it first and then moving notes into it. If the user asks to remove a note from folders or keep it outside folders, use "folderId": null and do not provide "folderName".
 3. If the user gives a free-form thought and asks to save, capture, structure, or turn it into a note, and they did not specify whether to include the raw thought at the top, ask exactly: "Написать в начале ваши мысли без структурирования?" and return no actions yet.
 4. If the user answers yes/no to that follow-up, use the recent conversation history to create exactly one createStructuredIdeaNote action using the earlier thought text.
 5. For createStructuredIdeaNote, use saveMode "human_plus_ai" when the user wants the raw thought kept at the top; otherwise use "ai_only".

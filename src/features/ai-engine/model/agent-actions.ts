@@ -144,6 +144,14 @@ function asNonEmptyString(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+function asOptionalFolderId(value: unknown) {
+  if (value === null) {
+    return null;
+  }
+
+  return asNonEmptyString(value) ?? undefined;
+}
+
 function asStringArray(value: unknown) {
   if (!Array.isArray(value)) {
     return null;
@@ -287,7 +295,7 @@ function parseAiAction(value: unknown): AiAction {
       type,
       title,
       content,
-      folderId: asNonEmptyString(value.folderId),
+      folderId: asOptionalFolderId(value.folderId),
       folderName: asNonEmptyString(value.folderName) ?? undefined,
       tempId: asNonEmptyString(value.tempId) ?? undefined,
       tags,
@@ -323,7 +331,7 @@ function parseAiAction(value: unknown): AiAction {
       title: asNonEmptyString(value.title) ?? undefined,
       content: asNonEmptyString(value.content) ?? undefined,
       appendContent: asNonEmptyString(value.appendContent) ?? undefined,
-      folderId: asNonEmptyString(value.folderId),
+      folderId: asOptionalFolderId(value.folderId),
       folderName: asNonEmptyString(value.folderName) ?? undefined,
       tempId: asNonEmptyString(value.tempId) ?? undefined,
       tags,
@@ -352,7 +360,7 @@ function parseAiAction(value: unknown): AiAction {
     return {
       type,
       noteIds,
-      folderId: asNonEmptyString(value.folderId),
+      folderId: asOptionalFolderId(value.folderId),
       folderName: asNonEmptyString(value.folderName) ?? undefined,
       tempId: asNonEmptyString(value.tempId) ?? undefined,
     };
@@ -371,7 +379,7 @@ function parseAiAction(value: unknown): AiAction {
       type,
       noteIds,
       title,
-      folderId: asNonEmptyString(value.folderId),
+      folderId: asOptionalFolderId(value.folderId),
       folderName: asNonEmptyString(value.folderName) ?? undefined,
       tempId: asNonEmptyString(value.tempId) ?? undefined,
       tags,
