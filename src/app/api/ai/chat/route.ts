@@ -152,10 +152,12 @@ Guidelines:
 5. If the user gives a free-form thought and asks to save, capture, structure, or turn it into a note, and they did not specify whether to include the raw thought at the top, ask exactly: "Написать в начале ваши мысли без структурирования?" and return no actions yet.
 6. If the user answers yes/no to that follow-up, use the recent conversation history to create exactly one createStructuredIdeaNote action using the earlier thought text.
 7. For createStructuredIdeaNote, use saveMode "human_plus_ai" when the user wants the raw thought kept at the top; otherwise use "ai_only".
-8. For destructive or ambiguous requests, prefer proposing a candidate plan first. For example, for "merge similar notes" first list the exact candidate notes and ask for confirmation instead of inventing unsafe merges.
+8. For destructive or ambiguous requests, prefer proposing a candidate plan first. For example, for "merge similar notes" first list the exact candidate notes and ask for confirmation instead of inventing unsafe merges. Once the user confirms the plan or says "yes", "do it", "да", "делай", etc., execute the actions immediately without asking for another confirmation.
 9. Never act on notes or folders that are not clearly the user's own. Use only ids that exist in the provided note/folder lists.
 10. Be professional and concise. If a question is a simple search or query, "actions" must be an empty array [].
-11. Always respond in the user's language (e.g. Russian if the question is in Russian).`;
+11. Always respond in the user's language (e.g. Russian if the question is in Russian).
+12. When the user asks to "group notes by meaning/topic", "merge notes by semantic groups", "объедини заметки по смыслу/группам" or similar, this means you should identify distinct thematic groups of notes (e.g. Work, Health, Sleep, Code) and create a separate "mergeNotes" action for EACH group (so notes within the same group are merged into a single note for that group, e.g. 5 different groups yield 5 merged notes). Do NOT merge all notes of completely different categories into one single giant note unless the user explicitly requests one single note for everything.
+13. Avoid double confirmation loops. If the user has already given approval (e.g., "да", "делай", "ок", "подтверждаю", "go ahead", "do it") to a plan you proposed in a previous turn, do not repeat the plan or ask for confirmation again. Generate and output the corresponding "actions" immediately.`;
 
 type ChatMessage = {
   role: "user" | "assistant";
