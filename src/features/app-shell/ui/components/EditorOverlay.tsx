@@ -650,49 +650,46 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
 
         <footer className="mx-3 sm:mx-0 mt-3 flex flex-col gap-3 rounded-[1.5rem] border border-border bg-surface/92 px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-xl shadow-violet-950/8 sm:flex-row sm:items-center sm:p-2">
           <div className="relative flex-1 min-w-0">
-            <div className="flex flex-nowrap items-center gap-2 rounded-2xl bg-surface-strong px-3 py-1.5 border border-border min-h-11 overflow-x-auto no-scrollbar focus-within:border-accent/80 focus-within:ring-2 focus-within:ring-accent/15 transition-all duration-200">
-              <button 
-                type="button" 
-                onClick={() => setTagsModalOpen(true)}
-                className="flex items-center gap-1.5 h-8 px-2.5 rounded-xl bg-accent/10 hover:bg-accent/20 text-accent transition-all shrink-0 border border-accent/20 cursor-pointer"
-                title={lang === "ru" ? "Управление тегами (полный экран)" : "Manage tags (fullscreen)"}
-              >
-                <Tag className="h-4 w-4 shrink-0" />
-                <span className="text-xs font-black">{userTags.length}</span>
-                <Maximize2 className="h-3 w-3 shrink-0 opacity-70" />
-              </button>
+            <div 
+              onClick={() => setTagsModalOpen(true)}
+              className="flex flex-nowrap items-center gap-2 rounded-2xl bg-surface-strong px-3 py-1.5 border border-border min-h-11 overflow-x-auto no-scrollbar cursor-pointer hover:border-accent/40 focus-within:border-accent/80 transition-all duration-200"
+              title={lang === "ru" ? "Управление тегами (кликните для открытия)" : "Manage tags (click to open)"}
+            >
+              <Tag className="h-4 w-4 text-accent shrink-0" />
               
               <div className="flex flex-nowrap items-center gap-2 shrink-0">
-                {userTags.map((tag) => (
+                {userTags.slice(0, 5).map((tag) => (
                   <span key={tag} className="inline-flex items-center gap-1.5 rounded-lg bg-accent/10 border border-accent/20 px-2.5 py-1 text-xs font-bold text-accent shrink-0">
                     #{tag.replace(/^#+/, "")}
                     {role !== "viewer" && (
                       <button 
                         type="button" 
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           const nextTags = userTags.filter((t) => t !== tag);
                           setUserTags(nextTags);
                           markEditorDirty(true);
                         }} 
-                        className="hover:text-foreground text-accent/60 transition-colors text-sm font-black"
+                        className="hover:text-foreground text-accent/60 transition-colors text-sm font-black px-1"
                       >
                         &times;
                       </button>
                     )}
                   </span>
                 ))}
+                
+                {userTags.length > 5 && (
+                  <span className="inline-flex items-center gap-1 rounded-lg bg-accent/20 border border-accent/30 px-2 py-1 text-xs font-black text-accent shrink-0">
+                    +{userTags.length - 5}
+                  </span>
+                )}
+
+                {role !== "viewer" && userTags.length === 0 && (
+                  <span className="text-sm text-foreground/32">
+                    {lang === "ru" ? "Добавить тег..." : "Add tag..."}
+                  </span>
+                )}
               </div>
-              
-              <input 
-                disabled={role === "viewer"}
-                className="min-w-[120px] flex-1 bg-transparent text-sm outline-none py-1 text-foreground placeholder:text-foreground/32" 
-                value={tagDraftVal}
-                onChange={(event) => setTagDraftVal(event.target.value)}
-                onFocus={() => setTagInputFocused(true)}
-                onBlur={handleTagInputBlur}
-                onKeyDown={handleTagInputKeyDown}
-                placeholder={userTags.length === 0 ? (lang === "ru" ? "Добавить тег..." : "Add tag...") : ""} 
-              />
             </div>
             {tagInputFocused && tagSuggestions.length > 0 && (
               <div className="absolute bottom-full left-0 mb-2 max-h-40 w-full overflow-y-auto rounded-2xl border border-border bg-surface p-2 shadow-2xl backdrop-blur-2xl z-50">
