@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 import type { Note } from "@/entities/note";
 import { mapFolderDraftToInsert, mapFolderRow } from "@/features/folders/api/folder-mappers";
@@ -16,7 +17,7 @@ import { requireSupabasePublishableKey, requireSupabaseUrl } from "@/shared/api/
 import type { Database } from "@/shared/api/supabase/types";
 import { nowIso } from "@/shared/utils/date";
 
-type ServerSupabase = ReturnType<typeof createServerClient<Database>>;
+type ServerSupabase = SupabaseClient<Database>;
 
 export type ExecuteAgentActionsResult = {
   runId: string;
@@ -35,7 +36,7 @@ type AgentRunLogInput = {
 export async function createAuthenticatedServerSupabase() {
   const cookieStore = await cookies();
 
-  const supabase = createServerClient<Database>(requireSupabaseUrl(), requireSupabasePublishableKey(), {
+  const authSupabase = createServerClient<Database>(requireSupabaseUrl(), requireSupabasePublishableKey(), {
     cookies: {
       getAll: () => cookieStore.getAll(),
       setAll: () => undefined,
@@ -44,11 +45,23 @@ export async function createAuthenticatedServerSupabase() {
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await authSupabase.auth.getUser();
 
   if (!user) {
     throw new Error("Unauthorized");
   }
+
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceKey) {
+    throw new Error("SUPABASE_SERVICE_ROLE_KEY is not configured on the server.");
+  }
+
+  const supabase = createClient<Database>(requireSupabaseUrl(), serviceKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
 
   return { supabase, userId: user.id };
 }
@@ -227,11 +240,20 @@ export async function executeAgentActions(
         continue;
       }
     } catch (error) {
+      console.error("Agent action execution failed:", error);
+      const message = error instanceof Error
+        ? error.message
+        : typeof error === "object" && error !== null && "message" in error
+          ? String((error as any).message)
+          : typeof error === "string"
+            ? error
+            : "Action failed.";
+
       results.push({
         index,
         type: action.type,
         success: false,
-        message: error instanceof Error ? error.message : "Action failed.",
+        message,
       });
     }
   }
@@ -568,6 +590,11 @@ async function patchNotesAction(
 
 async function deleteNotesAction(supabase: ServerSupabase, userId: string, noteIds: string[]) {
   const notes = await getOwnedNotes(supabase, userId, noteIds);
+  
+  if (notes.some((note) => note.owner_id !== userId)) {
+    throw new Error("One or more notes cannot be deleted because they are shared notes you do not own.");
+  }
+
   const ids = notes.map((note) => note.id);
   const { error } = await supabase.from("notes").delete().in("id", ids);
 
