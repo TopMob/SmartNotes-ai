@@ -134,6 +134,7 @@ import { useNoteUiStore } from "@/features/notes/model/note-ui-store";
 import { useNotesFlat } from "@/features/notes/hooks/use-notes-query";
 import { useSettingsQuery } from "@/features/settings/hooks/use-settings-query";
 import { getUiCopy } from "@/shared/lib/i18n";
+import { useUiStore } from "@/shared/store/ui-store";
 import { setMediaDiagnostic } from "@/services/diagnostics/runtime-diagnostics";
 import { Button } from "@/shared/ui/button";
 import { AccessBadge } from "@/features/editor-collab/ui/access-badge";
@@ -162,6 +163,8 @@ type EditorOverlayProps = {
 export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setToolbarVisible }: EditorOverlayProps) {
   useVisualViewportKeyboard();
   const { attachMedia, deletePage } = useNoteActions();
+  const toggleAiChat = useUiStore((state) => state.toggleAiChat);
+  const aiChatOpen = useUiStore((state) => state.aiChatOpen);
   const currentNotePageIndex = useNoteUiStore((state) => state.currentNotePageIndex);
   const setCurrentNotePageIndex = useNoteUiStore((state) => state.setCurrentNotePageIndex);
   const { status, durableState } = useNoteCollabSession();
@@ -540,7 +543,17 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
             <button title="Повторить действие" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong disabled:opacity-35 sm:h-10 sm:w-10" disabled={!editor.can().redo()} onClick={() => editor.chain().focus().redo().run()} type="button"><Redo2 className="h-6 w-6 sm:h-5 sm:w-5" /></button>
             <button title="Поделиться заметкой" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={(event) => onOpenSheet("share", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><Share2 className="h-6 w-6 sm:h-5 sm:w-5" /></button>
             <button title="Действия заметки" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={(event) => onOpenSheet("note", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><MoreHorizontal className="h-6 w-6 sm:h-5 sm:w-5" /></button>
-            <button title="Панель форматирования" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={() => setToolbarVisible(!toolbarVisible)} type="button"><ChevronDown className="h-6 w-6 sm:h-5 sm:w-5" /></button>
+             <button title="Панель форматирования" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={() => setToolbarVisible(!toolbarVisible)} type="button"><ChevronDown className="h-6 w-6 sm:h-5 sm:w-5" /></button>
+             <button 
+               title={lang === "ru" ? "AI ассистент" : "AI Assistant"} 
+               className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl transition-all sm:h-10 sm:w-10 cursor-pointer ${
+                 aiChatOpen ? "bg-violet-600/10 text-violet-600 border border-violet-600/20" : "hover:bg-surface-strong text-foreground"
+               }`} 
+               onClick={toggleAiChat} 
+               type="button"
+             >
+               <Sparkles className="h-6 w-6 sm:h-5 sm:w-5" />
+             </button>
           </div>
         </header>
 

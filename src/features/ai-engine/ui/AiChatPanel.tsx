@@ -345,7 +345,7 @@ export function AiChatPanel({ onOpenNote, activeNote }: AiChatPanelProps) {
         {open && (
           <motion.div
             animate={{ opacity: 1 }}
-            className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm lg:hidden"
+            className="fixed inset-0 z-[60] bg-black/30 backdrop-blur-sm lg:hidden"
             exit={{ opacity: 0 }}
             initial={{ opacity: 0 }}
             onClick={() => setAiChatOpen(false)}
@@ -359,7 +359,7 @@ export function AiChatPanel({ onOpenNote, activeNote }: AiChatPanelProps) {
           <motion.aside
             animate={{ x: 0, opacity: 1 }}
             aria-label="AI чат по заметкам"
-            className="fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l border-border bg-surface-strong/95 shadow-2xl shadow-violet-950/20 backdrop-blur-md sm:w-[420px]"
+            className="fixed inset-y-0 right-0 z-[70] flex w-full flex-col border-l border-border bg-surface-strong/95 shadow-2xl shadow-violet-950/20 backdrop-blur-md sm:w-[420px]"
             exit={{ x: "100%", opacity: 0 }}
             id="ai-chat-panel"
             initial={{ x: "100%", opacity: 0 }}
