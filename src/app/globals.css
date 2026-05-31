@@ -265,11 +265,11 @@ section,
 
 @keyframes premium-modal-enter {
   from {
-    transform: translate(-50%, -50%) scale(0.95);
+    transform: scale(0.95);
     opacity: 0;
   }
   to {
-    transform: translate(-50%, -50%) scale(1);
+    transform: scale(1);
     opacity: 1;
   }
 }

@@ -1,4 +1,4 @@
-import { Pencil, Star, X, Copy, Users, FolderOpen, Bell, Archive, Lock, Unlock, Download, Trash2, ArrowUp, ArrowDown, Eye, EyeOff, FileText, type LucideIcon } from "lucide-react";
+import { Pencil, Star, X, Copy, Users, FolderOpen, Bell, Archive, Lock, Unlock, Download, Trash2, Eye, EyeOff, FileText, type LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import type { Folder as FolderEntity } from "@/entities/folder";
@@ -26,7 +26,7 @@ import { verifyNoteLock } from "@/features/lock-center/lib/lock-service";
 import { useAiEngineStore } from "@/features/ai-engine/model/ai-store";
 import { collabRepository } from "@/features/editor-collab/api/collab-repository";
 
-import { exportNoteAsPdf, exportNoteAsTxt, exportNoteAsPng, exportNoteForImport, getNotePlainText, shareFolder, type SheetState, type SheetAnchor, type SheetName } from "./shared";
+import { exportNoteAsPdf, exportNoteAsTxt, exportNoteAsPng, exportNoteForImport, getNotePlainText, type SheetState, type SheetAnchor, type SheetName } from "./shared";
 
 type BottomSheetProps = {
   sheet: SheetState;
@@ -317,7 +317,7 @@ function GridActionBtn({
     <button
       onClick={onClick}
       type="button"
-      className={`flex flex-col items-center justify-center rounded-2xl border p-2.5 text-center transition-all min-h-[72px] ${
+      className={`flex flex-col items-center justify-center rounded-2xl border p-2 text-center transition-all min-h-[76px] ${
         destructive 
           ? "border-rose-500/20 bg-rose-500/5 text-rose-500 hover:bg-rose-500/10" 
           : active 
@@ -325,8 +325,10 @@ function GridActionBtn({
             : "border-border bg-surface-strong hover:bg-background text-foreground/80 hover:text-foreground"
       }`}
     >
-      <Icon className="h-5 w-5 mb-1.5 shrink-0" />
-      <span className="text-[11px] font-black tracking-tight leading-tight line-clamp-1">{label}</span>
+      <Icon className="h-5 w-5 mb-1 shrink-0" />
+      <span className="text-[10px] sm:text-[11px] font-black tracking-tight leading-[1.15] line-clamp-2 text-center break-words max-w-full min-h-[2.3em] flex items-center justify-center">
+        {label}
+      </span>
     </button>
   );
 }

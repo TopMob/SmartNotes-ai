@@ -40,13 +40,34 @@ function handleSettingsChange(_payload: ChangePayload) {
   });
 }
 
+function handleInviteChange(_payload: ChangePayload) {
+  if (!queryClientRef) return;
+
+  void queryClientRef.invalidateQueries({
+    predicate: (query) => {
+      const key = query.queryKey[0];
+      return key === "invites" || key === "notes";
+    },
+  });
+}
+
+function handleAccessChange(_payload: ChangePayload) {
+  if (!queryClientRef) return;
+
+  void queryClientRef.invalidateQueries({
+    predicate: (query) => {
+      const key = query.queryKey[0];
+      return key === "notes";
+    },
+  });
+}
+
 export function startRealtimeSubscriptions(queryClient: import("@tanstack/react-query").QueryClient) {
   const supabase = createSupabaseBrowserClient();
 
   if (!supabase) return;
 
   queryClientRef = queryClient;
-
 
   stopRealtimeSubscriptions(supabase);
 
@@ -65,12 +86,21 @@ export function startRealtimeSubscriptions(queryClient: import("@tanstack/react-
     .on("postgres_changes", { event: "*", schema: "public", table: "user_settings" }, handleSettingsChange)
     .subscribe();
 
-  channels = [notesChannel, foldersChannel, settingsChannel];
+  const invitesChannel = supabase
+    .channel("realtime:note_invites")
+    .on("postgres_changes", { event: "*", schema: "public", table: "note_invites" }, handleInviteChange)
+    .subscribe();
+
+  const accessChannel = supabase
+    .channel("realtime:note_access")
+    .on("postgres_changes", { event: "*", schema: "public", table: "note_access" }, handleAccessChange)
+    .subscribe();
+
+  channels = [notesChannel, foldersChannel, settingsChannel, invitesChannel, accessChannel];
 }
 
 export function stopRealtimeSubscriptions(supabase?: ReturnType<typeof createSupabaseBrowserClient>) {
   if (!supabase && channels.length > 0) {
-
     supabase = createSupabaseBrowserClient();
   }
 
@@ -83,3 +113,4 @@ export function stopRealtimeSubscriptions(supabase?: ReturnType<typeof createSup
   channels = [];
   queryClientRef = null;
 }
+

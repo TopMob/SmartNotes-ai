@@ -210,16 +210,15 @@ export function buildDurableNotePatchFromYDoc(doc: Y.Doc) {
   const isUntitled = !rawTitle || rawTitle === "Untitled note" || rawTitle === "Untitled Note";
 
   const title = isUntitled
-    ? deriveTitle({ title: "", content: snapshot.content, folderId: snapshot.folderId, userTags: snapshot.userTags })
+    ? deriveTitle({ title: "", content: snapshot.content, userTags: snapshot.userTags, folderId: null })
     : rawTitle;
 
   return {
     title,
-    folderId: snapshot.folderId,
     userTags: snapshot.userTags,
     pages: snapshot.pages,
     content: snapshot.content,
-  } satisfies Pick<Note, "title" | "folderId" | "userTags" | "pages" | "content">;
+  } satisfies Pick<Note, "title" | "userTags" | "pages" | "content">;
 }
 
 export function getYDocPageCount(doc: Y.Doc) {

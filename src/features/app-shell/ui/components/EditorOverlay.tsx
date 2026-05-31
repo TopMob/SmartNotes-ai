@@ -26,7 +26,6 @@ import {
   CloudOff,
   Loader2,
   Check,
-  Maximize2,
 } from "lucide-react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import LinkExtension from "@tiptap/extension-link";
@@ -165,6 +164,14 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
   const { attachMedia, deletePage } = useNoteActions();
   const toggleAiChat = useUiStore((state) => state.toggleAiChat);
   const aiChatOpen = useUiStore((state) => state.aiChatOpen);
+  const setAiChatOpen = useUiStore((state) => state.setAiChatOpen);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 1024) {
+      setAiChatOpen(false);
+    }
+  }, [setAiChatOpen]);
+
   const currentNotePageIndex = useNoteUiStore((state) => state.currentNotePageIndex);
   const setCurrentNotePageIndex = useNoteUiStore((state) => state.setCurrentNotePageIndex);
   const { status, durableState } = useNoteCollabSession();
@@ -199,7 +206,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
   const editorDirty = useNoteUiStore((state) => state.editorDirty);
   const markEditorDirty = useNoteUiStore((state) => state.markEditorDirty);
   const aiStatus = useAiEngineStore((state) => state.status);
-  useAutoAnalyze(note, currentPage.content);
+  useAutoAnalyze(note, title, currentPage.content);
   const [isDrawing, setIsDrawing] = useState(false);
   const isHydratedRef = useRef(false);
 
@@ -488,7 +495,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
   }
 
   return (
-    <div className="fixed inset-x-0 top-0 z-50 bg-background/96 backdrop-blur-2xl animate-premium-overlay h-[var(--vv-height,100dvh)] md:inset-0 md:h-full">
+    <div className={`fixed inset-x-0 top-0 z-50 bg-background/96 backdrop-blur-2xl animate-premium-overlay h-[var(--vv-height,100dvh)] md:inset-0 md:h-full transition-[padding] duration-300 ${aiChatOpen ? "lg:pr-[420px]" : ""}`}>
       <div className="mx-auto flex h-full max-w-6xl flex-col px-0 py-2 sm:px-5 sm:py-3">
         <header className="mx-3 sm:mx-0 flex items-center gap-1 overflow-x-auto no-scrollbar rounded-[1.5rem] border border-border bg-surface/90 p-2 shadow-xl shadow-violet-950/8 sm:gap-2">
           <button title="Назад к списку заметок" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={handleClose} type="button"><ChevronLeft className="h-6 w-6 sm:h-5 sm:w-5" /></button>

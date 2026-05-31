@@ -44,3 +44,17 @@ export function useNoteDetails(noteId: string | null) {
     staleTime: 30_000,
   });
 }
+
+import { collabRepository } from "@/features/editor-collab/api/collab-repository";
+
+export function useInvitesQuery() {
+  const authStatus = useAuthStore((state) => state.status);
+  const email = useAuthStore((state) => state.user?.email);
+
+  return useQuery({
+    queryKey: ["invites", email ?? ""],
+    queryFn: () => (email ? collabRepository.fetchMyPendingInvites(email) : Promise.resolve([])),
+    enabled: authStatus === "authenticated" && Boolean(email),
+  });
+}
+

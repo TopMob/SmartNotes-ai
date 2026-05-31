@@ -298,10 +298,22 @@ async function createFolderAction(supabase: ServerSupabase, userId: string, fold
     return existing;
   }
 
+  let embedding: string | null = null;
+  try {
+    const { data: embedData } = await supabase.functions.invoke("embed", {
+      body: { text: folderName, isFolder: true },
+    });
+    if (embedData && Array.isArray(embedData.embedding)) {
+      embedding = JSON.stringify(embedData.embedding);
+    }
+  } catch (e) {
+    console.warn(e);
+  }
+
   const folderOrder = await getNextFolderOrder(supabase, userId);
   const { data, error } = await supabase
     .from("folders")
-    .insert(mapFolderDraftToInsert({ name: folderName, description: null, isHidden: false }, userId, folderOrder))
+    .insert(mapFolderDraftToInsert({ name: folderName, description: null, isHidden: false }, userId, folderOrder, embedding))
     .select("*")
     .single();
 
@@ -333,7 +345,22 @@ async function patchFolderAction(
   patch: Database["public"]["Tables"]["folders"]["Update"],
 ) {
   const current = await getOwnedFolder(supabase, userId, folderId);
-  const { data, error } = await supabase.from("folders").update({ ...patch, updated_at: nowIso() }).eq("id", folderId).eq("owner_id", userId).select("*").single();
+  const updatedPatch = { ...patch };
+
+  if (patch.name !== undefined) {
+    try {
+      const { data: embedData } = await supabase.functions.invoke("embed", {
+        body: { text: patch.name, isFolder: true },
+      });
+      if (embedData && Array.isArray(embedData.embedding)) {
+        updatedPatch.embedding = JSON.stringify(embedData.embedding) as any;
+      }
+    } catch (e) {
+      console.warn(e);
+    }
+  }
+
+  const { data, error } = await supabase.from("folders").update({ ...updatedPatch, updated_at: nowIso() }).eq("id", folderId).eq("owner_id", userId).select("*").single();
 
   if (error || !data) {
     throw error ?? new Error("Failed to update folder.");

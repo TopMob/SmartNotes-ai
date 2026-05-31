@@ -14,7 +14,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { noteId, openRouterKey: bodyKey, openRouterBaseUrl: bodyBaseUrl, openRouterModel: bodyModel } = body;
+    const { noteId, contentHash, openRouterKey: bodyKey, openRouterBaseUrl: bodyBaseUrl, openRouterModel: bodyModel } = body;
 
     if (!noteId) {
       return new Response(
@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
         // 2. Fetch note details
         const { data: note, error: fetchError } = await supabase
           .from("notes")
-          .select("title, content, owner_id, metadata")
+          .select("title, content, owner_id, metadata, folder_id")
           .eq("id", noteId)
           .single();
 
@@ -156,52 +156,66 @@ Rules:
           embeddingB = Array.from(vectorB);
         }
 
-        // 6. Math Classification via DB RPC match_folder
-        let matchedFolderId = null;
-        if (embeddingB) {
-          const matchThreshold = parseFloat(Deno.env.get("MATCH_THRESHOLD") || "0.82");
-          const { data: folderId, error: matchError } = await supabase.rpc("match_folder", {
-            query_embedding: JSON.stringify(embeddingB),
-            match_threshold: matchThreshold,
-            p_owner_id: note.owner_id
-          });
-
-          if (matchError) {
-            console.error("match_folder RPC error:", matchError);
-          } else {
-            matchedFolderId = folderId;
+        let matchedFolderId = note.folder_id;
+        let shouldClassify = true;
+        if (note.folder_id) {
+          const { data: folder } = await supabase
+            .from("folders")
+            .select("is_system")
+            .eq("id", note.folder_id)
+            .maybeSingle();
+          if (folder && !folder.is_system) {
+            shouldClassify = false;
           }
         }
-
-        // 7. Fallback to System Folder if no match
-        if (!matchedFolderId) {
-          const { data: systemFolderId, error: systemFolderError } = await supabase.rpc("get_or_create_system_folder", {
-            p_owner_id: note.owner_id
-          });
-
-          if (systemFolderError) {
-            throw new Error(`get_or_create_system_folder RPC error: ${systemFolderError.message}`);
+        if (shouldClassify) {
+          let classificationFolderId = null;
+          if (embeddingB) {
+            const matchThreshold = parseFloat(Deno.env.get("MATCH_THRESHOLD") || "0.82");
+            const { data: folderId, error: matchError } = await supabase.rpc("match_folder", {
+              query_embedding: JSON.stringify(embeddingB),
+              match_threshold: matchThreshold,
+              p_owner_id: note.owner_id
+            });
+            if (matchError) {
+              console.error("match_folder RPC error:", matchError);
+            } else {
+              classificationFolderId = folderId;
+            }
           }
-          matchedFolderId = systemFolderId;
+          if (classificationFolderId) {
+            matchedFolderId = classificationFolderId;
+          } else if (!matchedFolderId) {
+            const { data: systemFolderId, error: systemFolderError } = await supabase.rpc("get_or_create_system_folder", {
+              p_owner_id: note.owner_id
+            });
+            if (systemFolderError) {
+              throw new Error(`get_or_create_system_folder RPC error: ${systemFolderError.message}`);
+            }
+            matchedFolderId = systemFolderId;
+          }
         }
-
-        // 8. Calculate SHA-256 hash of normalized text to save in metadata
-        const msgBuffer = new TextEncoder().encode(
-          plainText.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "")
-        );
-        const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        const contentHash = hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
-
-        // 9. Update the note with results
+        let contentHashToSave = contentHash;
+        if (!contentHashToSave) {
+          const combinedText = `${note.title || ""} ${note.content || ""}`;
+          const normalized = combinedText
+            .toLowerCase()
+            .replace(/<[^>]*>/g, " ")
+            .replace(/\s+/g, " ")
+            .trim()
+            .replace(/[^\p{L}\p{N}]/gu, "");
+          const msgBuffer = new TextEncoder().encode(normalized);
+          const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
+          const hashArray = Array.from(new Uint8Array(hashBuffer));
+          contentHashToSave = hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+        }
         const currentMetadata = note.metadata || {};
         const newMetadata = {
           ...currentMetadata,
           summary: summary || currentMetadata.summary || null,
           promptVersion: "v1.0",
-          content_hash: contentHash,
+          content_hash: contentHashToSave,
         };
-
         const { error: updateError } = await supabase
           .from("notes")
           .update({
@@ -219,7 +233,6 @@ Rules:
             updated_at: new Date().toISOString(),
           })
           .eq("id", noteId);
-
         if (updateError) {
           throw new Error(`Failed to update note: ${updateError.message}`);
         }

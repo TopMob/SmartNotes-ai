@@ -266,7 +266,7 @@ export async function POST(request: Request) {
       
       const { data: dbNotes } = await supabase
         .from("notes")
-        .select("id, title, folder_id, user_tags, content, updated_at")
+        .select("id, title, folder_id, user_tags, content, updated_at, metadata, analyzed")
         .is("trashed_at", null)
         .order("updated_at", { ascending: false });
 
@@ -278,6 +278,8 @@ export async function POST(request: Request) {
           userTags: n.user_tags || [],
           content: n.content || "",
           updatedAt: n.updated_at,
+          metadata: n.metadata,
+          analyzed: n.analyzed,
         } as any));
       }
       
@@ -419,14 +421,12 @@ export async function POST(request: Request) {
     }
   }
 
-  // Build the prioritized notes context
   let totalCharactersUsed = 0;
-  const CHAR_LIMIT = 150000; // Limit for full content context (~40k tokens)
+  const CHAR_LIMIT = 120000;
   
   const formattedNotes = notesForContext.map((note, idx) => {
     const isNoteActive = note.id === activeNoteId;
     const isNoteMentioned = mentionedNoteIds.has(note.id);
-    // Prioritize active, mentioned, or top 10 most recent notes
     const isHighPriority = isNoteActive || isNoteMentioned || idx < 10;
     
     const baseMeta = {
@@ -445,8 +445,14 @@ export async function POST(request: Request) {
         content: noteContent,
       };
     } else {
-      // Snippet for lower priority or when limit is reached
-      const snippet = noteContent.slice(0, 200);
+      const summary = (note as any).metadata?.summary;
+      if (summary) {
+        return {
+          ...baseMeta,
+          summary,
+        };
+      }
+      const snippet = noteContent.slice(0, 150);
       return {
         ...baseMeta,
         contentSnippet: snippet ? `${snippet}...` : "",

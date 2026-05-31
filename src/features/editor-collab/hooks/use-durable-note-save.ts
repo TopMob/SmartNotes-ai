@@ -15,7 +15,6 @@ import { useNoteCollabSession } from "./use-note-collab-session";
 function serializeContentSnapshot(patch: Partial<Note>) {
   return JSON.stringify({
     title: patch.title,
-    folderId: patch.folderId,
     userTags: patch.userTags,
     content: patch.content,
   });

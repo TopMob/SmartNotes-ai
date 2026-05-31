@@ -134,6 +134,18 @@ export const NoteCard = memo(function NoteCard({ note, folders, onOpenNote, onOp
               <span className="text-[10px] font-bold text-foreground/36">{Math.round(note.aiRelevance * 100)}% релевантность</span>
             </div>
           )}
+          {note.aiStatus === "analyzing" && (
+            <div className="mt-2 flex items-center gap-1.5 text-xs text-emerald-500">
+              <span className="h-1.5 w-1.5 animate-ping rounded-full bg-emerald-500" />
+              <span>ИИ анализирует...</span>
+            </div>
+          )}
+          {note.aiStatus === "pending" && (
+            <div className="mt-2 flex items-center gap-1.5 text-xs text-foreground/42">
+              <span className="h-1.5 w-1.5 rounded-full bg-foreground/36" />
+              <span>ИИ в очереди...</span>
+            </div>
+          )}
         </div>
       </button>
     </article>

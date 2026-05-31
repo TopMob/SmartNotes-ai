@@ -30,11 +30,11 @@ export function useAppShellState() {
         setDesktopSidebarOpen(true);
       }
 
-      if (!desktop) {
+      if (!desktop && desktopSidebarOpen) {
         setDesktopSidebarOpen(false);
       }
 
-      if (desktopSidebarPinned && desktop) {
+      if (desktopSidebarPinned && desktop && !desktopSidebarOpen) {
         setDesktopSidebarOpen(true);
       }
     }

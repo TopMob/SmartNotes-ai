@@ -11,19 +11,21 @@ async function computeHash(text: string): Promise<string> {
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-export function useAutoAnalyze(note: Note, content: string) {
+export function useAutoAnalyze(note: Note, title: string, content: string) {
   const setStatus = useAiEngineStore((state) => state.setStatus);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isFirstRender = useRef(true);
   const queryClient = useQueryClient();
   const lastHashRef = useRef<string | null>(null);
 
-  // Synchronize store status with the note's DB status on mount or note change
   useEffect(() => {
     if (note) {
       setStatus(note.aiStatus || "done");
     }
-  }, [note, setStatus]);
+  }, [note?.id, note?.aiStatus, setStatus]);
+
+  const noteId = note?.id;
+  const storedHash = (note?.metadata as { content_hash?: string } | null | undefined)?.content_hash || null;
 
   useEffect(() => {
     if (isFirstRender.current) {
@@ -37,15 +39,11 @@ export function useAutoAnalyze(note: Note, content: string) {
 
     timeoutRef.current = setTimeout(async () => {
       try {
-        const normalized = normalizeText(content);
+        const combinedText = `${title || ""} ${content || ""}`;
+        const normalized = normalizeText(combinedText);
         const hash = await computeHash(normalized);
         
-        // Check if hash matches the DB metadata content_hash or our last local hash
-        const existingMetadata = note.metadata as { content_hash?: string } | null | undefined;
-        const storedHash = existingMetadata?.content_hash || null;
-        
         if (hash === storedHash || hash === lastHashRef.current) {
-          console.log("Content hash matches. Skipping auto AI analysis.");
           return;
         }
 
@@ -57,7 +55,11 @@ export function useAutoAnalyze(note: Note, content: string) {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ noteId: note.id }),
+          body: JSON.stringify({
+            noteId,
+            title,
+            content,
+          }),
         });
 
         if (response.ok) {
@@ -70,7 +72,6 @@ export function useAutoAnalyze(note: Note, content: string) {
           setStatus("error");
         }
       } catch (error) {
-        console.error("Auto AI analysis failed:", error);
         setStatus("error");
       }
     }, 5000);
@@ -80,5 +81,5 @@ export function useAutoAnalyze(note: Note, content: string) {
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [content, note, setStatus, queryClient]);
+  }, [noteId, storedHash, title, content, setStatus, queryClient]);
 }

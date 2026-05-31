@@ -7,14 +7,13 @@ import type { Folder as FolderEntity } from "@/entities/folder";
 import type { Note } from "@/entities/note";
 import { NoteCollabSessionProvider } from "@/features/editor-collab/hooks/use-note-collab-session";
 import { useFoldersQuery } from "@/features/folders/hooks/use-folders-query";
-import { useNoteDetails, useNotesFlat } from "@/features/notes/hooks/use-notes-query";
+import { useNoteDetails, useNotesFlat, useInvitesQuery } from "@/features/notes/hooks/use-notes-query";
 import { selectVisibleNotes } from "@/features/notes/model/note-selectors";
 import { useNoteUiStore } from "@/features/notes/model/note-ui-store";
 import { useSettingsQuery } from "@/features/settings/hooks/use-settings-query";
 import { getUiCopy } from "@/shared/lib/i18n";
 import { type AppView, useUiStore } from "@/shared/store/ui-store";
 import { EditorErrorBoundary } from "@/shared/ui/error-boundary";
-import { collabRepository } from "@/features/editor-collab/api/collab-repository";
 import { useAuthStore } from "@/features/auth/model/auth-store";
 import { isGuestUser, readGuestSessionWithoutCleanup } from "@/features/auth/lib/guest-session";
 import { useAuthActions } from "@/features/auth/hooks/use-auth-actions";
@@ -39,25 +38,8 @@ export function SmartNotesShell() {
   const { data: notes = [] } = useNotesFlat();
   const { data: settings } = useSettingsQuery();
   const user = useAuthStore((state) => state.user);
-  const [invitesCount, setInvitesCount] = useState(0);
-
-  const loadInvites = useCallback(() => {
-    if (user?.email) {
-      void collabRepository.fetchMyPendingInvites(user.email).then((list) => {
-        setInvitesCount(list.length);
-      });
-    }
-  }, [user?.email]);
-
-  useEffect(() => {
-    if (!user?.email) {
-      setInvitesCount(0);
-      return;
-    }
-    loadInvites();
-    const interval = setInterval(loadInvites, 30000);
-    return () => clearInterval(interval);
-  }, [user?.email, loadInvites]);
+  const { data: invites = [] } = useInvitesQuery();
+  const invitesCount = invites.length;
 
 
   const view = useUiStore((state) => state.view);
@@ -173,21 +155,31 @@ export function SmartNotesShell() {
     const query = semanticSearchQuery.trim();
 
     if (!query) {
-      setSemanticNoteIds([]);
-      setSemanticLoading(false);
+      if (semanticNoteIds.length > 0) {
+        setSemanticNoteIds([]);
+      }
+      if (semanticLoading) {
+        setSemanticLoading(false);
+      }
       return;
     }
 
     const candidateNotes = semanticCandidates;
 
     if (!candidateNotes.length) {
-      setSemanticNoteIds([]);
-      setSemanticLoading(false);
+      if (semanticNoteIds.length > 0) {
+        setSemanticNoteIds([]);
+      }
+      if (semanticLoading) {
+        setSemanticLoading(false);
+      }
       return;
     }
 
     const controller = new AbortController();
-    setSemanticLoading(true);
+    if (!semanticLoading) {
+      setSemanticLoading(true);
+    }
 
     void fetch("/api/search/semantic", {
       method: "POST",
@@ -207,7 +199,11 @@ export function SmartNotesShell() {
         return response.json() as Promise<{ matches?: Array<{ noteId: string; similarity: number }> }>;
       })
       .then((payload) => {
-        setSemanticNoteIds((payload.matches ?? []).map((match) => match.noteId));
+        const nextIds = (payload.matches ?? []).map((match) => match.noteId);
+        const changed = nextIds.length !== semanticNoteIds.length || nextIds.some((id, i) => id !== semanticNoteIds[i]);
+        if (changed) {
+          setSemanticNoteIds(nextIds);
+        }
       })
       .catch((error) => {
         if ((error as Error).name === "AbortError") {
@@ -215,7 +211,9 @@ export function SmartNotesShell() {
         }
 
         console.error(error);
-        setSemanticNoteIds([]);
+        if (semanticNoteIds.length > 0) {
+          setSemanticNoteIds([]);
+        }
       })
       .finally(() => {
         if (!controller.signal.aborted) {
@@ -224,7 +222,7 @@ export function SmartNotesShell() {
       });
 
     return () => controller.abort();
-  }, [semanticCandidates, semanticSearchQuery, user]);
+  }, [semanticCandidates, semanticSearchQuery, user, semanticNoteIds, semanticLoading]);
 
 
   // Note: Global themes and opacities are applied via ThemeBridge in providers.tsx
@@ -273,7 +271,7 @@ export function SmartNotesShell() {
           </div>
         ) : null}
 
-        <div className="main-content min-w-0 flex-1">
+        <div className={`main-content min-w-0 flex-1 transition-[padding] duration-300 ${aiChatOpen ? "lg:pr-[420px]" : ""}`}>
           <Header copy={copy} activeFolder={activeFolder} filtersOpen={shellState.filtersOpen} filtersRef={shellState.filtersRef} onOpenDrawer={toggleSidebar} onOpenFilters={() => shellState.setFiltersOpen((value) => !value)} onOpenFolderMenu={(anchor) => shellState.openSheet("folder", anchor)} searchQuery={searchQuery} setSearchQuery={setSearchQuery} setSemanticSearchQuery={setSemanticSearchQuery} view={view} aiChatOpen={aiChatOpen} onToggleAiChat={toggleAiChat} />
 
           {shellState.filtersOpen ? (
@@ -301,7 +299,7 @@ export function SmartNotesShell() {
             />
           ) : null}
 
-          <MainSurface copy={copy} activeFolder={activeFolder} folderViewMode={folderViewMode} folders={folders} hiddenFolders={hiddenFolders} notes={visibleNotes} semanticNotes={semanticNotes} semanticLoading={semanticLoading} notesPerPage={notesPerPage} onOpenFolder={openFolder} onOpenNote={(id) => openNote(id, notes)} onOpenSheet={shellState.openSheet} trashedFolders={trashedFolders} view={view} onRefreshInvites={loadInvites} />
+          <MainSurface copy={copy} activeFolder={activeFolder} folderViewMode={folderViewMode} folders={folders} hiddenFolders={hiddenFolders} notes={visibleNotes} semanticNotes={semanticNotes} semanticLoading={semanticLoading} notesPerPage={notesPerPage} onOpenFolder={openFolder} onOpenNote={(id) => openNote(id, notes)} onOpenSheet={shellState.openSheet} trashedFolders={trashedFolders} view={view} />
         </div>
       </div>
 

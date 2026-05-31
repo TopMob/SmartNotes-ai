@@ -106,10 +106,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ status: "done", skipped: true }, { headers: CORS_HEADERS });
     }
 
-    // 4. Update note status to pending
     await admin.from("notes").update({ ai_status: "pending" }).eq("id", body.noteId);
 
-    // 5. Trigger Deno Edge Function
     const supabaseUrl = requireSupabaseUrl();
     const response = await fetch(`${supabaseUrl}/functions/v1/analyze-note`, {
       method: "POST",
@@ -119,6 +117,7 @@ export async function POST(request: Request) {
       },
       body: JSON.stringify({
         noteId: body.noteId,
+        contentHash: contentHash,
         openRouterKey: process.env.OPENROUTER_API_KEY || null,
         openRouterBaseUrl: process.env.OPENROUTER_BASE_URL || null,
         openRouterModel: process.env.OPENROUTER_MODEL || null,

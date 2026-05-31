@@ -1,13 +1,15 @@
 "use client";
 
 import { Check, X, Users, Mail, Bookmark } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React from "react";
 
 import { useAuthStore } from "@/features/auth/model/auth-store";
 import { collabRepository } from "@/features/editor-collab/api/collab-repository";
 import { useSettingsQuery } from "@/features/settings/hooks/use-settings-query";
 import { getUiCopy } from "@/shared/lib/i18n";
 import { Button } from "@/shared/ui/button";
+import { useQueryClient } from "@tanstack/react-query";
+import { useInvitesQuery } from "@/features/notes/hooks/use-notes-query";
 
 type HeaderInvite = {
   id: string;
@@ -30,28 +32,16 @@ export function InvitesMainView({ onRefreshInvites }: InvitesMainViewProps) {
   const lang = settings?.lang ?? "ru";
   const copy = getUiCopy(lang);
   const user = useAuthStore((state) => state.user);
+  const queryClient = useQueryClient();
 
-  const [myInvites, setMyInvites] = useState<HeaderInvite[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!user?.email) {
-      setLoading(false);
-      return;
-    }
-    collabRepository.fetchMyPendingInvites(user.email).then((list) => {
-      setMyInvites(list);
-      setLoading(false);
-    });
-  }, [user?.email]);
+  const { data: myInvites = [], isLoading } = useInvitesQuery();
 
   async function handleAcceptInvite(invite: HeaderInvite) {
     if (!user) return;
     try {
       await collabRepository.acceptInviteByToken(invite.token, user.id);
-      setMyInvites((prev) => prev.filter((i) => i.id !== invite.id));
+      void queryClient.invalidateQueries({ queryKey: ["invites"] });
       onRefreshInvites?.();
-      // Reload to ensure the newly shared note is pulled from the remote database
       window.location.reload();
     } catch (err) {
       console.error(err);
@@ -61,7 +51,7 @@ export function InvitesMainView({ onRefreshInvites }: InvitesMainViewProps) {
   async function handleRejectInvite(invite: HeaderInvite) {
     try {
       await collabRepository.rejectInviteByToken(invite.token);
-      setMyInvites((prev) => prev.filter((i) => i.id !== invite.id));
+      void queryClient.invalidateQueries({ queryKey: ["invites"] });
       onRefreshInvites?.();
     } catch (err) {
       console.error(err);
@@ -70,7 +60,7 @@ export function InvitesMainView({ onRefreshInvites }: InvitesMainViewProps) {
 
   const dlgs = copy.shell.dialogs;
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex h-full min-h-[calc(100vh-7.5rem)] items-center justify-center p-6 text-center">
         <div className="flex flex-col items-center gap-3">

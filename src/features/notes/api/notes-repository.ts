@@ -178,21 +178,67 @@ export const notesRepository: NotesRepository = {
     if (error) throw error;
 
     if (patch.pages) {
-      const { error: deleteError } = await supabase.from("note_pages").delete().eq("note_id", noteId);
-      if (deleteError) throw deleteError;
+      const { data: dbPages, error: fetchError } = await supabase
+        .from("note_pages")
+        .select("*")
+        .eq("note_id", noteId);
+      if (fetchError) throw fetchError;
 
-      if (patch.pages.length > 0) {
-        const pageRows = patch.pages.map((p, index) => ({
-          id: p.id,
-          note_id: noteId,
-          title: p.title,
-          content: p.content,
-          page_index: index,
-          drawing_data_url: p.drawingDataUrl,
-          drawing_revision: p.drawingRevision,
-        }));
-        const { error: insertError } = await supabase.from("note_pages").insert(pageRows);
+      const dbPagesMap = new Map((dbPages || []).map((p) => [p.id, p]));
+      const nextPages = patch.pages;
+      const nextIds = new Set(nextPages.map((p) => p.id));
+      const toDelete = (dbPages || []).filter((p) => !nextIds.has(p.id)).map((p) => p.id);
+
+      const toInsert: any[] = [];
+      const toUpdate: any[] = [];
+
+      nextPages.forEach((p, index) => {
+        const dbPage = dbPagesMap.get(p.id);
+        if (!dbPage) {
+          toInsert.push({
+            id: p.id,
+            note_id: noteId,
+            title: p.title,
+            content: p.content,
+            page_index: index,
+            drawing_data_url: p.drawingDataUrl,
+            drawing_revision: p.drawingRevision,
+          });
+        } else {
+          const hasChanged =
+            dbPage.title !== p.title ||
+            dbPage.content !== p.content ||
+            dbPage.page_index !== index ||
+            dbPage.drawing_data_url !== p.drawingDataUrl ||
+            dbPage.drawing_revision !== p.drawingRevision;
+
+          if (hasChanged) {
+            toUpdate.push({
+              id: p.id,
+              note_id: noteId,
+              title: p.title,
+              content: p.content,
+              page_index: index,
+              drawing_data_url: p.drawingDataUrl,
+              drawing_revision: p.drawingRevision,
+            });
+          }
+        }
+      });
+
+      if (toDelete.length > 0) {
+        const { error: deleteError } = await supabase.from("note_pages").delete().in("id", toDelete);
+        if (deleteError) throw deleteError;
+      }
+
+      if (toInsert.length > 0) {
+        const { error: insertError } = await supabase.from("note_pages").insert(toInsert);
         if (insertError) throw insertError;
+      }
+
+      if (toUpdate.length > 0) {
+        const { error: updateError } = await supabase.from("note_pages").upsert(toUpdate);
+        if (updateError) throw updateError;
       }
     }
 

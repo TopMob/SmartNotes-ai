@@ -80,10 +80,9 @@ export function NoteCollabSessionProvider({ note, children }: NoteCollabProvider
   });
   const querySnapshotSerialized = useMemo(() => JSON.stringify({
     title: note.title,
-    folderId: note.folderId,
     userTags: note.userTags,
     content: note.content,
-  }), [note.title, note.folderId, note.userTags, note.content]);
+  }), [note.title, note.userTags, note.content]);
 
   useEffect(() => {
     const session = sessionRef.current;
