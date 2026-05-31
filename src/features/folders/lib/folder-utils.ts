@@ -11,12 +11,6 @@ export function createId(): string {
   if (globalThis.crypto?.randomUUID) {
     return globalThis.crypto.randomUUID();
   }
-  try {
-    const crypto = require("crypto");
-    if (crypto?.randomUUID) {
-      return crypto.randomUUID();
-    }
-  } catch {}
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
     const v = c === "x" ? r : (r & 0x3) | 0x8;
