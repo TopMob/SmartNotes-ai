@@ -3,7 +3,7 @@ import {
   AlignLeft,
   AlignRight,
   Bold,
-  BookOpen,
+  Files,
   ChevronDown,
   ChevronLeft,
   Eraser,
@@ -12,7 +12,7 @@ import {
   Link2,
   List,
   ListOrdered,
-  Minus,
+  SeparatorHorizontal,
   MoreHorizontal,
   Palette,
   Redo2,
@@ -500,7 +500,6 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
         <header className="mx-3 sm:mx-0 flex items-center gap-1 overflow-x-auto no-scrollbar rounded-[1.5rem] border border-border bg-surface/90 p-2 shadow-xl shadow-violet-950/8 sm:gap-2">
           <button title="Назад к списку заметок" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={handleClose} type="button"><ChevronLeft className="h-6 w-6 sm:h-5 sm:w-5" /></button>
           
-          {/* Scrollable Tabs */}
           <div className="flex items-center gap-1 overflow-x-auto no-scrollbar max-w-[50%] shrink-0">
             {pages.slice(0, 3).map((p, idx) => {
               const isActive = currentNotePageIndex === idx;
@@ -532,7 +531,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
               <button
                 onClick={() => {
                   const next = _addPage();
-                  setCurrentNotePageIndex(pageCount); // go to new page
+                  setCurrentNotePageIndex(pageCount);
                 }}
                 className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface-strong/40 hover:bg-background border border-dashed border-border shrink-0 text-foreground/45 hover:text-foreground transition-all"
                 title={lang === "ru" ? "Добавить страницу" : "Add page"}
@@ -543,7 +542,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
             )}
           </div>
 
-          <button title="Список страниц" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={(event) => onOpenSheet("pages", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><BookOpen className="h-6 w-6 sm:h-5 sm:w-5" /></button>
+          <button title="Список страниц" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={(event) => onOpenSheet("pages", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><Files className="h-6 w-6 sm:h-5 sm:w-5" /></button>
           <AccessBadge role={role} />
           <div className="ml-auto flex shrink-0 items-center gap-1">
              <button title="Отменить действие" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong disabled:opacity-35 sm:h-10 sm:w-10" disabled={!editor.can().undo()} onClick={() => editor.chain().focus().undo().run()} type="button"><Undo2 className="h-6 w-6 sm:h-5 sm:w-5" /></button>
@@ -551,16 +550,6 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
             <button title="Поделиться заметкой" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={(event) => onOpenSheet("share", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><Share2 className="h-6 w-6 sm:h-5 sm:w-5" /></button>
             <button title="Действия заметки" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={(event) => onOpenSheet("note", getSheetAnchor(event.currentTarget.getBoundingClientRect()))} type="button"><MoreHorizontal className="h-6 w-6 sm:h-5 sm:w-5" /></button>
              <button title="Панель форматирования" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl hover:bg-surface-strong sm:h-10 sm:w-10" onClick={() => setToolbarVisible(!toolbarVisible)} type="button"><ChevronDown className="h-6 w-6 sm:h-5 sm:w-5" /></button>
-             <button 
-               title={lang === "ru" ? "AI ассистент" : "AI Assistant"} 
-               className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl transition-all sm:h-10 sm:w-10 cursor-pointer ${
-                 aiChatOpen ? "bg-violet-600/10 text-violet-600 border border-violet-600/20" : "hover:bg-surface-strong text-foreground"
-               }`} 
-               onClick={toggleAiChat} 
-               type="button"
-             >
-               <Sparkles className="h-6 w-6 sm:h-5 sm:w-5" />
-             </button>
           </div>
         </header>
 
@@ -589,7 +578,6 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
           )}
            {toolbarVisible && role !== "viewer" ? (
             <div className="sticky top-0 z-10 mt-4 flex flex-nowrap overflow-x-auto no-scrollbar scroll-smooth snap-x md:flex-wrap md:overflow-visible items-center gap-1.5 rounded-2xl border border-border bg-surface-strong/92 p-1.5 backdrop-blur-xl">
-              {/* Group 1: Text formatting */}
               <div className="flex items-center gap-1 shrink-0">
                 <ToolButton title={lang === "ru" ? "Жирный" : "Bold"} active={editor.isActive("bold")} icon={Bold} onClick={() => editor.chain().focus().toggleBold().run()} />
                 <ToolButton title={lang === "ru" ? "Курсив" : "Italic"} active={editor.isActive("italic")} icon={Italic} onClick={() => editor.chain().focus().toggleItalic().run()} />
@@ -599,7 +587,6 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
               
               <div className="h-6 w-px bg-border mx-1 shrink-0" />
               
-              {/* Group 2: Alignment */}
               <div className="flex items-center gap-1 shrink-0">
                 <ToolButton title={lang === "ru" ? "Выровнять по левому краю" : "Align left"} active={editor.isActive({ textAlign: "left" })} icon={AlignLeft} onClick={() => editor.chain().focus().setTextAlign("left").run()} />
                 <ToolButton title={lang === "ru" ? "Выровнять по центру" : "Align center"} active={editor.isActive({ textAlign: "center" })} icon={AlignCenter} onClick={() => editor.chain().focus().setTextAlign("center").run()} />
@@ -608,7 +595,6 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
               
               <div className="h-6 w-px bg-border mx-1 shrink-0" />
               
-              {/* Group 3: Lists */}
               <div className="flex items-center gap-1 shrink-0">
                 <ToolButton title={lang === "ru" ? "Маркированный список" : "Bullet list"} active={editor.isActive("bulletList")} icon={List} onClick={() => editor.chain().focus().toggleBulletList().run()} />
                 <ToolButton title={lang === "ru" ? "Нумерованный список" : "Ordered list"} active={editor.isActive("orderedList")} icon={ListOrdered} onClick={() => editor.chain().focus().toggleOrderedList().run()} />
@@ -616,7 +602,6 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
               
               <div className="h-6 w-px bg-border mx-1 shrink-0" />
               
-              {/* Group 4: Links & Elements */}
               <div className="flex items-center gap-1 shrink-0">
                 <ToolButton 
                   title={lang === "ru" ? "Вставить ссылку" : "Insert link"} 
@@ -639,12 +624,11 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
                     }
                   }} 
                 />
-                <ToolButton title={lang === "ru" ? "Разделительная линия" : "Horizontal rule"} icon={Minus} onClick={() => editor.chain().focus().setHorizontalRule().run()} />
+                <ToolButton title={lang === "ru" ? "Разделительная линия" : "Horizontal rule"} icon={SeparatorHorizontal} onClick={() => editor.chain().focus().setHorizontalRule().run()} />
               </div>
               
               <div className="h-6 w-px bg-border mx-1 shrink-0" />
               
-              {/* Group 5: Drawing & Media */}
               <div className="flex items-center gap-1 shrink-0">
                 <ToolButton title={lang === "ru" ? "Рисовать" : "Draw"} icon={Palette} onClick={() => setIsDrawing(true)} />
                 <ToolButton title={lang === "ru" ? "Добавить изображение" : "Add image"} icon={Image} onClick={() => void handleAttachImage()} />
@@ -652,7 +636,6 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
               
               <div className="h-6 w-px bg-border mx-1 shrink-0" />
               
-              {/* Group 6: Clean Formatting */}
               <div className="flex items-center gap-1 shrink-0">
                 <ToolButton title={lang === "ru" ? "Очистить форматирование" : "Clear formatting"} icon={Eraser} onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()} />
               </div>
