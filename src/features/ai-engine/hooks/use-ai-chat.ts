@@ -64,9 +64,91 @@ export function useAiChat({ activeNote, onOpenNote, open }: UseAiChatProps) {
     setLoading(false);
   }, []);
 
+  const handleExecuteActions = useCallback(async (msgId: string, actionsList: AiAction[] = []) => {
+    setMessages((prev) =>
+      prev.map((m) => (m.id === msgId ? { ...m, actionsStatus: "running", actionError: undefined } : m))
+    );
+
+    try {
+      if (!user?.id || isGuestUser(user)) {
+        throw new Error("AI-действия недоступны в гостевом режиме. Зарегистрируйтесь, чтобы сохранять изменения.");
+      }
+
+      const response = await fetch("/api/ai/actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          actions: actionsList,
+          requestMessage: messages.find((message) => message.id === msgId)?.text ?? "",
+          conversationExcerpt: messages.slice(-8).map((message) => ({ role: message.role, text: message.text })),
+        }),
+      });
+
+      const payload = (await response.json()) as {
+        error?: string;
+        results?: AiActionExecutionResult[];
+      };
+
+      if (!response.ok) {
+        throw new Error(payload.error || `Ошибка сервера: ${response.status}`);
+      }
+
+      const results = payload.results ?? [];
+      const failed = results.find((result) => !result.success);
+
+      if (failed) {
+        throw new Error(failed.message);
+      }
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.notes(user.id) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.folders(user.id) }),
+      ]);
+
+      const createdNoteResult = results.find((result) => result.createdNoteId);
+
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === msgId
+            ? { ...m, actionsStatus: "completed", actionResults: results, actionError: undefined }
+            : m
+        )
+      );
+
+      if (createdNoteResult?.createdNoteId) {
+        onOpenNote?.(createdNoteResult.createdNoteId);
+      }
+    } catch (error) {
+      console.error("Failed to execute agent actions:", error);
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === msgId
+            ? {
+                ...m,
+                actionsStatus: "error",
+                actionError: error instanceof Error ? error.message : "Ошибка применения.",
+              }
+            : m
+        )
+      );
+    }
+  }, [messages, onOpenNote, queryClient, user?.id]);
+
   const handleSend = useCallback(async (questionOverride?: string) => {
     const question = (questionOverride ?? input).trim();
     if (!question || loading) return;
+
+    const lowerQuestion = question.toLowerCase().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g, "").trim();
+    const affirmativeWords = ["да", "делай", "сделай", "ок", "ok", "давай", "подтверждаю", "выполняй", "применяй", "go ahead", "do it", "yes"];
+    const lastAssistantMsgIndex = [...messages].reverse().findIndex(m => m.role === "assistant" && m.actions && m.actions.length > 0 && m.actionsStatus === "pending");
+
+    if (lastAssistantMsgIndex !== -1 && affirmativeWords.includes(lowerQuestion)) {
+      const realIndex = messages.length - 1 - lastAssistantMsgIndex;
+      const targetMsg = messages[realIndex];
+      setInput("");
+      await handleExecuteActions(targetMsg.id, targetMsg.actions);
+      return;
+    }
 
     abortRef.current?.abort();
     abortRef.current = new AbortController();
@@ -164,77 +246,7 @@ export function useAiChat({ activeNote, onOpenNote, open }: UseAiChatProps) {
       setLoading(false);
       setTimeout(() => inputRef.current?.focus(), 50);
     }
-  }, [input, loading, messages, notes, rawFolders, user, activeNote]);
-
-  const handleExecuteActions = useCallback(async (msgId: string, actionsList: AiAction[] = []) => {
-    setMessages((prev) =>
-      prev.map((m) => (m.id === msgId ? { ...m, actionsStatus: "running", actionError: undefined } : m))
-    );
-
-    try {
-      if (!user?.id || isGuestUser(user)) {
-        throw new Error("AI-действия недоступны в гостевом режиме. Зарегистрируйтесь, чтобы сохранять изменения.");
-      }
-
-      const response = await fetch("/api/ai/actions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          actions: actionsList,
-          requestMessage: messages.find((message) => message.id === msgId)?.text ?? "",
-          conversationExcerpt: messages.slice(-8).map((message) => ({ role: message.role, text: message.text })),
-        }),
-      });
-
-      const payload = (await response.json()) as {
-        error?: string;
-        results?: AiActionExecutionResult[];
-      };
-
-      if (!response.ok) {
-        throw new Error(payload.error || `Ошибка сервера: ${response.status}`);
-      }
-
-      const results = payload.results ?? [];
-      const failed = results.find((result) => !result.success);
-
-      if (failed) {
-        throw new Error(failed.message);
-      }
-
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.notes(user.id) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.folders(user.id) }),
-      ]);
-
-      const createdNoteResult = results.find((result) => result.createdNoteId);
-
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === msgId
-            ? { ...m, actionsStatus: "completed", actionResults: results, actionError: undefined }
-            : m
-        )
-      );
-
-      if (createdNoteResult?.createdNoteId) {
-        onOpenNote?.(createdNoteResult.createdNoteId);
-      }
-    } catch (error) {
-      console.error("Failed to execute agent actions:", error);
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === msgId
-            ? {
-                ...m,
-                actionsStatus: "error",
-                actionError: error instanceof Error ? error.message : "Ошибка применения.",
-              }
-            : m
-        )
-      );
-    }
-  }, [messages, onOpenNote, queryClient, user?.id]);
+  }, [input, loading, messages, notes, rawFolders, user, activeNote, handleExecuteActions]);
 
   const handleConfirmDanger = useCallback((msgId: string) => {
     setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, confirmDanger: true } : m)));

@@ -186,6 +186,11 @@ interface EmbeddingMatch {
 
 function cleanJsonResponse(text: string): string {
   let clean = text.trim();
+  const firstBrace = clean.indexOf("{");
+  const lastBrace = clean.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    clean = clean.substring(firstBrace, lastBrace + 1);
+  }
   if (clean.startsWith("```json")) {
     clean = clean.substring(7);
   } else if (clean.startsWith("```")) {
@@ -484,33 +489,39 @@ export async function POST(request: Request) {
   let answerText = "";
   let actionsList: ReturnType<typeof parseAiResponse>["actions"] = [];
   try {
-    const rawCompletion = await openRouterComplete(customizedSystemPrompt, userPrompt, {
-      max_tokens: 1500,
-      temperature: 0.2,
-    });
-    
-    const cleaned = cleanJsonResponse(rawCompletion);
-    const parsed = parseAiResponse(JSON.parse(cleaned));
-    
-    answerText = parsed.answer || "";
-    actionsList = parsed.actions || [];
-  } catch (error) {
-    console.error("Structured OpenRouter parsing failed, falling back to raw mode:", error);
-    // Safe text fallback
-    const rawCompletion = await openRouterComplete(
-      customizedSystemPrompt + "\nIMPORTANT: You must output ONLY a valid JSON object matching the schema. If you fail, just reply with a JSON containing 'answer' string and 'actions' empty array.", 
-      userPrompt,
-      { max_tokens: 1024 }
-    );
     try {
+      const rawCompletion = await openRouterComplete(customizedSystemPrompt, userPrompt, {
+        max_tokens: 1500,
+        temperature: 0.2,
+      });
       const cleaned = cleanJsonResponse(rawCompletion);
       const parsed = parseAiResponse(JSON.parse(cleaned));
-      answerText = parsed.answer || cleaned;
+      answerText = parsed.answer || "";
       actionsList = parsed.actions || [];
-    } catch {
-      answerText = rawCompletion;
-      actionsList = [];
+    } catch (error) {
+      console.error("Structured OpenRouter parsing failed, falling back to raw mode:", error);
+      const rawCompletion = await openRouterComplete(
+        customizedSystemPrompt + "\nIMPORTANT: You must output ONLY a valid JSON object matching the schema. If you fail, just reply with a JSON containing 'answer' string and 'actions' empty array.", 
+        userPrompt,
+        { max_tokens: 1024 }
+      );
+      try {
+        const cleaned = cleanJsonResponse(rawCompletion);
+        const parsed = parseAiResponse(JSON.parse(cleaned));
+        answerText = parsed.answer || cleaned;
+        actionsList = parsed.actions || [];
+      } catch {
+        answerText = rawCompletion;
+        actionsList = [];
+      }
     }
+  } catch (err) {
+    console.error("Critical AI generation error:", err);
+    const msg = err instanceof Error ? err.message : String(err);
+    answerText = msg.includes("OPENROUTER_API_KEY")
+      ? "Ошибка: OPENROUTER_API_KEY не настроен. Пожалуйста, настройте ключ OpenRouter в переменных окружения на сервере."
+      : `Ошибка при обращении к ИИ: ${msg}. Пожалуйста, попробуйте еще раз или проверьте подключение.`;
+    actionsList = [];
   }
 
   // Deduplicate citations by note_id
