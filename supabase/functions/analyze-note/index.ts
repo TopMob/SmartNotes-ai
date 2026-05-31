@@ -28,16 +28,12 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    // Run the actual analysis in the background using Deno's EdgeRuntime.waitUntil
-    // so we can respond with status: "queued" immediately!
     EdgeRuntime.waitUntil((async () => {
       try {
         console.log(`Starting background AI analysis for note: ${noteId}`);
         
-        // 1. Update status to analyzing
         await supabase.from("notes").update({ ai_status: "analyzing" }).eq("id", noteId);
 
-        // 2. Fetch note details
         const { data: note, error: fetchError } = await supabase
           .from("notes")
           .select("title, content, owner_id, metadata, folder_id")
@@ -53,7 +49,6 @@ Deno.serve(async (req) => {
           .replace(/\s+/g, " ")
           .trim();
 
-        // 3. Call OpenRouter to analyze the note
         const openRouterKey = bodyKey || Deno.env.get("OPENROUTER_API_KEY");
         const openRouterBaseUrl = bodyBaseUrl || Deno.env.get("OPENROUTER_BASE_URL") || "https://openrouter.ai/api/v1";
         const openRouterModel = bodyModel || Deno.env.get("OPENROUTER_MODEL") || "openai/gpt-4o-mini";
@@ -105,7 +100,6 @@ Rules:
         try {
           result = JSON.parse(rawResult.trim());
         } catch {
-          // Fallback parsing if JSON has markdown block formatting
           const cleanJson = rawResult.replace(/```json/g, "").replace(/```/g, "").trim();
           result = JSON.parse(cleanJson);
         }
@@ -118,13 +112,10 @@ Rules:
           ? result.resurfacingClass 
           : "reference";
 
-        // 4. Generate Vector A (Note content embeddings) and save to note_embeddings
         const aiSession = new Supabase.ai.Session("gte-small");
         
-        // Clear old embeddings first
         await supabase.from("note_embeddings").delete().eq("note_id", noteId);
 
-        // Simple chunking for vector database
         const chunkSize = 800;
         const chunks = [];
         for (let i = 0; i < plainText.length; i += chunkSize) {
@@ -149,7 +140,6 @@ Rules:
           await supabase.from("note_embeddings").insert(records);
         }
 
-        // 5. Generate Vector B (AI Insight / Summary embedding) and save to embedding_summary
         let embeddingB = null;
         if (summary) {
           const vectorB = await aiSession.run(summary, { mean_pool: true, normalize: true });

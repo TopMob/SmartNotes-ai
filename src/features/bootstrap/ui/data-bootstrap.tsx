@@ -12,7 +12,7 @@ import { startRealtimeSubscriptions, stopRealtimeSubscriptions } from "@/service
 import { subscribe } from "@/services/event-bus";
 import { submitFeedback } from "@/features/feedback/api/feedback-api";
 import { useNotesFlat } from "@/features/notes/hooks/use-notes-query";
-import { startBackgroundAiScheduler, scheduleAiAnalysis } from "@/services/ai/ai-queue";
+import { startBackgroundAiScheduler, scheduleAiAnalysis, listPendingAiAnalysis } from "@/services/ai/ai-queue";
 
 export function DataBootstrap({ children }: Readonly<{ children: ReactNode }>) {
   const queryClient = useQueryClient();
@@ -52,25 +52,24 @@ export function DataBootstrap({ children }: Readonly<{ children: ReactNode }>) {
     return undefined;
   }, [canUseRemoteSync, queryClient]);
 
-  // Start background AI queue scheduler on boot
   useEffect(() => {
     startBackgroundAiScheduler();
   }, []);
 
-  // Monitor notes and schedule unanalyzed notes for background AI processing
   useEffect(() => {
     if (authStatus === "authenticated" && notes.length > 0) {
+      const pendingIds = listPendingAiAnalysis();
       const unanalyzedNotes = notes.filter(
         (note) =>
           !note.trashedAt &&
           note.analyzed === false &&
-          note.aiStatus !== "pending" &&
-          note.aiStatus !== "analyzing" &&
-          note.aiStatus !== "error"
+          (note.aiStatus === "pending" ? !pendingIds.includes(note.id) : (
+            note.aiStatus !== "analyzing" &&
+            note.aiStatus !== "error"
+          ))
       );
 
       if (unanalyzedNotes.length > 0) {
-        console.log(`[AI Background] Automatically scheduling ${unanalyzedNotes.length} unanalyzed notes.`);
         unanalyzedNotes.forEach((note) => {
           scheduleAiAnalysis(note.id);
         });
