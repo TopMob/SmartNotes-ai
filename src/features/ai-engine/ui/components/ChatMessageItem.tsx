@@ -45,17 +45,25 @@ export function ChatMessageItem({
         }`}
       >
         {!isUser && !msg.error ? (
-          <span
-            onClick={onMessageClick}
-            dangerouslySetInnerHTML={{
-              __html: `<p>${renderMarkdown(msg.text)}</p>`,
-            }}
-          />
+          msg.streaming && !msg.text ? (
+            <div className="flex h-5 items-center space-x-1.5 px-1 opacity-70">
+              <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.3s]"></div>
+              <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-current [animation-delay:-0.15s]"></div>
+              <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-current"></div>
+            </div>
+          ) : (
+            <span
+              onClick={onMessageClick}
+              dangerouslySetInnerHTML={{
+                __html: `<p>${renderMarkdown(msg.text)}</p>`,
+              }}
+            />
+          )
         ) : (
           <span>{msg.text}</span>
         )}
 
-        {msg.streaming && (
+        {msg.streaming && msg.text && (
           <span className="ml-0.5 inline-block h-[1em] w-0.5 animate-pulse bg-current opacity-70" />
         )}
 
