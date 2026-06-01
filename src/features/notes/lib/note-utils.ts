@@ -12,7 +12,7 @@ type NotePatchOptions = {
 export type NotePagePatch = Partial<Pick<NotePage, "title" | "content" | "drawingDataUrl" | "drawingRevision">>;
 export type NormalizedNotePatch = Partial<Note>;
 
-export const ANALYSIS_FIELD_KEYS: Array<keyof Note> = ["title", "content", "pages", "userTags", "hiddenTags", "media", "folderId"];
+export const ANALYSIS_FIELD_KEYS: Array<keyof Note> = ["title", "content", "pages"];
 const analysisFields = new Set<keyof Note>(ANALYSIS_FIELD_KEYS);
 
 /**

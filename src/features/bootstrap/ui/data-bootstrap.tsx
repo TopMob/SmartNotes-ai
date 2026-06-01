@@ -60,13 +60,22 @@ export function DataBootstrap({ children }: Readonly<{ children: ReactNode }>) {
     if (authStatus === "authenticated" && notes.length > 0) {
       const pendingIds = listPendingAiAnalysis();
       const unanalyzedNotes = notes.filter(
-        (note) =>
-          !note.trashedAt &&
-          note.analyzed === false &&
-          (note.aiStatus === "pending" ? !pendingIds.includes(note.id) : (
-            note.aiStatus !== "analyzing" &&
-            note.aiStatus !== "error"
-          ))
+        (note) => {
+          if (note.trashedAt || note.analyzed) return false;
+          
+          if (note.aiStatus === "pending") {
+            return !pendingIds.includes(note.id);
+          }
+          
+          if (note.aiStatus === "analyzing") {
+            // If stuck in analyzing for > 5 mins, retry it
+            const fiveMinsAgo = Date.now() - 5 * 60 * 1000;
+            const updatedTime = new Date(note.updatedAt).getTime();
+            return updatedTime < fiveMinsAgo;
+          }
+          
+          return note.aiStatus !== "error";
+        }
       );
 
       if (unanalyzedNotes.length > 0) {

@@ -8,6 +8,7 @@ import { requireSupabaseUrl, requireSupabasePublishableKey, getSupabaseServiceRo
 import { normalizeText } from "@/shared/utils/string";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -103,6 +104,7 @@ export async function POST(request: Request) {
 
     if (contentHash === storedHash) {
       console.log("Content hash matches. Skipping AI analyze trigger.");
+      await admin.from("notes").update({ ai_status: "done", analyzed: true }).eq("id", body.noteId);
       return NextResponse.json({ status: "done", skipped: true }, { headers: CORS_HEADERS });
     }
 

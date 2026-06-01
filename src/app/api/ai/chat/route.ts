@@ -9,6 +9,7 @@ import type { Note } from "@/entities/note";
 import { parseAiResponse } from "@/features/ai-engine/model/agent-actions";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",

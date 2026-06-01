@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Bot } from "lucide-react";
 import { motion, type Variants } from "framer-motion";
 import type { Folder as FolderEntity } from "@/entities/folder";
@@ -20,12 +21,53 @@ interface ChatMessageListProps {
   onExecuteActions: (msgId: string, actionsList: AiAction[]) => void;
 }
 
-const QUICK_PROMPTS = [
+const DEFAULT_PROMPTS = [
   "Что я знаю о React?",
   "Мои задачи на эту неделю",
   "Идеи для проектов",
   "Заметки по дизайну",
 ];
+
+function generateDynamicPrompts(notes: Note[]): string[] {
+  if (!notes || notes.length === 0) return DEFAULT_PROMPTS;
+
+  const prompts: string[] = [];
+  
+  // Find a note with a reasonable title length to ask about
+  const titledNotes = notes.filter(n => n.title && n.title.length > 3 && n.title.length < 50 && n.title !== "Без названия" && n.title !== "Untitled note");
+  if (titledNotes.length > 0) {
+    const randomNote = titledNotes[Math.floor(Math.random() * titledNotes.length)];
+    prompts.push(`Сделай выжимку из заметки "${randomNote.title}"`);
+  } else {
+    prompts.push("Сделай сводку моих последних заметок");
+  }
+
+  // Find popular tags
+  const tagsCount: Record<string, number> = {};
+  notes.forEach(n => {
+    (n.userTags || []).forEach(tag => {
+      tagsCount[tag] = (tagsCount[tag] || 0) + 1;
+    });
+  });
+  const popularTags = Object.entries(tagsCount).sort((a, b) => b[1] - a[1]);
+  if (popularTags.length > 0) {
+    prompts.push(`Что у меня есть по тегу #${popularTags[0][0]}?`);
+  } else {
+    prompts.push("Какие задачи мне нужно выполнить?");
+  }
+
+  // Try finding notes with "идеи" or "планы"
+  const ideaNotes = titledNotes.filter(n => n.title.toLowerCase().includes("идеи") || n.title.toLowerCase().includes("идея"));
+  if (ideaNotes.length > 0) {
+    prompts.push("Напиши список моих главных идей");
+  } else {
+    prompts.push("Помоги структурировать мои записи");
+  }
+
+  prompts.push("Найди связь между моими недавними заметками");
+
+  return prompts.slice(0, 4);
+}
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -57,6 +99,8 @@ export function ChatMessageList({
 }: ChatMessageListProps) {
   const isEmpty = messages.length === 0;
 
+  const dynamicPrompts = useMemo(() => generateDynamicPrompts(notes), [notes]);
+
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4 scrollbar-thin">
       {isEmpty && (
@@ -81,7 +125,7 @@ export function ChatMessageList({
             animate="show"
             className="grid w-full gap-2.5 mt-2"
           >
-            {QUICK_PROMPTS.map((hint) => (
+            {dynamicPrompts.map((hint) => (
               <motion.button
                 variants={itemVariants}
                 whileHover={{ scale: 1.02, translateY: -1 }}

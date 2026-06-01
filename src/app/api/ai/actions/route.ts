@@ -4,6 +4,7 @@ import { parseAiResponse } from "@/features/ai-engine/model/agent-actions";
 import { executeAgentActions } from "@/features/ai-engine/server/agent-executor";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 export async function POST(request: Request) {
   let body: unknown;

@@ -5,61 +5,66 @@ type ChangePayload = RealtimePostgresChangesPayload<Record<string, unknown>>;
 
 let channels: RealtimeChannel[] = [];
 let queryClientRef: import("@tanstack/react-query").QueryClient | null = null;
+let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-function handleNoteChange(_payload: ChangePayload) {
+const pendingInvalidations = new Set<string>();
+
+function flushInvalidations() {
   if (!queryClientRef) return;
+  const toInvalidate = Array.from(pendingInvalidations);
+  pendingInvalidations.clear();
 
-
-  void queryClientRef.invalidateQueries({
-    predicate: (query) => {
-      const key = query.queryKey[0];
-      return key === "notes";
-    },
+  toInvalidate.forEach((key) => {
+    void queryClientRef!.invalidateQueries({
+      predicate: (query) => query.queryKey[0] === key,
+    });
   });
+}
+
+function queueInvalidation(key: string) {
+  pendingInvalidations.add(key);
+  if (debounceTimer) clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(flushInvalidations, 500);
+}
+
+function handleNoteChange(payload: ChangePayload) {
+  if (!queryClientRef) return;
+  queueInvalidation("notes");
+  
+  const record = payload.new || payload.old;
+  if (record && record.id) {
+    // Invalidate the specific note detail query as well
+    void queryClientRef.invalidateQueries({
+      predicate: (query) => query.queryKey[0] === "note-detail" && query.queryKey[2] === record.id,
+    });
+  }
 }
 
 function handleFolderChange(_payload: ChangePayload) {
-  if (!queryClientRef) return;
-
-  void queryClientRef.invalidateQueries({
-    predicate: (query) => {
-      const key = query.queryKey[0];
-      return key === "folders";
-    },
-  });
+  queueInvalidation("folders");
 }
 
 function handleSettingsChange(_payload: ChangePayload) {
-  if (!queryClientRef) return;
-
-  void queryClientRef.invalidateQueries({
-    predicate: (query) => {
-      const key = query.queryKey[0];
-      return key === "settings";
-    },
-  });
+  queueInvalidation("settings");
 }
 
 function handleInviteChange(_payload: ChangePayload) {
-  if (!queryClientRef) return;
-
-  void queryClientRef.invalidateQueries({
-    predicate: (query) => {
-      const key = query.queryKey[0];
-      return key === "invites" || key === "notes";
-    },
-  });
+  queueInvalidation("invites");
+  queueInvalidation("notes");
 }
 
 function handleAccessChange(_payload: ChangePayload) {
-  if (!queryClientRef) return;
+  queueInvalidation("notes");
+}
 
-  void queryClientRef.invalidateQueries({
-    predicate: (query) => {
-      const key = query.queryKey[0];
-      return key === "notes";
-    },
-  });
+function onChannelStatus(status: string) {
+  if (status === 'SUBSCRIBED') {
+    // Refetch everything when we (re)connect to catch any missed updates while disconnected
+    queueInvalidation("notes");
+    queueInvalidation("folders");
+    queueInvalidation("settings");
+    queueInvalidation("invites");
+  }
 }
 
 export function startRealtimeSubscriptions(queryClient: import("@tanstack/react-query").QueryClient) {
@@ -74,7 +79,7 @@ export function startRealtimeSubscriptions(queryClient: import("@tanstack/react-
   const notesChannel = supabase
     .channel("realtime:notes")
     .on("postgres_changes", { event: "*", schema: "public", table: "notes" }, handleNoteChange)
-    .subscribe();
+    .subscribe(onChannelStatus);
 
   const foldersChannel = supabase
     .channel("realtime:folders")
@@ -100,6 +105,8 @@ export function startRealtimeSubscriptions(queryClient: import("@tanstack/react-
 }
 
 export function stopRealtimeSubscriptions(supabase?: ReturnType<typeof createSupabaseBrowserClient>) {
+  if (debounceTimer) clearTimeout(debounceTimer);
+  
   if (!supabase && channels.length > 0) {
     supabase = createSupabaseBrowserClient();
   }
