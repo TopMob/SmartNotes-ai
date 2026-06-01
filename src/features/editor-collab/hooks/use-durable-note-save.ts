@@ -87,7 +87,10 @@ export function useDurableNoteSave() {
     const serialized = serializeContentSnapshot(nextPatch);
     const hasChanges = serialized !== lastSavedRef.current;
 
-    if (!hasChanges) return;
+    if (!hasChanges) {
+      setDurableStateRef.current((s) => ({ ...s, isSaving: false, hasUnsavedChanges: false }));
+      return;
+    }
 
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
@@ -161,13 +164,9 @@ export function useDurableNoteSave() {
 
       if (!curHydrated || curStatus !== "ready") return;
 
-      const nextPatch = normalizeNotePatch(buildDurableNotePatchFromYDoc(doc), { scheduleAnalysis: false });
-      const serialized = serializeContentSnapshot(nextPatch);
-      const hasChanges = serialized !== lastSavedRef.current;
-
-      setDurableStateRef.current((s) => ({ ...s, error: null, hasUnsavedChanges: hasChanges }));
-
-      if (!hasChanges) return;
+      // Fast path: just mark dirty and schedule debounce,
+      // building the heavy snapshot happens only at commit time in flush()
+      setDurableStateRef.current((s) => ({ ...s, error: null, hasUnsavedChanges: true }));
 
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
 

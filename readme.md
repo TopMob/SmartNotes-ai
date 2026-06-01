@@ -50,7 +50,7 @@ Required variables:
 - `NEXT_PUBLIC_GOOGLE_CLIENT_ID` — Google OAuth Client ID
 - `OPENROUTER_API_KEY` — OpenRouter API key for AI features
 
-> 📖 Full environment variable reference: [`dock/environment.md`](dock/environment.md)
+> 📖 Full environment variable reference: [`docs/environment.md`](docs/environment.md)
 
 ### 3. Supabase Setup
 
@@ -176,11 +176,11 @@ npm run typecheck    # TypeScript type check
 
 | Document | Description |
 |----------|-------------|
-| [`dock/SmartNotes_Structure.txt`](dock/SmartNotes_Structure.txt) | **Primary reference** — stack, architecture, key systems, data model, dev rules |
-| [`dock/SmartNotes_Features.txt`](dock/SmartNotes_Features.txt) | **Feature map** — complete functional scope to be reimplemented |
-| [`dock/architecture.md`](dock/architecture.md) | Architecture details, data flows, design decisions |
-| [`dock/environment.md`](dock/environment.md) | Environment variables, keys, configuration reference |
-| [`dock/implementation-status.md`](dock/implementation-status.md) | Current implementation progress by module |
+| [`docs/SmartNotes_Structure.txt`](docs/SmartNotes_Structure.txt) | **Primary reference** — stack, architecture, key systems, data model, dev rules |
+| [`docs/SmartNotes_Features.txt`](docs/SmartNotes_Features.txt) | **Feature map** — complete functional scope to be reimplemented |
+| [`docs/architecture.md`](docs/architecture.md) | Architecture details, data flows, design decisions |
+| [`docs/environment.md`](docs/environment.md) | Environment variables, keys, configuration reference |
+| [`docs/implementation-status.md`](docs/implementation-status.md) | Current implementation progress by module |
 
 ---
 

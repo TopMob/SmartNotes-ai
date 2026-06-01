@@ -175,3 +175,13 @@ If the user is unauthenticated (guest session) or offline, the compressed image 
 ## 10. Zero-Knowledge Lock
 
 Note locking uses **client-side SHA-256** hashing with salt. The password never leaves the client. Locked note content is masked with a placeholder until the correct password is verified via `secureCompare` (timing-safe).
+
+---
+
+## 11. Database Security (Supabase Hardening)
+
+To ensure the safety of user data at the API level, the Supabase PostgreSQL database is hardened against unintended access:
+- **SECURITY DEFINER Functions**: All such functions explicitly clear their search path (`SET search_path TO ''`) to prevent search path injection attacks.
+- **RPC Authorization**: Custom RPC functions (`match_folder`, `get_or_create_system_folder`) that require elevated privileges enforce strict `auth.uid()` checks internally and are only executable by the `authenticated` role (`REVOKE EXECUTE FROM anon`).
+- **Trigger Isolation**: Internal database triggers and utility functions have `EXECUTE` revoked from `public`, `anon`, and `authenticated` roles entirely, making them invisible to the PostgREST API.
+- **Database Advisors Gate**: The database architecture is enforced to strictly pass all Supabase Security Advisor checks.

@@ -194,14 +194,35 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
         return;
       }
 
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result));
-        reader.onerror = () => reject(reader.error ?? new Error("Не удалось прочитать файл."));
-        reader.readAsDataURL(file);
-      });
+      try {
+        const { createSupabaseBrowserClient } = await import("@/shared/api/supabase/client");
+        const supabase = createSupabaseBrowserClient();
+        if (!supabase) throw new Error("No supabase client");
 
-      void patchSettings({ [target]: dataUrl });
+        const fileExt = file.name.split(".").pop() || "jpg";
+        const randomName = `${crypto.randomUUID()}.${fileExt}`;
+        const filePath = `${userId}/settings/${randomName}`;
+
+        const { error } = await supabase.storage
+          .from("note-images")
+          .upload(filePath, file, {
+            cacheControl: "3600",
+            upsert: false,
+          });
+
+        if (error) {
+          throw error;
+        }
+
+        const { data: { publicUrl } } = supabase.storage
+          .from("note-images")
+          .getPublicUrl(filePath);
+
+        void patchSettings({ [target]: publicUrl });
+      } catch (err) {
+        console.error("Failed to upload background:", err);
+        window.alert(lang === "ru" ? "Не удалось загрузить фон." : "Failed to upload background.");
+      }
     };
     picker.click();
   }
@@ -304,13 +325,35 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
     picker.onchange = async () => {
       const file = picker.files?.[0];
       if (!file) return;
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result));
-        reader.onerror = () => reject(reader.error ?? new Error("Не удалось прочитать файл."));
-        reader.readAsDataURL(file);
-      });
-      setAvatarUrl(dataUrl);
+      try {
+        const { createSupabaseBrowserClient } = await import("@/shared/api/supabase/client");
+        const supabase = createSupabaseBrowserClient();
+        if (!supabase) throw new Error("No supabase client");
+
+        const fileExt = file.name.split(".").pop() || "jpg";
+        const randomName = `${crypto.randomUUID()}.${fileExt}`;
+        const filePath = `${userId}/avatar/${randomName}`;
+
+        const { error } = await supabase.storage
+          .from("note-images")
+          .upload(filePath, file, {
+            cacheControl: "3600",
+            upsert: false,
+          });
+
+        if (error) {
+          throw error;
+        }
+
+        const { data: { publicUrl } } = supabase.storage
+          .from("note-images")
+          .getPublicUrl(filePath);
+
+        setAvatarUrl(publicUrl);
+      } catch (err) {
+        console.error("Failed to upload avatar:", err);
+        window.alert(lang === "ru" ? "Не удалось загрузить аватар." : "Failed to upload avatar.");
+      }
     };
     picker.click();
   }

@@ -1,5 +1,6 @@
 import { Brain, Folder, Heart, RotateCcw, Shield, Sparkles } from "lucide-react";
 import { useMemo, useState, useEffect } from "react";
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
 
 import type { Folder as FolderEntity } from "@/entities/folder";
 import type { Note } from "@/entities/note";
@@ -222,6 +223,34 @@ function NotesView({ copy, title: _title, notes, semanticNotes, semanticLoading,
   const unpinnedVisible = unpinned.slice(0, Math.max(displayLimit - pinnedVisible.length, 0));
   const hasMore = displayLimit < notes.length;
 
+  const [columns, setColumns] = useState(1);
+  useEffect(() => {
+    const updateColumns = () => {
+      const w = window.innerWidth;
+      if (w >= 1024) setColumns(4);
+      else if (w >= 768) setColumns(3);
+      else if (w >= 640) setColumns(2);
+      else setColumns(1);
+    };
+    updateColumns();
+    window.addEventListener("resize", updateColumns);
+    return () => window.removeEventListener("resize", updateColumns);
+  }, []);
+
+  const unpinnedRows = useMemo(() => {
+    const chunks = [];
+    for (let i = 0; i < unpinnedVisible.length; i += columns) {
+      chunks.push(unpinnedVisible.slice(i, i + columns));
+    }
+    return chunks;
+  }, [unpinnedVisible, columns]);
+
+  const virtualizer = useWindowVirtualizer({
+    count: unpinnedRows.length,
+    estimateSize: () => (columns === 1 ? 160 : 200),
+    overscan: 3,
+  });
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -311,10 +340,36 @@ function NotesView({ copy, title: _title, notes, semanticNotes, semanticLoading,
           <section>
             <div className="mb-3 text-sm font-black uppercase tracking-[0.2em] text-foreground/42">{copy.shell.sections.notes}</div>
             <SortableContext items={unpinnedVisible.map((n) => n.id)} strategy={rectSortingStrategy}>
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3 sm:gap-[14px]">
-                {unpinnedVisible.map((note) => (
-                  <NoteCard key={note.id} folders={visibleFolders} note={note} onOpenNote={onOpenNote} onOpenSheet={onOpenSheet} view={view} />
-                ))}
+              <div
+                style={{
+                  height: `${virtualizer.getTotalSize()}px`,
+                  width: "100%",
+                  position: "relative",
+                }}
+              >
+                {virtualizer.getVirtualItems().map((virtualRow) => {
+                  const rowNotes = unpinnedRows[virtualRow.index];
+                  return (
+                    <div
+                      key={virtualRow.key}
+                      data-index={virtualRow.index}
+                      ref={virtualizer.measureElement}
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: "100%",
+                        transform: `translateY(${virtualRow.start}px)`,
+                      }}
+                    >
+                      <div className="grid gap-3 sm:gap-[14px] pb-3 sm:pb-[14px]" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
+                        {rowNotes.map((note) => (
+                          <NoteCard key={note.id} folders={visibleFolders} note={note} onOpenNote={onOpenNote} onOpenSheet={onOpenSheet} view={view} />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </SortableContext>
           </section>
@@ -335,7 +390,6 @@ function NotesView({ copy, title: _title, notes, semanticNotes, semanticLoading,
     </DndContext>
   );
 }
-
 function AdminToolsView({ notes }: { notes: Note[] }) {
   const [tab, setTab] = useState<"overview" | "feedback" | "admins" | "diagnostics">("overview");
 

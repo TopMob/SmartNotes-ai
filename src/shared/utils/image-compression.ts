@@ -19,74 +19,69 @@ export async function compressImage(
   }
 
   return new Promise<File>((resolve) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        let width = img.width;
-        let height = img.height;
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
 
-        // Calculate aspect-ratio preserved dimensions
-        if (width > maxDimension || height > maxDimension) {
-          if (width > height) {
-            height = Math.round((height * maxDimension) / width);
-            width = maxDimension;
-          } else {
-            width = Math.round((width * maxDimension) / height);
-            height = maxDimension;
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      let width = img.width;
+      let height = img.height;
+
+      // Calculate aspect-ratio preserved dimensions
+      if (width > maxDimension || height > maxDimension) {
+        if (width > height) {
+          height = Math.round((height * maxDimension) / width);
+          width = maxDimension;
+        } else {
+          width = Math.round((width * maxDimension) / height);
+          height = maxDimension;
+        }
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        resolve(file); // canvas context creation failed, fallback to original
+        return;
+      }
+
+      // Draw image into the scaled canvas context
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // Export as JPEG with the desired quality factor
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            resolve(file);
+            return;
           }
-        }
 
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
+          // If compressed file is larger than the original, fallback to original
+          if (blob.size >= file.size) {
+            resolve(file);
+            return;
+          }
 
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          resolve(file); // canvas context creation failed, fallback to original
-          return;
-        }
+          const compressedFile = new File([blob], file.name, {
+            type: "image/jpeg",
+            lastModified: Date.now(),
+          });
 
-        // Draw image into the scaled canvas context
-        ctx.drawImage(img, 0, 0, width, height);
-
-        // Export as JPEG with the desired quality factor
-        canvas.toBlob(
-          (blob) => {
-            if (!blob) {
-              resolve(file);
-              return;
-            }
-
-            // If compressed file is larger than the original, fallback to original
-            if (blob.size >= file.size) {
-              resolve(file);
-              return;
-            }
-
-            const compressedFile = new File([blob], file.name, {
-              type: "image/jpeg",
-              lastModified: Date.now(),
-            });
-
-            resolve(compressedFile);
-          },
-          "image/jpeg",
-          quality
-        );
-      };
-
-      img.onerror = () => {
-        resolve(file); // image loading failed, fallback to original
-      };
-
-      img.src = e.target?.result as string;
+          resolve(compressedFile);
+        },
+        "image/jpeg",
+        quality
+      );
     };
 
-    reader.onerror = () => {
-      resolve(file); // reader failed, fallback to original
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(file); // image loading failed, fallback to original
     };
 
-    reader.readAsDataURL(file);
+    img.src = objectUrl;
   });
 }

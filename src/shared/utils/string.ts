@@ -6,9 +6,7 @@ export function stripHtml(value: string) {
   if (!value) return "";
   let clean = value;
   
-  // Pre-strip huge base64 data URLs to prevent regex catastrophic backtracking/limits
-  clean = clean.replace(/src="data:image\/[^"]+"/gi, 'src="[Фото]"');
-  clean = clean.replace(/src='data:image\/[^']+'/gi, "src='[Фото]'");
+
   
   // Replace img tags with [Фото]
   clean = clean.replace(/<img[^>]*>/gi, " [Фото] ");

@@ -114,11 +114,11 @@ export async function uploadMediaFile(file: File, noteId: string, isGoogleUser?:
     console.error("Failed to upload to Supabase Storage, falling back to local-inline:", error);
   }
 
-  // 3. Ultimate fallback: store image offline/locally as inline Base64 descriptor
+  // 3. Ultimate fallback: store image offline/locally in IndexedDB
   setMediaDiagnostic({
     provider: "local-inline",
     degraded: true,
-    message: `Stored image locally inline as Base64.`,
+    message: `Stored image locally in IndexedDB.`,
   });
 
   return createLocalInlineMediaDescriptor(compressedFile);
