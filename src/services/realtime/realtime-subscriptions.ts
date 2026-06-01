@@ -31,8 +31,8 @@ function handleNoteChange(payload: ChangePayload) {
   if (!queryClientRef) return;
   queueInvalidation("notes");
   
-  const record = payload.new || payload.old;
-  if (record && record.id) {
+  const record = (payload as any).new || (payload as any).old;
+  if (record && typeof record === "object" && "id" in record) {
     // Invalidate the specific note detail query as well
     void queryClientRef.invalidateQueries({
       predicate: (query) => query.queryKey[0] === "note-detail" && query.queryKey[2] === record.id,
