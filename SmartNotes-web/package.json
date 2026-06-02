@@ -48,5 +48,9 @@
     "eslint-plugin-unused-imports": "^4.1.4",
     "tailwindcss": "latest",
     "typescript": "^6.0.3"
+  },
+  "optionalDependencies": {
+    "lightningcss-linux-x64-gnu": "1.32.0",
+    "lightningcss-linux-x64-musl": "1.32.0"
   }
 }
