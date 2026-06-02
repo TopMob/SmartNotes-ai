@@ -7,6 +7,7 @@ import { queryKeys } from "@/shared/lib/react-query/query-keys";
 import { isGuestUser } from "@/features/auth/lib/guest-session";
 import type { Note } from "@/entities/note";
 import type { AiAction, AiActionExecutionResult } from "@/features/ai-engine/model/agent-actions";
+import { createSupabaseBrowserClient } from "@/shared/api/supabase/client";
 
 export type Citation = { id: string; title: string };
 
@@ -185,9 +186,22 @@ export function useAiChat({ activeNote, onOpenNote, open }: UseAiChatProps) {
           }))
         : undefined;
 
-      const response = await fetch("/api/ai/chat", {
+      const supabase = createSupabaseBrowserClient();
+      let token = "";
+      if (supabase) {
+        const { data: { session } } = await supabase.auth.getSession();
+        token = session?.access_token || "";
+      }
+
+      const gatewayUrl = process.env.NEXT_PUBLIC_RAILWAY_GATEWAY_URL;
+      const url = gatewayUrl ? `${gatewayUrl}/chat` : "/api/ai/chat";
+
+      const response = await fetch(url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           question,
           messages: messages.map((message) => ({ role: message.role, text: message.text })),

@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAiEngineStore } from "../model/ai-store";
 import type { Note } from "@/entities/note";
 import { normalizeText } from "@/shared/utils/string";
+import { createSupabaseBrowserClient } from "@/shared/api/supabase/client";
 
 async function computeHash(text: string): Promise<string> {
   const msgBuffer = new TextEncoder().encode(text);
@@ -50,10 +51,21 @@ export function useAutoAnalyze(note: Note, title: string, content: string) {
         setStatus("pending");
         setStatus("analyzing");
 
-        const response = await fetch("/api/ai/analyze", {
+        const supabase = createSupabaseBrowserClient();
+        let token = "";
+        if (supabase) {
+          const { data: { session } } = await supabase.auth.getSession();
+          token = session?.access_token || "";
+        }
+
+        const gatewayUrl = process.env.NEXT_PUBLIC_RAILWAY_GATEWAY_URL;
+        const url = gatewayUrl ? `${gatewayUrl}/analyze` : "/api/ai/analyze";
+
+        const response = await fetch(url, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            ...(token ? { "Authorization": `Bearer ${token}` } : {}),
           },
           body: JSON.stringify({
             noteId,

@@ -1,4 +1,5 @@
 import { publish } from "../event-bus";
+import { createSupabaseBrowserClient } from "@/shared/api/supabase/client";
 
 const AI_QUEUE_KEY = "smartnotes:ai:pending";
 
@@ -52,10 +53,21 @@ export function clearAiAnalysisQueue() {
 
 async function processNoteAnalysis(noteId: string): Promise<boolean> {
   try {
-    const response = await fetch("/api/ai/analyze", {
+    const supabase = createSupabaseBrowserClient();
+    let token = "";
+    if (supabase) {
+      const { data: { session } } = await supabase.auth.getSession();
+      token = session?.access_token || "";
+    }
+
+    const gatewayUrl = process.env.NEXT_PUBLIC_RAILWAY_GATEWAY_URL;
+    const url = gatewayUrl ? `${gatewayUrl}/analyze` : "/api/ai/analyze";
+
+    const response = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        ...(token ? { "Authorization": `Bearer ${token}` } : {}),
       },
       body: JSON.stringify({ noteId }),
     });
