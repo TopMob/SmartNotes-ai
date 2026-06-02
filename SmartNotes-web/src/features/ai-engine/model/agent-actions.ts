@@ -12,6 +12,11 @@ export type AiAction =
       name: string;
     }
   | {
+      type: "updateFolderDescription";
+      folderId: string;
+      description: string;
+    }
+  | {
       type: "trashFolder";
       folderId: string;
     }
@@ -253,6 +258,17 @@ function parseAiAction(value: unknown): AiAction {
     }
 
     return { type, folderId, name };
+  }
+
+  if (type === "updateFolderDescription") {
+    const folderId = asNonEmptyString(value.folderId);
+    const description = typeof value.description === "string" ? value.description.trim() : "";
+
+    if (!folderId) {
+      throw new Error("updateFolderDescription requires folderId.");
+    }
+
+    return { type, folderId, description };
   }
 
   if (type === "trashFolder" || type === "restoreFolder" || type === "deleteFolder") {

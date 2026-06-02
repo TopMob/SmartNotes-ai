@@ -104,6 +104,18 @@ export async function executeAgentActions(
         continue;
       }
 
+      if (action.type === "updateFolderDescription") {
+        const folder = await patchFolderAction(supabase, userId, action.folderId, { description: action.description });
+        results.push({
+          index,
+          type: action.type,
+          success: true,
+          message: `Folder \"${folder.name}\" description updated.`,
+          affectedFolderIds: [folder.id],
+        });
+        continue;
+      }
+
       if (action.type === "trashFolder") {
         const folder = await patchFolderAction(supabase, userId, action.folderId, { trashed_at: nowIso() });
         results.push({ index, type: action.type, success: true, message: `Folder \"${folder.name}\" moved to trash.`, affectedFolderIds: [folder.id] });

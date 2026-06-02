@@ -82,6 +82,17 @@ export function AgentActionCard({
               </div>
             );
           }
+          if (act.type === "updateFolderDescription") {
+            const folderName = rawFolders.find((f) => f.id === act.folderId)?.name ?? "Без названия";
+            return (
+              <div key={idx} className="flex items-start gap-2.5 text-xs text-foreground/80">
+                <Pencil className="mt-0.5 h-3.5 w-3.5 shrink-0 text-violet-500" />
+                <span>
+                  Обновить описание папки <strong className="font-semibold text-violet-700 dark:text-violet-400">«{folderName}»</strong> на «{act.description}»
+                </span>
+              </div>
+            );
+          }
           if (act.type === "trashFolder" || act.type === "restoreFolder" || act.type === "deleteFolder") {
             return (
               <div key={idx} className="flex items-start gap-2.5 text-xs text-foreground/80">
