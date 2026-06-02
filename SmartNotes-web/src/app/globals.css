@@ -8,6 +8,7 @@
   --border: rgba(255, 255, 255, 0.08);
   --accent: #00f2ff;
   --accent-foreground: #031315;
+  --scrollbar-thumb: rgba(255, 255, 255, 0.12);
   --shadow-color: rgba(0, 0, 0, 0.25);
   --wallpaper:
     radial-gradient(circle at 50% 18%, rgba(0, 80, 255, 0.08), transparent 32rem),
@@ -27,6 +28,7 @@
   --border: rgba(255, 190, 124, 0.2);
   --accent: #ff8a1d;
   --accent-foreground: #1b0d04;
+  --scrollbar-thumb: rgba(255, 255, 255, 0.12);
   --shadow-color: rgba(255, 138, 29, 0.18);
   --wallpaper:
     radial-gradient(circle at 15% 0%, rgba(255, 138, 29, 0.32), transparent 26rem),
@@ -42,6 +44,7 @@
   --border: rgba(75, 45, 150, 0.18);
   --accent: #6d4cff;
   --accent-foreground: #ffffff;
+  --scrollbar-thumb: rgba(32, 19, 61, 0.15);
   --shadow-color: rgba(79, 70, 229, 0.16);
   --wallpaper:
     radial-gradient(circle at 10% 10%, rgba(109, 76, 255, 0.24), transparent 28rem),
@@ -57,6 +60,7 @@
   --border: rgba(255, 45, 200, 0.28);
   --accent: #ff2dc8;
   --accent-foreground: #090512;
+  --scrollbar-thumb: rgba(255, 255, 255, 0.12);
   --shadow-color: rgba(255, 45, 200, 0.22);
   --wallpaper:
     radial-gradient(circle at 10% 0%, rgba(255, 45, 200, 0.34), transparent 24rem),
@@ -72,6 +76,7 @@
   --border: rgba(187, 25, 25, 0.24);
   --accent: #d71920;
   --accent-foreground: #ffffff;
+  --scrollbar-thumb: rgba(34, 22, 0, 0.15);
   --shadow-color: rgba(215, 25, 32, 0.18);
   --wallpaper:
     radial-gradient(circle at 15% 10%, rgba(255, 209, 0, 0.56), transparent 20rem),
@@ -87,6 +92,7 @@
   --border: rgba(16, 73, 153, 0.22);
   --accent: #1455d9;
   --accent-foreground: #ffffff;
+  --scrollbar-thumb: rgba(6, 23, 53, 0.15);
   --shadow-color: rgba(20, 85, 217, 0.16);
   --wallpaper:
     linear-gradient(90deg, rgba(255, 255, 255, 0.45) 1px, transparent 1px),
@@ -495,6 +501,7 @@ section,
   --border: rgba(255, 255, 255, 0.08);
   --accent: #00f2ff;
   --accent-foreground: #031315;
+  --scrollbar-thumb: rgba(255, 255, 255, 0.12);
   --shadow-color: rgba(0, 0, 0, 0.25);
   --wallpaper:
     radial-gradient(circle at 50% 18%, rgba(0, 80, 255, 0.08), transparent 32rem),
@@ -508,4 +515,30 @@ section,
 }
 .ProseMirror a:hover {
   opacity: 0.8;
+}
+
+/* Custom Sleek Scrollbars - anti-slop guidelines */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb, rgba(255, 255, 255, 0.12)) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb, rgba(255, 255, 255, 0.12));
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
 }
