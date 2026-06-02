@@ -140,12 +140,20 @@ async function callLLM(
   userPrompt: string,
   options: { model?: string; temperature?: number; max_tokens?: number } = {}
 ): Promise<string> {
-  const baseUrl = process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1";
+  let baseUrl = process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1";
   const apiKey = process.env.OPENROUTER_API_KEY;
   const defaultModel = process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini";
 
   if (!apiKey) {
     throw new Error("OPENROUTER_API_KEY is not configured.");
+  }
+
+  // Normalize base URL: trim trailing slashes
+  baseUrl = baseUrl.replace(/\/+$/, "");
+
+  // If a custom gateway is used and the user accidentally specified '/api/v1', normalize to '/v1'
+  if (!baseUrl.includes("openrouter.ai") && baseUrl.endsWith("/api/v1")) {
+    baseUrl = baseUrl.slice(0, -7) + "/v1";
   }
 
   const response = await fetch(`${baseUrl}/chat/completions`, {
@@ -340,7 +348,8 @@ Guidelines:
 11. Always respond in the user's language (e.g. Russian if the question is in Russian).
 12. When the user asks to "group notes by meaning/topic", "merge notes by semantic groups", "объедини заметки по смыслу/группам" or similar, this means you should identify distinct thematic groups of notes (e.g. Work, Health, Sleep, Code) and create a separate "mergeNotes" action for EACH group (so notes within the same group are merged into a single note for that group, e.g. 5 different groups yield 5 merged notes). Do NOT merge all notes of completely different categories into one single giant note unless the user explicitly requests one single note for everything.
 13. Avoid double confirmation loops. If the user has already given approval (e.g., "да", "делай", "ок", "подтверждаю", "go ahead", "do it") to a plan you proposed in a previous turn, do not repeat the plan or ask for confirmation again. Generate and output the corresponding "actions" immediately.
-14. If the user asks to edit, rewrite, clean up, format, remove extra characters, or analyze a note (whether active/currently open, or any other note in their workspace, e.g., "Сводная заметка по смысловым группам"), you have full access to its content directly in the {{NOTES_LIST}} or {{ACTIVE_NOTE_CONTEXT}}. Do NOT ask the user to open the note or claim you cannot see its content. You can read its content directly from the notes list, perform the cleanup, rewriting, or edits, and execute the "updateNote" action immediately to save the changes. Provide the complete modified content in the "content" field of the "updateNote" action.`;
+14. If the user asks to edit, rewrite, clean up, format, remove extra characters, or analyze a note (whether active/currently open, or any other note in their workspace, e.g., "Сводная заметка по смысловым группам"), you have full access to its content directly in the {{NOTES_LIST}} or {{ACTIVE_NOTE_CONTEXT}}. Do NOT ask the user to open the note or claim you cannot see its content. You can read its content directly from the notes list, perform the cleanup, rewriting, or edits, and execute the "updateNote" action immediately to save the changes. Provide the complete modified content in the "content" field of the "updateNote" action.
+15. CRITICAL: Do NOT use Google Gemini canvas, artifacts, document features, or immersive entry chips (like 'http://googleusercontent.com/immersive_entry_chip/0'). All code blocks, lists, and answers MUST be returned as standard, raw text or Markdown inline within the "answer" field. Do not use external placeholders or links for your code.`;
 
 interface EmbeddingMatch {
   note_id: string;
