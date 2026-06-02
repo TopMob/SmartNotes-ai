@@ -193,7 +193,7 @@ export function useAiChat({ activeNote, onOpenNote, open }: UseAiChatProps) {
         token = session?.access_token || "";
       }
 
-      const gatewayUrl = process.env.NEXT_PUBLIC_RAILWAY_GATEWAY_URL;
+      const gatewayUrl = process.env.NEXT_PUBLIC_RAILWAY_GATEWAY_URL?.replace(/\/+$/, "");
       const url = gatewayUrl ? `${gatewayUrl}/chat` : "/api/ai/chat";
 
       const response = await fetch(url, {

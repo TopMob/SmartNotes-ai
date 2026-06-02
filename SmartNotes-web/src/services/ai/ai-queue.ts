@@ -60,7 +60,7 @@ async function processNoteAnalysis(noteId: string): Promise<boolean> {
       token = session?.access_token || "";
     }
 
-    const gatewayUrl = process.env.NEXT_PUBLIC_RAILWAY_GATEWAY_URL;
+    const gatewayUrl = process.env.NEXT_PUBLIC_RAILWAY_GATEWAY_URL?.replace(/\/+$/, "");
     const url = gatewayUrl ? `${gatewayUrl}/analyze` : "/api/ai/analyze";
 
     const response = await fetch(url, {
