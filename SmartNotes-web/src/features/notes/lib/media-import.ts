@@ -77,7 +77,7 @@ export async function uploadMediaFile(file: File, noteId: string, isGoogleUser?:
         const randomName = `${crypto.randomUUID()}.${fileExt}`;
         const filePath = `${userId}/${randomName}`;
 
-        const { data, error } = await supabase.storage
+        const { error } = await supabase.storage
           .from("note-images")
           .upload(filePath, compressedFile, {
             cacheControl: "3600",

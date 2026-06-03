@@ -292,9 +292,14 @@ export function exportNoteAsPng(note: Note) {
     currentY += item.height;
   });
 
-  const dataUrl = canvas.toDataURL("image/png");
-  const link = document.createElement("a");
-  link.href = dataUrl;
-  link.download = `${safeFileName(note.title, "note")}.png`;
-  link.click();
+  canvas.toBlob((blob) => {
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${safeFileName(note.title, "note")}.png`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }, "image/png");
 }
+

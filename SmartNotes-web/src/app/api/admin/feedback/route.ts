@@ -5,7 +5,7 @@ import { requireSupabaseUrl, requireSupabasePublishableKey, getSupabaseServiceRo
 
 export const runtime = "nodejs";
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     const cookieStore = await cookies();
     const supabase = createServerClient(

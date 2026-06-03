@@ -116,22 +116,7 @@ export function BottomSheet({ sheet, activeFolder, isDesktop, onClose, onCloseWi
   );
 }
 
-function getLockPassword(promptText: string, errorEmpty: string) {
-  const value = window.prompt(promptText);
 
-  if (value === null) {
-    return null;
-  }
-
-  const password = value.trim();
-
-  if (!password) {
-    window.alert(errorEmpty);
-    return null;
-  }
-
-  return password;
-}
 
 async function copyNoteText(note: Note) {
   const text = getNotePlainText(note);
@@ -156,7 +141,7 @@ function NoteActionSheet({ copy, onOpenSheet, onClose, onCloseEditor }: { copy: 
   const lang = settings?.lang ?? "ru";
   const { data: notes = [] } = useNotesFlat();
   const { data: folders = [] } = useFoldersQuery();
-  const { moveNoteToFolder, patchNote, restoreNote, permanentlyDeleteNote, setArchived, setReminder, trashNote } = useNoteActions();
+  const { moveNoteToFolder, restoreNote, permanentlyDeleteNote, setArchived, trashNote } = useNoteActions();
   const currentNoteId = useNoteUiStore((state) => state.currentNoteId);
   const [folderPickerOpen, setFolderPickerOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);

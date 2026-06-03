@@ -133,7 +133,7 @@ export function useAiChat({ activeNote, onOpenNote, open }: UseAiChatProps) {
         )
       );
     }
-  }, [messages, onOpenNote, queryClient, user?.id]);
+  }, [messages, onOpenNote, queryClient, user]);
 
   const handleSend = useCallback(async (questionOverride?: string) => {
     const question = (questionOverride ?? input).trim();

@@ -418,8 +418,7 @@ export async function POST(request: Request) {
         if (regex.test(textToSearch)) {
           mentionedNoteIds.add(note.id);
         }
-      } catch (e) {
-        // Fallback
+      } catch {
         if (textToSearch.includes(titleLower)) {
           mentionedNoteIds.add(note.id);
         }

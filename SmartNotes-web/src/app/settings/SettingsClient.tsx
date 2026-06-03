@@ -77,7 +77,7 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
   const userId = useAuthStore((state) => state.user?.id ?? "local-user");
   const { createNote } = useNoteActions();
   const { patchSettings, resetSettings } = useSettingsActions();
-  const { updateProfile, pending: profilePending, loginWithGoogle, connectGoogleDrive, logout, resetPassword } = useAuthActions();
+  const { updateProfile, pending: profilePending, connectGoogleDrive, logout, resetPassword } = useAuthActions();
 
   const [displayName, setDisplayName] = useState(user?.displayName ?? "");
   const [avatarUrl, setAvatarUrl] = useState(user?.photoURL ?? "");
@@ -370,7 +370,7 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
       } else {
         throw new Error("Failed to disconnect");
       }
-    } catch (err) {
+    } catch {
       window.alert(lang === "ru" ? "Не удалось отключить Диск." : "Failed to disconnect Drive.");
     }
   }

@@ -58,9 +58,7 @@ export async function getGoogleAccessToken(
             for (const cookie of cookiesToSet) {
               cookieStore.set(cookie.name, cookie.value, cookie.options);
             }
-          } catch (e) {
-            // Silently catch cookieStore set error in server components
-          }
+          } catch {}
         }
       }
     }
@@ -135,9 +133,7 @@ export async function getGoogleAccessToken(
       sameSite: "lax",
       maxAge: 60 * 60 * 24 * 365,
     });
-  } catch (e) {
-    // Ignore cookie write failures inside RSC
-  }
+  } catch {}
 
   return newAccessToken;
 }

@@ -14,16 +14,16 @@ type Stroke = {
 
 type DrawingCanvasProps = {
   onClose: () => void;
-  onSave: (dataUrl: string) => void;
+  onSave: (blob: Blob) => void;
 };
 
 const COLOR_PRESETS = [
-  "#000000", // Black
-  "#7c3aed", // Violet
-  "#2563eb", // Blue
-  "#dc2626", // Red
-  "#16a34a", // Green
-  "#eab308", // Yellow
+  "#000000",
+  "#7c3aed",
+  "#2563eb",
+  "#dc2626",
+  "#16a34a",
+  "#eab308",
 ];
 
 export function DrawingCanvas({ onClose, onSave }: DrawingCanvasProps) {
@@ -33,31 +33,25 @@ export function DrawingCanvas({ onClose, onSave }: DrawingCanvasProps) {
   const [isDrawing, setIsDrawing] = useState(false);
   const [tool, setTool] = useState<"pen" | "eraser">("pen");
   
-  // Undo/Redo Stroke state
   const [strokes, setStrokes] = useState<Stroke[]>([]);
   const [redoStrokes, setRedoStrokes] = useState<Stroke[]>([]);
   const currentStrokeRef = useRef<Point[]>([]);
   const strokesRef = useRef<Stroke[]>([]);
   
-  // Keep strokesRef updated on every render
   strokesRef.current = strokes;
 
-  // Function to redraw the entire canvas based on the strokes array
   const redrawCanvas = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const context = canvas.getContext("2d");
     if (!context) return;
 
-    // Clear everything
     context.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Save context state and scale according to Device Pixel Ratio
     context.save();
     const dpr = window.devicePixelRatio || 1;
     context.scale(dpr, dpr);
 
-    // Draw all strokes
     strokesRef.current.forEach((stroke) => {
       if (stroke.points.length < 1) return;
 
@@ -83,12 +77,10 @@ export function DrawingCanvas({ onClose, onSave }: DrawingCanvasProps) {
     context.restore();
   };
 
-  // Redraw when strokes change
   useEffect(() => {
     redrawCanvas();
   }, [strokes]);
 
-  // Resize handler with high-DPI support
   useEffect(() => {
     const handleResize = () => {
       const canvas = canvasRef.current;
@@ -132,7 +124,6 @@ export function DrawingCanvas({ onClose, onSave }: DrawingCanvasProps) {
     
     currentStrokeRef.current.push(coords);
 
-    // Dynamic drawing of the current stroke
     const canvas = canvasRef.current;
     if (!canvas) return;
     const context = canvas.getContext("2d");
@@ -171,7 +162,7 @@ export function DrawingCanvas({ onClose, onSave }: DrawingCanvasProps) {
       };
 
       setStrokes((prev) => [...prev, newStroke]);
-      setRedoStrokes([]); // Reset redo stack on new action
+      setRedoStrokes([]);
     }
     currentStrokeRef.current = [];
   };
@@ -201,14 +192,12 @@ export function DrawingCanvas({ onClose, onSave }: DrawingCanvasProps) {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Create a temporary canvas to save drawing without background grid
     const tempCanvas = document.createElement("canvas");
     tempCanvas.width = canvas.width;
     tempCanvas.height = canvas.height;
     const tempContext = tempCanvas.getContext("2d");
     if (!tempContext) return;
 
-    // Redraw all strokes on temp canvas
     tempContext.save();
     const dpr = window.devicePixelRatio || 1;
     tempContext.scale(dpr, dpr);
@@ -234,12 +223,15 @@ export function DrawingCanvas({ onClose, onSave }: DrawingCanvasProps) {
     });
     tempContext.restore();
 
-    onSave(tempCanvas.toDataURL());
+    tempCanvas.toBlob((blob) => {
+      if (blob) {
+        onSave(blob);
+      }
+    }, "image/png");
   };
 
   return (
     <div className="absolute inset-0 z-50 flex flex-col bg-background/96 select-none overflow-hidden">
-      {/* Background Drawing Grid Pattern */}
       <div 
         className="absolute inset-0 opacity-5 pointer-events-none"
         style={{
@@ -248,7 +240,6 @@ export function DrawingCanvas({ onClose, onSave }: DrawingCanvasProps) {
         }}
       />
       
-      {/* Floating Glassmorphic Top Toolbar */}
       <motion.div 
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -293,7 +284,6 @@ export function DrawingCanvas({ onClose, onSave }: DrawingCanvasProps) {
               </button>
             ))}
             
-            {/* Custom color picker input */}
             <label className="relative cursor-pointer h-6 w-6 rounded-full border border-border/60 flex items-center justify-center hover:scale-110 active:scale-95 bg-surface-strong text-foreground/54">
               <Palette className="h-3.5 w-3.5" />
               <input
@@ -350,7 +340,6 @@ export function DrawingCanvas({ onClose, onSave }: DrawingCanvasProps) {
         </div>
       </motion.div>
 
-      {/* Drawing Area */}
       <canvas
         ref={canvasRef}
         onPointerDown={startDrawing}
@@ -361,7 +350,6 @@ export function DrawingCanvas({ onClose, onSave }: DrawingCanvasProps) {
         style={{ touchAction: "none" }}
       />
 
-      {/* Floating Action Buttons */}
       <motion.div 
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}

@@ -18,15 +18,15 @@ export function useAutoAnalyze(note: Note, title: string, content: string) {
   const isFirstRender = useRef(true);
   const queryClient = useQueryClient();
   const lastHashRef = useRef<string | null>(null);
+  const noteId = note?.id;
+  const noteAiStatus = note?.aiStatus;
+  const storedHash = (note?.metadata as { content_hash?: string } | null | undefined)?.content_hash || null;
 
   useEffect(() => {
-    if (note) {
-      setStatus(note.aiStatus || "done");
+    if (noteId) {
+      setStatus(noteAiStatus || "done");
     }
-  }, [note?.id, note?.aiStatus, setStatus]);
-
-  const noteId = note?.id;
-  const storedHash = (note?.metadata as { content_hash?: string } | null | undefined)?.content_hash || null;
+  }, [noteId, noteAiStatus, setStatus]);
 
   useEffect(() => {
     if (isFirstRender.current) {
@@ -83,7 +83,7 @@ export function useAutoAnalyze(note: Note, title: string, content: string) {
         } else {
           setStatus("error");
         }
-      } catch (error) {
+      } catch {
         setStatus("error");
       }
     }, 5000);

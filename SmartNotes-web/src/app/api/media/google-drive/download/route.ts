@@ -93,8 +93,7 @@ export async function GET(request: Request) {
 
 
   try {
-    // 1. Fetch metadata first to get correct filename and mimeType (optional but nice)
-    const metadataResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name,mimeType,size`, {
+    const metadataResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name,mimeType`, {
       headers: {
         Authorization: `Bearer ${activeToken}`,
       },
@@ -102,16 +101,13 @@ export async function GET(request: Request) {
 
     let filename = "Download";
     let mimeType = "application/octet-stream";
-    let size: string | null = null;
 
     if (metadataResponse.ok) {
       const meta = await metadataResponse.json();
       filename = meta.name || filename;
       mimeType = meta.mimeType || mimeType;
-      size = meta.size || null;
     }
 
-    // 2. Fetch the actual file contents
     const driveResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
       headers: {
         Authorization: `Bearer ${activeToken}`,

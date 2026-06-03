@@ -48,7 +48,7 @@ export function LockModal({ note, isOpen, onClose }: LockModalProps) {
       await patchNote(note.id, { lock: lockData });
       unlockNote(note.id); // unlock it immediately for the current session
       onClose(true);
-    } catch (err) {
+    } catch {
       setError("Не удалось установить пароль");
     } finally {
       setLoading(false);
@@ -69,7 +69,7 @@ export function LockModal({ note, isOpen, onClose }: LockModalProps) {
       await patchNote(note.id, { lock: null });
       lockNoteStore(note.id); // clean up store
       onClose(true);
-    } catch (err) {
+    } catch {
       setError("Не удалось снять защиту");
     } finally {
       setLoading(false);

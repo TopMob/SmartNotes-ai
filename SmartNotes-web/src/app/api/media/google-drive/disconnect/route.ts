@@ -25,9 +25,7 @@ export async function POST() {
               for (const cookie of cookiesToSet) {
                 cookieStore.set(cookie.name, cookie.value, cookie.options);
               }
-            } catch (e) {
-              // Silently catch cookieStore set error
-            }
+            } catch {}
           }
         }
       }

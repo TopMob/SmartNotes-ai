@@ -1,26 +1,6 @@
 import {
-  AlignCenter,
-  AlignLeft,
-  AlignRight,
-  Bold,
-  Files,
-  ChevronDown,
   ChevronLeft,
-  Eraser,
-  Image,
-  Italic,
-  Link2,
-  List,
-  ListOrdered,
-  SeparatorHorizontal,
-  MoreHorizontal,
-  Palette,
-  Redo2,
-  Share2,
-  Strikethrough,
   Tag,
-  Underline,
-  Undo2,
   Sparkles,
   Cloud,
   CloudOff,
@@ -56,7 +36,6 @@ const LocalMediaImageExtension = ImageExtension.extend({
       const src = node.attrs.src;
 
       if (src && src.startsWith("data:image/")) {
-        // Base64 Migration: automatically convert data URLs to IndexedDB Blobs
         const fileId = crypto.randomUUID();
         fetch(src)
           .then((res) => res.blob())
@@ -119,7 +98,7 @@ const LocalMediaImageExtension = ImageExtension.extend({
 
 import { useAiEngineStore } from "@/features/ai-engine/model/ai-store";
 import { useAutoAnalyze } from "@/features/ai-engine/hooks/use-auto-analyze";
-import { useEffect, useRef, useState, useCallback, useMemo, type ComponentType } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useVisualViewportKeyboard } from "../hooks/use-visual-viewport-keyboard";
 
 import type { Note } from "@/entities/note";
@@ -132,19 +111,16 @@ import { uploadMediaFile } from "@/features/notes/lib/media-import";
 import { useNoteUiStore } from "@/features/notes/model/note-ui-store";
 import { useNotesFlat } from "@/features/notes/hooks/use-notes-query";
 import { useSettingsQuery } from "@/features/settings/hooks/use-settings-query";
-import { getUiCopy } from "@/shared/lib/i18n";
 import { useUiStore } from "@/shared/store/ui-store";
 import { setMediaDiagnostic } from "@/services/diagnostics/runtime-diagnostics";
 import { Button } from "@/shared/ui/button";
-import { AccessBadge } from "@/features/editor-collab/ui/access-badge";
 import { useAuthStore } from "@/features/auth/model/auth-store";
 import { useLockStore } from "@/features/lock-center/model/lock-store";
 import { LockPrompt } from "@/features/lock-center/ui/lock-prompt";
 
-import { getSheetAnchor, plainTextToEditorContent, serializeEditorSnapshot, type SheetAnchor, type SheetName } from "./shared";
+import { plainTextToEditorContent, serializeEditorSnapshot, type SheetAnchor, type SheetName } from "./shared";
 import { EditorHeader } from "./EditorHeader";
 import { EditorToolbar } from "./EditorToolbar";
-import { TagsModal } from "./TagsModal";
 
 const EDITOR_EXTENSIONS = [
   StarterKit.configure({ bulletList: { keepMarks: true, keepAttributes: false }, link: false }),
@@ -164,8 +140,7 @@ type EditorOverlayProps = {
 
 export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setToolbarVisible }: EditorOverlayProps) {
   useVisualViewportKeyboard();
-  const { attachMedia, deletePage } = useNoteActions();
-  const toggleAiChat = useUiStore((state) => state.toggleAiChat);
+  const { attachMedia } = useNoteActions();
   const aiChatOpen = useUiStore((state) => state.aiChatOpen);
   const setAiChatOpen = useUiStore((state) => state.setAiChatOpen);
 
@@ -188,7 +163,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
 
   const { data: settings } = useSettingsQuery();
   const lang = settings?.lang ?? "ru";
-  const copy = getUiCopy(lang);
+
 
   // Scroll Position Memory
   const scrollContainerRef = useRef<HTMLElement | null>(null);
@@ -203,7 +178,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
     }
   }, [note.id, currentNotePageIndex, status]);
 
-  const { page: currentPage, pages, pageCount, addPage: _addPage, removePage, setPageContent } = useNoteCollabPage(currentNotePageIndex);
+  const { page: currentPage, pages, pageCount, addPage: _addPage, setPageContent } = useNoteCollabPage(currentNotePageIndex);
   const { title, userTags, setTitle, setUserTags } = useNoteTitleTags();
   const snapshotRef = useRef(serializeEditorSnapshot(note));
   const editorDirty = useNoteUiStore((state) => state.editorDirty);
@@ -372,23 +347,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleClose]);
 
-  function handleDeletePage() {
-    if (pageCount <= 1) return;
-    if (!window.confirm(copy?.shell?.dialogs?.pageDeleteConfirm || "Удалить страницу? Это действие необратимо.")) return;
 
-    const pageId = currentPage.id;
-
-
-    removePage(pageId);
-
-
-    deletePage(note.id, pageId);
-
-
-    if (currentNotePageIndex >= pageCount - 1) {
-      setCurrentNotePageIndex(Math.max(0, currentNotePageIndex - 1));
-    }
-  }
 
   function handleTitleChange(value: string) {
     if (role === "viewer") return;
@@ -532,8 +491,10 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
           {isDrawing && (
             <DrawingCanvas
               onClose={() => setIsDrawing(false)}
-              onSave={(dataUrl) => {
-                editor.chain().focus().setImage({ src: dataUrl }).run();
+              onSave={async (blob) => {
+                const fileId = crypto.randomUUID();
+                await storeLocalMedia(fileId, blob);
+                editor.chain().focus().setImage({ src: `local-media:${fileId}` }).run();
                 setIsDrawing(false);
               }}
             />

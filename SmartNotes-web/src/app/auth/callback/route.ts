@@ -7,6 +7,8 @@ import type { Database } from "@/shared/api/supabase/types";
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
+  const tokenHash = searchParams.get("token_hash");
+  const type = searchParams.get("type") as any;
   const next = searchParams.get("next");
   const safeNext = next && next.startsWith("/") ? next : "/";
 
@@ -19,7 +21,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(destination);
   }
 
-  if (!code) {
+  if (!code && !tokenHash) {
     return NextResponse.redirect(new URL("/login?error=missing_code", request.url));
   }
 
@@ -29,8 +31,6 @@ export async function GET(request: NextRequest) {
   if (!url || !publishableKey) {
     return NextResponse.redirect(new URL("/login?error=missing_config", request.url));
   }
-
-
 
   const isHttps = request.nextUrl.protocol === "https:";
   const response = NextResponse.redirect(new URL(safeNext, request.url));
@@ -52,10 +52,24 @@ export async function GET(request: NextRequest) {
     },
   });
 
-  const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+  let data = null;
+  let error = null;
+
+  if (code) {
+    const res = await supabase.auth.exchangeCodeForSession(code);
+    data = res.data;
+    error = res.error;
+  } else if (tokenHash && type) {
+    const res = await supabase.auth.verifyOtp({
+      token_hash: tokenHash,
+      type: type,
+    });
+    data = res.data;
+    error = res.error;
+  }
 
   if (error) {
-    console.error("[auth/callback] exchangeCodeForSession failed:", error.message);
+    console.error("[auth/callback] authentication failed:", error.message);
     return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(error.message)}`, request.url));
   }
 
@@ -75,7 +89,7 @@ export async function GET(request: NextRequest) {
       httpOnly: true,
       secure: isHttps,
       sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 365, // 1 year
+      maxAge: 60 * 60 * 24 * 365,
     });
   }
 

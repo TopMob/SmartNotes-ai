@@ -32,7 +32,7 @@ export function LockPrompt({ noteId, lock, onCancel }: LockPromptProps) {
         setError("Неверный пароль");
         setPassword("");
       }
-    } catch (err) {
+    } catch {
       setError("Ошибка проверки пароля");
     } finally {
       setLoading(false);

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Eye, EyeOff, KeyRound, Loader2, Monitor } from "lucide-react";
+import { Eye, EyeOff, KeyRound, Loader2 } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/shared/api/supabase/client";
 import { LogoMark } from "@/shared/ui/logo-mark";
 import { Button } from "@/shared/ui/button";
