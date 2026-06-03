@@ -4,7 +4,7 @@ import { createId } from "./note-utils";
 
 export interface StorageProvider {
   name: "google-drive" | "supabase" | "local-inline";
-  upload(file: File, noteId: string): Promise<MediaDescriptor>;
+  upload(file: File, noteId?: string): Promise<MediaDescriptor>;
   download(fileId: string): Promise<Blob | null>;
   delete(fileId: string): Promise<void>;
 }
@@ -12,10 +12,12 @@ export interface StorageProvider {
 export class GoogleDriveStorageProvider implements StorageProvider {
   readonly name = "google-drive";
 
-  async upload(file: File, noteId: string): Promise<MediaDescriptor> {
+  async upload(file: File, noteId?: string): Promise<MediaDescriptor> {
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("noteId", noteId);
+    if (noteId) {
+      formData.append("noteId", noteId);
+    }
 
     const response = await fetch("/api/media/google-drive/upload", {
       method: "POST",
@@ -40,7 +42,7 @@ export class GoogleDriveStorageProvider implements StorageProvider {
 export class SupabaseStorageProvider implements StorageProvider {
   readonly name = "supabase";
 
-  async upload(file: File, noteId: string): Promise<MediaDescriptor> {
+  async upload(file: File, noteId?: string): Promise<MediaDescriptor> {
     const { useAuthStore } = await import("@/features/auth/model/auth-store");
     const user = useAuthStore.getState().user;
     const userId = user?.id;
@@ -123,7 +125,7 @@ export class SupabaseStorageProvider implements StorageProvider {
 export class IndexedDbStorageProvider implements StorageProvider {
   readonly name = "local-inline";
 
-  async upload(file: File): Promise<MediaDescriptor> {
+  async upload(file: File, noteId?: string): Promise<MediaDescriptor> {
     const fileId = createId();
     await storeLocalMedia(fileId, file);
     const localUrl = `local-media:${fileId}`;
