@@ -56,7 +56,7 @@ export async function getEmbedding(text: string): Promise<number[]> {
 export async function callLLM(
   systemPrompt: string,
   userPrompt: string,
-  options: { model?: string; temperature?: number; max_tokens?: number } = {}
+  options: { model?: string; temperature?: number; max_tokens?: number; responseFormat?: { type: "json_object" | "text" } } = {}
 ): Promise<string> {
   let baseUrl = process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1";
   const apiKey = process.env.OPENROUTER_API_KEY;
@@ -88,6 +88,7 @@ export async function callLLM(
       ],
       temperature: options.temperature ?? 0.2,
       max_tokens: options.max_tokens ?? 1024,
+      ...(options.responseFormat ? { response_format: options.responseFormat } : {}),
     }),
   });
 

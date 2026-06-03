@@ -20,27 +20,39 @@ export async function analyzeRoutes(server: FastifyInstance) {
 
     const { noteId, title: bodyTitle, content: bodyContent } = parseResult.data;
 
+    let title = bodyTitle;
+    let content = bodyContent;
+    let existingMetadata: any = {};
+
+    const { data: dbNote } = await supabaseAdmin
+      .from("notes")
+      .select("title, content, metadata")
+      .eq("id", noteId)
+      .eq("owner_id", user.id)
+      .single();
+
+    if (dbNote) {
+      if (!title) title = dbNote.title || "";
+      if (!content) content = dbNote.content || "";
+      existingMetadata = dbNote.metadata || {};
+    }
+
+    const combinedText = `${title || ""} ${content || ""}`;
+    const normalized = normalizeText(combinedText);
+    const contentHash = computeHashNode(normalized);
+    const storedHash = existingMetadata?.content_hash || null;
+
+    if (contentHash === storedHash) {
+      await supabaseAdmin.from("notes").update({ ai_status: "done", analyzed: true }).eq("id", noteId);
+      return reply.send({ status: "done", skipped: true });
+    }
+
+    await supabaseAdmin.from("notes").update({ ai_status: "pending" }).eq("id", noteId);
+
     (async () => {
       try {
         console.log(`Starting background AI analysis for note: ${noteId}`);
         await supabaseAdmin.from("notes").update({ ai_status: "analyzing" }).eq("id", noteId);
-
-        let title = bodyTitle;
-        let content = bodyContent;
-
-        if (!title || !content) {
-          const { data: dbNote } = await supabaseAdmin
-            .from("notes")
-            .select("title, content")
-            .eq("id", noteId)
-            .eq("owner_id", user.id)
-            .single();
-
-          if (dbNote) {
-            if (!title) title = dbNote.title || "";
-            if (!content) content = dbNote.content || "";
-          }
-        }
 
         const plainText = (content || "")
           .replace(/<[^>]*>/g, " ")
@@ -63,7 +75,7 @@ Rules:
 
         const userPrompt = `Note title: ${title || "(no title)"}\nNote content: ${plainText.slice(0, 4000) || "(empty)"}`;
 
-        const rawResult = await callLLM(systemPrompt, userPrompt);
+        const rawResult = await callLLM(systemPrompt, userPrompt, { responseFormat: { type: "json_object" } });
         let result;
         try {
           result = JSON.parse(rawResult.trim());
@@ -75,7 +87,11 @@ Rules:
         const summary = result.summary || "";
         const userTags = Array.isArray(result.userTags) ? result.userTags : [];
         const hiddenTags = Array.isArray(result.hiddenTags) ? result.hiddenTags : [];
-        const relevance = typeof result.relevance === "number" ? result.relevance : 0.5;
+        let relevance = typeof result.relevance === "number" ? result.relevance : 0.5;
+        if (relevance > 1 && relevance <= 10) relevance = relevance / 10;
+        else if (relevance > 10) relevance = relevance / 100;
+        if (relevance < 0 || relevance > 1) relevance = 0.5;
+
         const resurfacingClass = ["task", "idea", "reference", "archive"].includes(result.resurfacingClass)
           ? result.resurfacingClass
           : "reference";

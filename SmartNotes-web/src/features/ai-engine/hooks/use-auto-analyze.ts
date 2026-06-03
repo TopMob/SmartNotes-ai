@@ -40,6 +40,10 @@ export function useAutoAnalyze(note: Note, title: string, content: string) {
 
     timeoutRef.current = setTimeout(async () => {
       try {
+        if (!title.trim() && !content.trim()) {
+          return;
+        }
+
         const combinedText = `${title || ""} ${content || ""}`;
         const normalized = normalizeText(combinedText);
         const hash = await computeHash(normalized);
@@ -76,9 +80,55 @@ export function useAutoAnalyze(note: Note, title: string, content: string) {
 
         if (response.ok) {
           lastHashRef.current = hash;
-          setStatus("done");
+          const data = await response.json().catch(() => ({}));
+          if (data.status === "done" || data.skipped) {
+            setStatus("done");
+            queryClient.setQueriesData<any>(
+              { queryKey: ["note-detail"] },
+              (old: any) => {
+                if (old && old.id === noteId) {
+                  return { ...old, aiStatus: "done", analyzed: true };
+                }
+                return old;
+              }
+            );
+          } else {
+            setStatus("analyzing");
+            queryClient.setQueriesData<any>(
+              { queryKey: ["note-detail"] },
+              (old: any) => {
+                if (old && old.id === noteId) {
+                  return { ...old, aiStatus: "analyzing" };
+                }
+                return old;
+              }
+            );
+            queryClient.setQueriesData<any>(
+              { queryKey: ["notes"] },
+              (old: any) => {
+                if (!old) return old;
+                if (old.pages) {
+                  return {
+                    ...old,
+                    pages: old.pages.map((page: any) => ({
+                      ...page,
+                      data: page.data.map((n: any) =>
+                        n.id === noteId ? { ...n, aiStatus: "analyzing" } : n
+                      ),
+                    })),
+                  };
+                }
+                if (Array.isArray(old)) {
+                  return old.map((n: any) =>
+                    n.id === noteId ? { ...n, aiStatus: "analyzing" } : n
+                  );
+                }
+                return old;
+              }
+            );
+          }
           void queryClient.invalidateQueries({
-            predicate: (query) => query.queryKey[0] === "notes",
+            predicate: (query) => query.queryKey[0] === "notes" || query.queryKey[0] === "note-detail",
           });
         } else {
           setStatus("error");

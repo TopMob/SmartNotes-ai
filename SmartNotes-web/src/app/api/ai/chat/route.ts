@@ -488,33 +488,34 @@ export async function POST(request: Request) {
 
   let answerText = "";
   let actionsList: ReturnType<typeof parseAiResponse>["actions"] = [];
-  try {
     try {
-      const rawCompletion = await openRouterComplete(customizedSystemPrompt, userPrompt, {
-        max_tokens: 1500,
-        temperature: 0.2,
-      });
-      const cleaned = cleanJsonResponse(rawCompletion);
-      const parsed = parseAiResponse(JSON.parse(cleaned));
-      answerText = parsed.answer || "";
-      actionsList = parsed.actions || [];
-    } catch (error) {
-      console.error("Structured OpenRouter parsing failed, falling back to raw mode:", error);
-      const rawCompletion = await openRouterComplete(
-        customizedSystemPrompt + "\nIMPORTANT: You must output ONLY a valid JSON object matching the schema. If you fail, just reply with a JSON containing 'answer' string and 'actions' empty array.", 
-        userPrompt,
-        { max_tokens: 1024 }
-      );
       try {
+        const rawCompletion = await openRouterComplete(customizedSystemPrompt, userPrompt, {
+          max_tokens: 1500,
+          temperature: 0.2,
+          response_format: { type: "json_object" },
+        });
         const cleaned = cleanJsonResponse(rawCompletion);
         const parsed = parseAiResponse(JSON.parse(cleaned));
-        answerText = parsed.answer || cleaned;
+        answerText = parsed.answer || "";
         actionsList = parsed.actions || [];
-      } catch {
-        answerText = rawCompletion;
-        actionsList = [];
+      } catch (error) {
+        console.error("Structured OpenRouter parsing failed, falling back to raw mode:", error);
+        const rawCompletion = await openRouterComplete(
+          customizedSystemPrompt + "\nIMPORTANT: You must output ONLY a valid JSON object matching the schema. If you fail, just reply with a JSON containing 'answer' string and 'actions' empty array.", 
+          userPrompt,
+          { max_tokens: 1024, response_format: { type: "json_object" } }
+        );
+        try {
+          const cleaned = cleanJsonResponse(rawCompletion);
+          const parsed = parseAiResponse(JSON.parse(cleaned));
+          answerText = parsed.answer || cleaned;
+          actionsList = parsed.actions || [];
+        } catch {
+          answerText = rawCompletion;
+          actionsList = [];
+        }
       }
-    }
   } catch (err) {
     console.error("Critical AI generation error:", err);
     const msg = err instanceof Error ? err.message : String(err);

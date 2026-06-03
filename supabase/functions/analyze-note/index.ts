@@ -32,8 +32,6 @@ Deno.serve(async (req) => {
       try {
         console.log(`Starting background AI analysis for note: ${noteId}`);
         
-        await supabase.from("notes").update({ ai_status: "analyzing" }).eq("id", noteId);
-
         const { data: note, error: fetchError } = await supabase
           .from("notes")
           .select("title, content, owner_id, metadata, folder_id")
@@ -43,6 +41,27 @@ Deno.serve(async (req) => {
         if (fetchError || !note) {
           throw new Error(`Failed to fetch note: ${fetchError?.message || "Not found"}`);
         }
+
+        const combinedText = `${note.title || ""} ${note.content || ""}`;
+        const normalized = combinedText
+          .toLowerCase()
+          .replace(/<[^>]*>/g, " ")
+          .replace(/\s+/g, " ")
+          .trim()
+          .replace(/[^\p{L}\p{N}]/gu, "");
+        const msgBuffer = new TextEncoder().encode(normalized);
+        const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const computedHash = hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+
+        const storedHash = note.metadata?.content_hash || null;
+        if (computedHash === storedHash) {
+          console.log(`Content hash matches for note ${noteId}. Skipping Edge Function AI analysis.`);
+          await supabase.from("notes").update({ ai_status: "done", analyzed: true }).eq("id", noteId);
+          return;
+        }
+
+        await supabase.from("notes").update({ ai_status: "analyzing" }).eq("id", noteId);
 
         const plainText = (note.content || "")
           .replace(/<[^>]*>/g, " ")
@@ -85,6 +104,7 @@ Rules:
               { role: "user", content: userPrompt }
             ],
             temperature: 0.2,
+            response_format: { type: "json_object" },
           })
         });
 
@@ -107,7 +127,11 @@ Rules:
         const summary = result.summary || "";
         const userTags = Array.isArray(result.userTags) ? result.userTags : [];
         const hiddenTags = Array.isArray(result.hiddenTags) ? result.hiddenTags : [];
-        const relevance = typeof result.relevance === "number" ? result.relevance : 0.5;
+        let relevance = typeof result.relevance === "number" ? result.relevance : 0.5;
+        if (relevance > 1 && relevance <= 10) relevance = relevance / 10;
+        else if (relevance > 10) relevance = relevance / 100;
+        if (relevance < 0 || relevance > 1) relevance = 0.5;
+
         const resurfacingClass = ["task", "idea", "reference", "archive"].includes(result.resurfacingClass) 
           ? result.resurfacingClass 
           : "reference";

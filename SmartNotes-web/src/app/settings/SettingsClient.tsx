@@ -31,6 +31,7 @@ import { downloadTextFile, safeFileName } from "@/features/app-shell/ui/componen
 import { getUiCopy } from "@/shared/lib/i18n";
 import { useUiStore } from "@/shared/store/ui-store";
 import { isAdminUser } from "@/features/auth/lib/admin-acl";
+import { createSupabaseBrowserClient } from "@/shared/api/supabase/client";
 
 import { Panel } from "./components/Panel";
 import { SectionIntro } from "./components/SectionIntro";
@@ -77,7 +78,7 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
   const userId = useAuthStore((state) => state.user?.id ?? "local-user");
   const { createNote } = useNoteActions();
   const { patchSettings, resetSettings } = useSettingsActions();
-  const { updateProfile, pending: profilePending, connectGoogleDrive, logout, resetPassword } = useAuthActions();
+  const { updateProfile, pending: profilePending, connectGoogleDrive, logout } = useAuthActions();
 
   const [displayName, setDisplayName] = useState(user?.displayName ?? "");
   const [avatarUrl, setAvatarUrl] = useState(user?.photoURL ?? "");
@@ -86,6 +87,64 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
 
   const lang = settings?.lang ?? "ru";
   const copy = getUiCopy(lang);
+
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordLoading, setPasswordLoading] = useState(false);
+
+  async function handleChangePassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (!currentPassword) {
+      setPasswordError(lang === "ru" ? "Введите текущий пароль" : "Enter current password");
+      return;
+    }
+    if (newPassword.length < 6) {
+      setPasswordError(lang === "ru" ? "Новый пароль должен быть не менее 6 символов" : "New password must be at least 6 characters");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError(lang === "ru" ? "Пароли не совпадают" : "Passwords do not match");
+      return;
+    }
+
+    setPasswordLoading(true);
+    setPasswordError("");
+
+    try {
+      const supabase = createSupabaseBrowserClient();
+      if (!supabase) throw new Error("Supabase client not initialized");
+
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user?.email || "",
+        password: currentPassword,
+      });
+
+      if (signInError) {
+        throw new Error(lang === "ru" ? "Неверный текущий пароль" : "Incorrect current password");
+      }
+
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      window.alert(lang === "ru" ? "Пароль успешно изменен!" : "Password changed successfully!");
+      setShowChangePassword(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (e: any) {
+      setPasswordError(e.message || "Ошибка при смене пароля");
+    } finally {
+      setPasswordLoading(false);
+    }
+  }
 
   const editorGroups = useMemo(
     () => [
@@ -796,22 +855,87 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                     )}
 
                     {/* Reset Password & Log Out Buttons */}
-                    <div className="pt-2 flex flex-col gap-2">
+                    <div className="pt-2 flex flex-col gap-3">
                       {user?.email && user.id !== "local-user" && !user.id.startsWith("guest-") && (
-                        <button
-                          className="w-full min-h-10 rounded-2xl border border-border bg-background hover:bg-surface-strong transition flex items-center justify-center gap-2 text-xs font-bold text-foreground/80 shadow-sm"
-                          onClick={async () => {
-                            try {
-                              await resetPassword(user.email!);
-                              window.alert(copy.settings.profile.resetPasswordSuccess || "Ссылка для сброса пароля отправлена на почту!");
-                            } catch (e) {
-                              window.alert(e instanceof Error ? e.message : "Не удалось отправить ссылку.");
-                            }
-                          }}
-                          type="button"
-                        >
-                          {copy.settings.profile.resetPassword || "Сбросить пароль"}
-                        </button>
+                        <>
+                          {!showChangePassword ? (
+                            <button
+                              className="w-full min-h-10 rounded-2xl border border-border bg-background hover:bg-surface-strong transition flex items-center justify-center gap-2 text-xs font-bold text-foreground/80 shadow-sm"
+                              onClick={() => setShowChangePassword(true)}
+                              type="button"
+                            >
+                              {copy.settings.profile.changePassword || (lang === "ru" ? "Сменить пароль" : "Change password")}
+                            </button>
+                          ) : (
+                            <form onSubmit={handleChangePassword} className="p-3 rounded-2xl bg-surface-strong border border-border flex flex-col gap-2.5">
+                              <h3 className="text-xs font-bold text-foreground">{lang === "ru" ? "Смена пароля" : "Change Password"}</h3>
+                              
+                              <div>
+                                <label className="block text-[10px] text-foreground/45 uppercase font-bold mb-1">{lang === "ru" ? "Текущий пароль" : "Current Password"}</label>
+                                <input
+                                  type="password"
+                                  className="w-full min-h-9 px-3 rounded-xl border border-border/80 bg-background/50 text-xs font-medium text-foreground focus:outline-none focus:border-accent"
+                                  value={currentPassword}
+                                  onChange={(e) => setCurrentPassword(e.target.value)}
+                                  disabled={passwordLoading}
+                                  required
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-[10px] text-foreground/45 uppercase font-bold mb-1">{lang === "ru" ? "Новый пароль" : "New Password"}</label>
+                                <input
+                                  type="password"
+                                  className="w-full min-h-9 px-3 rounded-xl border border-border/80 bg-background/50 text-xs font-medium text-foreground focus:outline-none focus:border-accent"
+                                  value={newPassword}
+                                  onChange={(e) => setNewPassword(e.target.value)}
+                                  disabled={passwordLoading}
+                                  required
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-[10px] text-foreground/45 uppercase font-bold mb-1">{lang === "ru" ? "Подтвердите пароль" : "Confirm Password"}</label>
+                                <input
+                                  type="password"
+                                  className="w-full min-h-9 px-3 rounded-xl border border-border/80 bg-background/50 text-xs font-medium text-foreground focus:outline-none focus:border-accent"
+                                  value={confirmPassword}
+                                  onChange={(e) => setConfirmPassword(e.target.value)}
+                                  disabled={passwordLoading}
+                                  required
+                                />
+                              </div>
+
+                              {passwordError && (
+                                <p className="text-[10px] text-rose-500 font-medium">{passwordError}</p>
+                              )}
+
+                              <div className="flex gap-2 mt-1">
+                                <button
+                                  type="submit"
+                                  disabled={passwordLoading}
+                                  className="flex-1 min-h-8 rounded-xl bg-accent text-accent-foreground text-[11px] font-bold hover:bg-accent/95 transition flex items-center justify-center disabled:opacity-50"
+                                >
+                                  {passwordLoading ? (lang === "ru" ? "Сохранение..." : "Saving...") : (lang === "ru" ? "Сохранить" : "Save")}
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={passwordLoading}
+                                  onClick={() => {
+                                    setShowChangePassword(false);
+                                    setCurrentPassword("");
+                                    setNewPassword("");
+                                    setConfirmPassword("");
+                                    setPasswordError("");
+                                  }}
+                                  className="flex-1 min-h-8 rounded-xl border border-border bg-background text-foreground/80 text-[11px] font-bold hover:bg-surface-strong transition flex items-center justify-center"
+                                >
+                                  {lang === "ru" ? "Отмена" : "Cancel"}
+                                </button>
+                              </div>
+                            </form>
+                          )}
+                        </>
                       )}
                       
                       <button

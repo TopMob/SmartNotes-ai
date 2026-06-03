@@ -41,7 +41,14 @@ export function useNoteDetails(noteId: string | null) {
     queryKey: noteId ? queryKeys.noteDetail(userId, noteId) : ["note-detail", userId, "idle"],
     queryFn: () => (noteId ? notesRepository.getById(noteId) : Promise.resolve(null)),
     enabled: authStatus !== "loading" && Boolean(noteId),
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchInterval: (query) => {
+      const note = query.state.data;
+      if (note && (note.aiStatus === "analyzing" || note.aiStatus === "pending")) {
+        return 2000;
+      }
+      return false;
+    },
   });
 }
 

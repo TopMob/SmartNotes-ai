@@ -433,6 +433,7 @@ export async function chatRoutes(server: FastifyInstance) {
         const rawCompletion = await callLLM(customizedSystemPrompt, userPrompt, {
           max_tokens: 1500,
           temperature: 0.2,
+          responseFormat: { type: "json_object" },
         });
         const cleaned = cleanJsonResponse(rawCompletion);
         const parsed = parseAiResponse(JSON.parse(cleaned));
@@ -443,7 +444,7 @@ export async function chatRoutes(server: FastifyInstance) {
         const rawCompletion = await callLLM(
           customizedSystemPrompt + "\nIMPORTANT: You must output ONLY a valid JSON object matching the schema. If you fail, just reply with a JSON containing 'answer' string and 'actions' empty array.",
           userPrompt,
-          { max_tokens: 1024 }
+          { max_tokens: 1024, responseFormat: { type: "json_object" } }
         );
         try {
           const cleaned = cleanJsonResponse(rawCompletion);
