@@ -1,126 +1,47 @@
 import type { MediaDescriptor } from "@/entities/note";
 import { compressImage } from "@/shared/utils/image-compression";
 import { setMediaDiagnostic } from "@/services/diagnostics/runtime-diagnostics";
-import { createId } from "./note-utils";
-
-import { storeLocalMedia } from "@/shared/utils/local-media-db";
+import {
+  GoogleDriveStorageProvider,
+  SupabaseStorageProvider,
+  IndexedDbStorageProvider,
+  type StorageProvider
+} from "./storage-providers";
 
 export async function createLocalInlineMediaDescriptor(file: File): Promise<MediaDescriptor> {
-  const fileId = createId();
-  
-  // Store compressed File (Blob) in IndexedDB under the unique fileId key
-  await storeLocalMedia(fileId, file);
-
-  const localUrl = `local-media:${fileId}`;
-
-  return {
-    id: createId(),
-    provider: "local-inline",
-    fileId,
-    url: localUrl,
-    mimeType: file.type || "application/octet-stream",
-    name: file.name || "Upload",
-    size: file.size,
-    thumbnailUrl: file.type.startsWith("image/") ? localUrl : null,
-  };
+  const provider = new IndexedDbStorageProvider();
+  return provider.upload(file);
 }
 
 export async function uploadMediaFile(file: File, noteId: string, isGoogleUser?: boolean): Promise<MediaDescriptor> {
-  // 1. Compress image client-side before uploading (aims for under 500KB)
   const compressedFile = await compressImage(file);
-
   const isGdriveDisabled = typeof window !== "undefined" && window.localStorage.getItem("smartnotes:disable-google-drive") === "true";
 
-  // Attempt Google Drive upload if not explicitly disabled by the user
+  const providers: StorageProvider[] = [];
   if (!isGdriveDisabled) {
-    const formData = new FormData();
-    formData.append("file", compressedFile);
-    formData.append("noteId", noteId);
+    providers.push(new GoogleDriveStorageProvider());
+  }
+  providers.push(new SupabaseStorageProvider());
+  providers.push(new IndexedDbStorageProvider());
 
+  for (const provider of providers) {
     try {
-      const response = await fetch("/api/media/google-drive/upload", {
-        method: "POST",
-        body: formData,
+      const descriptor = await provider.upload(compressedFile, noteId);
+      
+      setMediaDiagnostic({
+        provider: provider.name,
+        degraded: provider.name === "local-inline",
+        message: `Successfully uploaded ${file.name} to ${provider.name}.`,
       });
 
-      if (response.ok) {
-        setMediaDiagnostic({
-          provider: "google-drive",
-          degraded: false,
-          message: `Successfully uploaded ${file.name} to Google Drive.`,
-        });
-        return (await response.json()) as MediaDescriptor;
-      } else {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error || `Upload failed with status ${response.status}`);
-      }
+      return descriptor;
     } catch (error) {
-      console.warn("Failed to upload via Google Drive proxy, trying Supabase Storage:", error);
-      if (isGoogleUser) {
+      console.warn(`Failed to upload to ${provider.name}, trying next provider:`, error);
+      if (provider.name === "google-drive" && isGoogleUser) {
         throw error;
       }
     }
   }
 
-  // 2. Upload to Supabase Storage (Object Storage) if user is authenticated
-  try {
-    const { useAuthStore } = await import("@/features/auth/model/auth-store");
-    const user = useAuthStore.getState().user;
-    const userId = user?.id;
-
-    if (userId && userId !== "local-user" && !userId.startsWith("guest-")) {
-      const { createSupabaseBrowserClient } = await import("@/shared/api/supabase/client");
-      const supabase = createSupabaseBrowserClient();
-
-      if (supabase) {
-        const fileExt = compressedFile.name.split(".").pop() || "jpg";
-        const randomName = `${crypto.randomUUID()}.${fileExt}`;
-        const filePath = `${userId}/${randomName}`;
-
-        const { error } = await supabase.storage
-          .from("note-images")
-          .upload(filePath, compressedFile, {
-            cacheControl: "3600",
-            upsert: false,
-          });
-
-        if (error) {
-          throw error;
-        }
-
-        const { data: { publicUrl } } = supabase.storage
-          .from("note-images")
-          .getPublicUrl(filePath);
-
-        setMediaDiagnostic({
-          provider: "supabase",
-          degraded: false,
-          message: `Successfully uploaded ${file.name} to Supabase Storage.`,
-        });
-
-        return {
-          id: createId(),
-          provider: "supabase",
-          fileId: randomName,
-          url: publicUrl,
-          mimeType: compressedFile.type || "application/octet-stream",
-          name: compressedFile.name || "Upload",
-          size: compressedFile.size,
-          thumbnailUrl: compressedFile.type.startsWith("image/") ? publicUrl : null,
-        };
-      }
-    }
-  } catch (error) {
-    console.error("Failed to upload to Supabase Storage, falling back to local-inline:", error);
-  }
-
-  // 3. Ultimate fallback: store image offline/locally in IndexedDB
-  setMediaDiagnostic({
-    provider: "local-inline",
-    degraded: true,
-    message: `Stored image locally in IndexedDB.`,
-  });
-
-  return createLocalInlineMediaDescriptor(compressedFile);
+  throw new Error("All upload providers failed");
 }
-
