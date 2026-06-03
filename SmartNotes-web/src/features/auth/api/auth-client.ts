@@ -129,8 +129,11 @@ export async function sendPasswordReset(email: string) {
     throw new Error("Supabase runtime config не задан. Сброс пароля недоступен в локальном режиме.");
   }
 
+  const redirectBase = getAuthRedirectTo();
+  const redirectTo = redirectBase ? `${redirectBase}?next=/reset-password` : undefined;
+
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: getAuthRedirectTo(),
+    redirectTo,
   });
 
   if (error) {
