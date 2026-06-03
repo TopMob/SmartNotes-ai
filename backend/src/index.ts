@@ -5,6 +5,7 @@ import { chatRoutes } from "./routes/chat.js";
 import { analyzeRoutes } from "./routes/analyze.js";
 
 dotenv.config();
+dotenv.config({ path: "../.env" });
 
 const PORT = parseInt(process.env.PORT || "8081", 10);
 const HOST = process.env.HOST || "0.0.0.0";
