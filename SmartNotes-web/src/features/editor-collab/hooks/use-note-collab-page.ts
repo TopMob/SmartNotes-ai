@@ -5,6 +5,7 @@ import * as Y from "yjs";
 import type { NotePage } from "@/entities/note";
 import { NOTE_COLLAB_ROOT_KEY } from "@/features/editor-collab/lib/note-collab-constants";
 import { createInitialPage, createId, trimPageTitle } from "@/features/notes/lib/note-utils";
+import { setYText } from "@/features/editor-collab/model/yjs-note-doc";
 
 import { useNoteCollabSession, useNoteCollabSnapshot } from "./use-note-collab-session";
 
@@ -68,13 +69,7 @@ export function useNoteCollabPage(pageIndex: number) {
     const content = getPageContent(yPage);
 
     doc.transact(() => {
-      if (content.length > 0) {
-        content.delete(0, content.length);
-      }
-
-      if (value) {
-        content.insert(0, value);
-      }
+      setYText(content, value);
     }, "note-doc:set-page-content");
   }
 

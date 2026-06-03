@@ -30,17 +30,34 @@ function createYText(value = "") {
   return text;
 }
 
-function setYText(target: Y.Text, value: string) {
-  if (target.toString() === value) {
+export function setYText(target: Y.Text, value: string) {
+  const oldText = target.toString();
+  if (oldText === value) {
     return;
   }
 
-  if (target.length > 0) {
-    target.delete(0, target.length);
+  let commonPrefix = 0;
+  while (commonPrefix < oldText.length && commonPrefix < value.length && oldText[commonPrefix] === value[commonPrefix]) {
+    commonPrefix++;
   }
 
-  if (value) {
-    target.insert(0, value);
+  let commonSuffix = 0;
+  while (
+    commonSuffix < oldText.length - commonPrefix &&
+    commonSuffix < value.length - commonPrefix &&
+    oldText[oldText.length - 1 - commonSuffix] === value[value.length - 1 - commonSuffix]
+  ) {
+    commonSuffix++;
+  }
+
+  const deleteCount = oldText.length - commonPrefix - commonSuffix;
+  const insertText = value.slice(commonPrefix, value.length - commonSuffix);
+
+  if (deleteCount > 0) {
+    target.delete(commonPrefix, deleteCount);
+  }
+  if (insertText.length > 0) {
+    target.insert(commonPrefix, insertText);
   }
 }
 

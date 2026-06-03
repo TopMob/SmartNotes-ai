@@ -318,12 +318,23 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
 
   const lastPageIdRef = useRef(currentPage.id);
   useEffect(() => {
-    if (status !== "ready" || !editor) return;
+    if (status !== "ready" || !editor || editor.isDestroyed) return;
+
+    const editorContent = editor.getHTML();
+    const remoteContent = plainTextToEditorContent(currentPage.content);
 
     if (!isHydratedRef.current || currentPage.id !== lastPageIdRef.current) {
       isHydratedRef.current = true;
       lastPageIdRef.current = currentPage.id;
-      editor.commands.setContent(plainTextToEditorContent(currentPage.content), { emitUpdate: false });
+      editor.commands.setContent(remoteContent, { emitUpdate: false });
+    } else if (editorContent !== remoteContent) {
+      const { from, to } = editor.state.selection;
+      editor.commands.setContent(remoteContent, { emitUpdate: false });
+      const maxPos = editor.state.doc.content.size;
+      editor.commands.setTextSelection({
+        from: Math.min(from, maxPos),
+        to: Math.min(to, maxPos),
+      });
     }
   }, [status, currentPage.id, currentPage.content, editor]);
 

@@ -3,6 +3,7 @@
 import * as Y from "yjs";
 
 import { NOTE_COLLAB_ROOT_KEY } from "@/features/editor-collab/lib/note-collab-constants";
+import { setYText } from "@/features/editor-collab/model/yjs-note-doc";
 
 import { useNoteCollabSession, useNoteCollabSnapshot } from "./use-note-collab-session";
 
@@ -38,13 +39,7 @@ export function useNoteTitleTags() {
     const title = getTitle(doc);
 
     doc.transact(() => {
-      if (title.length > 0) {
-        title.delete(0, title.length);
-      }
-
-      if (value) {
-        title.insert(0, value);
-      }
+      setYText(title, value);
     }, "note-doc:set-title");
   }
 
