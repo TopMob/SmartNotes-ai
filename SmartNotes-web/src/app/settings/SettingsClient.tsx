@@ -13,9 +13,11 @@ import {
   SlidersHorizontal,
   Type,
   UserRound,
+  RefreshCw,
+  Trash2,
 } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 
 import type { CustomThemePreset, EditorToolKey } from "@/entities/settings";
 import { useAuthActions } from "@/features/auth/hooks/use-auth-actions";
@@ -26,12 +28,14 @@ import { useNotesFlat } from "@/features/notes/hooks/use-notes-query";
 import { parseImportedNotesFile } from "@/features/notes/lib/note-import";
 import { useSettingsActions } from "@/features/settings/hooks/use-settings-mutations";
 import { useSettingsQuery } from "@/features/settings/hooks/use-settings-query";
-import { publish } from "@/services/event-bus";
+import { publish, subscribe } from "@/services/event-bus";
 import { downloadTextFile, safeFileName } from "@/features/app-shell/ui/components/shared";
 import { getUiCopy } from "@/shared/lib/i18n";
 import { useUiStore } from "@/shared/store/ui-store";
 import { isAdminUser } from "@/features/auth/lib/admin-acl";
 import { createSupabaseBrowserClient } from "@/shared/api/supabase/client";
+import { listSyncQueue, clearSyncQueue, removeSyncItem, type SyncQueueItem } from "@/services/sync/sync-queue";
+import { processSyncQueue } from "@/services/sync/sync-consumer";
 
 import { Panel } from "./components/Panel";
 import { SectionIntro } from "./components/SectionIntro";
@@ -84,6 +88,33 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
   const [avatarUrl, setAvatarUrl] = useState(user?.photoURL ?? "");
   const [uidCopied, setUidCopied] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
+
+  const [compression, setCompression] = useState(() => {
+    if (typeof window !== "undefined") {
+      return window.localStorage.getItem("smartnotes:media-compression") || "medium";
+    }
+    return "medium";
+  });
+
+  function handleSetCompression(level: string) {
+    setCompression(level);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("smartnotes:media-compression", level);
+    }
+  }
+
+  const [syncQueue, setSyncQueue] = useState<SyncQueueItem[]>([]);
+  useEffect(() => {
+    setSyncQueue(listSyncQueue());
+    const unsubQueued = subscribe("syncQueued", () => setSyncQueue(listSyncQueue()));
+    const unsubCompleted = subscribe("syncCompleted", () => setSyncQueue(listSyncQueue()));
+    const unsubFailed = subscribe("syncFailed", () => setSyncQueue(listSyncQueue()));
+    return () => {
+      unsubQueued();
+      unsubCompleted();
+      unsubFailed();
+    };
+  }, []);
 
   const lang = settings?.lang ?? "ru";
   const copy = getUiCopy(lang);
@@ -711,6 +742,112 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                           : (lang === "ru" ? "Отключить интеграцию с Диском" : "Disable Drive Integration")}
                       </button>
                     </div>
+                  </div>
+
+                  <div className="h-px bg-border" />
+
+                  <div>
+                    <span className="block text-xs font-black uppercase tracking-[0.18em] text-foreground/42">
+                      {lang === "ru" ? "Степень сжатия изображений" : "Image Compression Quality"}
+                    </span>
+                    <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      {([
+                        ["low", lang === "ru" ? "Низкое" : "Low"],
+                        ["medium", lang === "ru" ? "Среднее" : "Medium"],
+                        ["high", lang === "ru" ? "Высокое" : "High"],
+                        ["original", lang === "ru" ? "Оригинал" : "Original"]
+                      ] as const).map(([level, label]) => (
+                        <button
+                          key={level}
+                          onClick={() => handleSetCompression(level)}
+                          className={`flex min-h-10 items-center justify-center rounded-xl border px-3 py-2 text-xs font-bold transition ${
+                            compression === level 
+                              ? "border-accent bg-accent/10 text-accent" 
+                              : "border-border bg-background hover:bg-surface-strong text-foreground/72"
+                          }`}
+                          type="button"
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="mt-1.5 text-xs leading-relaxed text-foreground/50">
+                      {lang === "ru"
+                        ? "Определяет качество и размер изображений при загрузке в облако. Низкое и среднее качество существенно экономят место."
+                        : "Controls the size and quality of uploaded images. Low and Medium compression levels conserve storage capacity significantly."}
+                    </p>
+                  </div>
+                </div>
+              </Panel>
+
+              <Panel title={lang === "ru" ? "Диагностика синхронизации" : "Sync Diagnostics"}>
+                <div className="rounded-[1.2rem] border border-border bg-surface-strong p-4 text-sm text-foreground/58 space-y-4">
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => void processSyncQueue()}
+                      className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-accent px-4 py-2 text-xs font-bold text-accent-foreground transition hover:bg-accent/90"
+                      type="button"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" />
+                      {lang === "ru" ? "Синхронизировать сейчас" : "Sync Now"}
+                    </button>
+                    {syncQueue.length > 0 && (
+                      <button
+                        onClick={() => {
+                          clearSyncQueue();
+                          setSyncQueue([]);
+                        }}
+                        className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition text-xs font-bold px-4 py-2"
+                        type="button"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        {lang === "ru" ? "Очистить очередь" : "Clear Queue"}
+                      </button>
+                    )}
+                  </div>
+
+                  <div>
+                    <span className="block text-xs font-black uppercase tracking-[0.18em] text-foreground/42">
+                      {lang === "ru" ? "Очередь отложенной синхронизации" : "Pending Sync Queue"}
+                    </span>
+                    {syncQueue.length === 0 ? (
+                      <p className="mt-2 text-xs text-foreground/48">
+                        {lang === "ru" ? "Все данные синхронизированы с облаком." : "All local changes are fully synced."}
+                      </p>
+                    ) : (
+                      <div className="mt-2 space-y-2 max-h-60 overflow-y-auto pr-1">
+                        {syncQueue.map((item) => (
+                          <div key={item.id + item.operation} className="flex items-center justify-between p-2.5 rounded-xl border border-border bg-background text-xs">
+                            <div className="min-w-0 flex-1 pr-3">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-bold text-foreground capitalize">{item.entity}</span>
+                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-black uppercase ${
+                                  item.operation === "create" ? "bg-emerald-500/15 text-emerald-500" :
+                                  item.operation === "patch" ? "bg-amber-500/15 text-amber-500" :
+                                  "bg-rose-500/15 text-rose-500"
+                                }`}>
+                                  {item.operation}
+                                </span>
+                              </div>
+                              <div className="text-[10px] text-foreground/42 mt-0.5 truncate">
+                                ID: {item.id} • {new Date(item.createdAt).toLocaleString(lang === "ru" ? "ru-RU" : "en-US")}
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => {
+                                removeSyncItem(item.id);
+                                setSyncQueue(listSyncQueue());
+                              }}
+                              className="p-1.5 text-foreground/42 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition"
+                              type="button"
+                              title={lang === "ru" ? "Удалить" : "Delete"}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </Panel>

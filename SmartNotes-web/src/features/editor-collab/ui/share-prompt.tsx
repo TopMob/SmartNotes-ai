@@ -64,8 +64,8 @@ export function SharePrompt({ id, title, ownerId, type, onClose }: SharePromptPr
         ? await collabRepository.fetchFolderPendingInvites(id)
         : await collabRepository.fetchPendingInvites(id);
       setPendingInvites(invites);
-    } catch (err: unknown) {
-      setErrorMsg(err instanceof Error ? err.message : "Не удалось отправить приглашение.");
+    } catch (err: any) {
+      setErrorMsg(err?.message || "Не удалось отправить приглашение.");
     } finally {
       setActionLoading(false);
     }

@@ -63,3 +63,12 @@ export function clearSyncQueue() {
   queue.length = 0;
   persistQueue(queue);
 }
+
+export function removeSyncItem(id: string) {
+  const index = queue.findIndex((item) => item.id === id);
+  if (index >= 0) {
+    queue.splice(index, 1);
+    persistQueue(queue);
+  }
+}
+

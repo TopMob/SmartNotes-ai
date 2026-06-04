@@ -1,4 +1,4 @@
-import { Pencil, Star, X, Copy, Users, FolderOpen, Bell, Archive, Lock, Unlock, Download, Trash2, Eye, EyeOff, FileText, type LucideIcon } from "lucide-react";
+import { Pencil, Star, X, Copy, Users, FolderOpen, Bell, Archive, Lock, Unlock, Download, Trash2, Eye, EyeOff, FileText, Check, type LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import type { Folder as FolderEntity } from "@/entities/folder";
@@ -84,7 +84,7 @@ export function BottomSheet({ sheet, activeFolder, isDesktop, onClose, onCloseWi
 
     return (
       <section
-        className={`absolute border border-border bg-surface p-4 shadow-2xl shadow-violet-950/20 backdrop-blur-2xl ${mobileSheet ? "inset-3 max-h-[calc(100vh-1.5rem)] overflow-y-auto rounded-[2rem]" : name === "note" || name === "about" || name === "share" || name === "share-folder" ? "left-1/2 top-1/2 w-[min(92vw,32rem)] max-h-[86vh] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[2rem]" : anchor ? "w-[min(92vw,24rem)] max-h-[82vh] overflow-y-auto rounded-[1.8rem]" : topSheet ? "inset-x-0 top-0 max-h-[86vh] overflow-y-auto rounded-b-[2rem] lg:left-1/2 lg:top-4 lg:w-[min(94vw,48rem)] lg:-translate-x-1/2 lg:rounded-[2rem]" : "inset-x-0 bottom-0 max-h-[86vh] overflow-y-auto rounded-t-[2rem] lg:inset-auto lg:bottom-6 lg:right-6 lg:w-[420px] lg:rounded-[2rem]"} ${animationClass}`}
+        className={`absolute border border-border bg-surface p-4 shadow-2xl shadow-violet-950/20 ${mobileSheet ? "inset-3 max-h-[calc(100vh-1.5rem)] overflow-y-auto rounded-[2rem]" : name === "note" || name === "about" || name === "share" || name === "share-folder" ? "left-1/2 top-1/2 w-[min(92vw,32rem)] max-h-[86vh] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[2rem]" : anchor ? "w-[min(92vw,24rem)] max-h-[82vh] overflow-y-auto rounded-[1.8rem]" : topSheet ? "inset-x-0 top-0 max-h-[86vh] overflow-y-auto rounded-b-[2rem] lg:left-1/2 lg:top-4 lg:w-[min(94vw,48rem)] lg:-translate-x-1/2 lg:rounded-[2rem]" : "inset-x-0 bottom-0 max-h-[86vh] overflow-y-auto rounded-t-[2rem] lg:inset-auto lg:bottom-6 lg:right-6 lg:w-[420px] lg:rounded-[2rem]"} ${animationClass}`}
         style={isPositioned ? { left: `${anchor.x}px`, top: `${anchor.y}px`, transform: `translate(-50%, ${anchor.placement === "above" ? "-100%" : "0"})` } : undefined}
       >
         <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-foreground/18 lg:hidden" />
@@ -155,6 +155,19 @@ function NoteActionSheet({ copy, onOpenSheet, onClose, onCloseEditor }: { copy: 
   const dlgs = copy.shell.dialogs;
   const [lockModalOpen, setLockModalOpen] = useState(false);
 
+  const [copied, setCopied] = useState(false);
+
+  async function handleCopy() {
+    if (!note) return;
+    try {
+      await copyNoteText(note);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
   if (!currentNoteId || !note) {
     return null;
   }
@@ -175,9 +188,10 @@ function NoteActionSheet({ copy, onOpenSheet, onClose, onCloseEditor }: { copy: 
       ) : (
         <div className="grid grid-cols-4 gap-2">
           <GridActionBtn
-            icon={Copy}
-            label={dlgs?.copyText || "Копировать"}
-            onClick={() => void copyNoteText(note)}
+            icon={copied ? Check : Copy}
+            label={copied ? (lang === "ru" ? "Скопировано" : "Copied") : (dlgs?.copyText || "Копировать")}
+            onClick={handleCopy}
+            active={copied}
           />
           <GridActionBtn
             icon={Users}
