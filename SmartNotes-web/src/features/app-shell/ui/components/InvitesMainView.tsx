@@ -1,7 +1,5 @@
-"use client";
-
-import { Check, X, Users, Mail, Bookmark, Folder } from "lucide-react";
-import React from "react";
+import { Check, X, Users, Mail, Bookmark, Folder, Loader2 } from "lucide-react";
+import React, { useState } from "react";
 
 import { useAuthStore } from "@/features/auth/model/auth-store";
 import { collabRepository } from "@/features/editor-collab/api/collab-repository";
@@ -10,6 +8,7 @@ import { getUiCopy } from "@/shared/lib/i18n";
 import { Button } from "@/shared/ui/button";
 import { useQueryClient } from "@tanstack/react-query";
 import { useInvitesQuery } from "@/features/notes/hooks/use-notes-query";
+import { queryKeys } from "@/shared/lib/react-query/query-keys";
 
 type HeaderInvite = {
   id: string;
@@ -34,28 +33,39 @@ export function InvitesMainView({ onRefreshInvites }: InvitesMainViewProps) {
   const copy = getUiCopy(lang);
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
+  const [processingId, setProcessingId] = useState<string | null>(null);
 
   const { data: myInvites = [], isLoading } = useInvitesQuery();
 
   async function handleAcceptInvite(invite: HeaderInvite) {
-    if (!user) return;
+    if (!user || processingId) return;
+    setProcessingId(invite.id);
     try {
       await collabRepository.acceptInviteByToken(invite.token, user.id, invite.type);
-      void queryClient.invalidateQueries({ queryKey: ["invites"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["invites"] }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.folders(user.id) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.notes(user.id) }),
+      ]);
       onRefreshInvites?.();
-      window.location.reload();
     } catch (err) {
       console.error(err);
+    } finally {
+      setProcessingId(null);
     }
   }
 
   async function handleRejectInvite(invite: HeaderInvite) {
+    if (processingId) return;
+    setProcessingId(invite.id);
     try {
       await collabRepository.rejectInviteByToken(invite.token, invite.type);
-      void queryClient.invalidateQueries({ queryKey: ["invites"] });
+      await queryClient.invalidateQueries({ queryKey: ["invites"] });
       onRefreshInvites?.();
     } catch (err) {
       console.error(err);
+    } finally {
+      setProcessingId(null);
     }
   }
 
@@ -128,7 +138,7 @@ export function InvitesMainView({ onRefreshInvites }: InvitesMainViewProps) {
               <div className="mt-3 flex items-center gap-2 text-xs text-foreground/54">
                 <Mail className="h-3.5 w-3.5 shrink-0 text-foreground/34" />
                 <span className="truncate" title={invite.inviterEmail}>
-                  {(dlgs?.collabInviteFrom || "От") + ": " + invite.inviterEmail}
+                  {(dlgs?.collabInviteFrom || "От") + ": " + (invite.inviterName ? `${invite.inviterName} (${invite.inviterEmail})` : invite.inviterEmail)}
                 </span>
               </div>
             </div>
@@ -136,14 +146,20 @@ export function InvitesMainView({ onRefreshInvites }: InvitesMainViewProps) {
             <div className="mt-5 flex gap-2">
               <Button
                 onClick={() => void handleAcceptInvite(invite)}
+                disabled={processingId !== null}
                 className="flex-1 rounded-xl h-10 text-xs font-black bg-accent text-accent-foreground hover:bg-accent/90 transition-all flex items-center justify-center gap-1.5"
                 type="button"
               >
-                <Check className="h-4 w-4" />
+                {processingId === invite.id ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Check className="h-4 w-4" />
+                )}
                 {dlgs?.collabAccept || "Принять"}
               </Button>
               <Button
                 onClick={() => void handleRejectInvite(invite)}
+                disabled={processingId !== null}
                 className="rounded-xl h-10 border border-border bg-background px-4 text-xs font-bold text-foreground/64 hover:bg-surface-strong transition-all flex items-center justify-center gap-1.5"
                 type="button"
                 variant="secondary"
