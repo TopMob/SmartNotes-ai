@@ -342,6 +342,21 @@ section,
   backdrop-filter: blur(18px);
   display: flex;
   flex-direction: column;
+  position: relative;
+}
+
+.sidebar-glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: var(--sidebar-background-url);
+  background-position: center;
+  background-size: cover;
+  opacity: var(--ui-opacity);
+  mix-blend-mode: soft-light;
+  pointer-events: none;
+  border-right: inherit;
 }
 
 .main-content {

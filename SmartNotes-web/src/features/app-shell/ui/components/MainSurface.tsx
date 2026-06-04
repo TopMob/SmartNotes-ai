@@ -50,7 +50,7 @@ export function MainSurface({ copy, view, folders, hiddenFolders, trashedFolders
 
   if (view === "invites") {
     return (
-      <section className="panel-card flex flex-col flex-1 min-h-0 border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl">
+      <section className="flex flex-col flex-1 min-h-0">
         <InvitesMainView onRefreshInvites={onRefreshInvites} />
       </section>
     );
@@ -59,7 +59,7 @@ export function MainSurface({ copy, view, folders, hiddenFolders, trashedFolders
   if (view === "admin_tools") {
     if (!isAdminUser(user?.email)) {
       return (
-        <section className="panel-card flex flex-col flex-1 min-h-0 border-t border-border bg-surface/88 p-6 shadow-xl backdrop-blur-2xl flex items-center justify-center text-center">
+        <section className="flex flex-col flex-1 min-h-0 p-6 flex items-center justify-center text-center">
           <div>
             <h2 className="text-xl font-black text-rose-500">Доступ ограничен</h2>
             <p className="mt-2 text-sm text-foreground/56">Вы не имеете прав для просмотра этого раздела.</p>
@@ -67,27 +67,27 @@ export function MainSurface({ copy, view, folders, hiddenFolders, trashedFolders
         </section>
       );
     }
-    return <section className="panel-card flex flex-col flex-1 min-h-0 border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><AdminToolsView notes={notes} /></section>;
+    return <section className="flex flex-col flex-1 min-h-0"><AdminToolsView notes={notes} /></section>;
   }
 
   if (view === "hidden_folders") {
-    return <section className="panel-card flex flex-col flex-1 min-h-0 border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><FoldersGrid emptyText={copy.shell.hiddenFolders} folderViewMode={folderViewMode} folders={hiddenFolders} mode="hidden" onOpenFolder={onOpenFolder} /></section>;
+    return <section className="flex flex-col flex-1 min-h-0"><FoldersGrid emptyText={copy.shell.hiddenFolders} folderViewMode={folderViewMode} folders={hiddenFolders} mode="hidden" onOpenFolder={onOpenFolder} /></section>;
   }
 
   if (view === "folders") {
-    return <section className="panel-card flex flex-col flex-1 min-h-0 border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><FoldersGrid emptyText={copy.shell.folders} folderViewMode={folderViewMode} folders={folders} mode="active" onOpenFolder={onOpenFolder} /></section>;
+    return <section className="flex flex-col flex-1 min-h-0"><FoldersGrid emptyText={copy.shell.folders} folderViewMode={folderViewMode} folders={folders} mode="active" onOpenFolder={onOpenFolder} /></section>;
   }
 
   if (view === "trash") {
-    return <section className="panel-card flex flex-col flex-1 min-h-0 border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><TrashView copy={copy} notes={notes} notesPerPage={notesPerPage} onOpenNote={onOpenNote} onOpenSheet={onOpenSheet} trashedFolders={trashedFolders} /></section>;
+    return <section className="flex flex-col flex-1 min-h-0"><TrashView copy={copy} notes={notes} notesPerPage={notesPerPage} onOpenNote={onOpenNote} onOpenSheet={onOpenSheet} trashedFolders={trashedFolders} /></section>;
   }
 
   if (view === "folder" && activeFolder) {
-    return <section className="panel-card flex flex-col flex-1 min-h-0 border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl"><NotesView copy={copy} emptyText={copy.shell.prompts.noMatches} notes={notes} semanticLoading={semanticLoading} semanticNotes={semanticNotes} notesPerPage={notesPerPage} onOpenNote={onOpenNote} onOpenSheet={onOpenSheet} title={activeFolder.name} view={view} /></section>;
+    return <section className="flex flex-col flex-1 min-h-0"><NotesView copy={copy} emptyText={copy.shell.prompts.noMatches} notes={notes} semanticLoading={semanticLoading} semanticNotes={semanticNotes} notesPerPage={notesPerPage} onOpenNote={onOpenNote} onOpenSheet={onOpenSheet} title={activeFolder.name} view={view} /></section>;
   }
 
   return (
-    <section className="panel-card flex flex-col flex-1 min-h-0 border-t border-border bg-surface/88 shadow-xl shadow-violet-950/5 backdrop-blur-2xl">
+    <section className="flex flex-col flex-1 min-h-0">
       <NotesView
         copy={copy}
         emptyText="Здесь пока пусто"
