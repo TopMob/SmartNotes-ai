@@ -1,11 +1,11 @@
 import type { Note } from "@/entities/note";
 
-export type SheetName = "folder" | "note" | "pages" | "lock" | "about" | "create-folder" | "reminder" | "admin-tools" | "share" | "invites" | null;
+export type SheetName = "folder" | "note" | "pages" | "lock" | "about" | "create-folder" | "reminder" | "admin-tools" | "share" | "share-folder" | "invites" | null;
 export type SheetAnchor = { x: number; y: number; placement: "above" | "below" };
 export type SheetState = { name: Exclude<SheetName, null>; anchor: SheetAnchor | null } | null;
 
-import { escapeHtml, stripHtml } from "@/shared/utils/string";
-export { escapeHtml, stripHtml };
+import { escapeHtml, stripHtml, htmlToPlainText } from "@/shared/utils/string";
+export { escapeHtml, stripHtml, htmlToPlainText };
 
 //
 
@@ -23,10 +23,10 @@ export function getSheetAnchor(rect: DOMRect): SheetAnchor {
 }
 
 export function getNotePlainText(note: Note) {
-  return stripHtml([
+  return [
     note.title,
-    ...note.pages.map((page) => `${page.title}\n${stripHtml(page.content)}`),
-  ].filter(Boolean).join("\n\n"));
+    ...note.pages.map((page) => `${page.title}\n${htmlToPlainText(page.content)}`),
+  ].filter(Boolean).join("\n\n");
 }
 
 export function downloadTextFile(filename: string, content: string, mimeType = "text/plain;charset=utf-8") {
@@ -63,7 +63,7 @@ export function exportNoteAsTxt(note: Note) {
       lines.push(`Страница ${index + 1}${page.title ? `: ${page.title}` : ""}`);
       lines.push("=".repeat(20));
     }
-    lines.push(stripHtml(page.content));
+    lines.push(htmlToPlainText(page.content));
     lines.push("");
   });
 
@@ -93,19 +93,33 @@ export function exportNoteAsPdf(note: Note) {
     return;
   }
 
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(note.title || "Note")}</title><style>body{font-family:Arial,sans-serif;padding:32px;max-width:900px;margin:0 auto;color:#111}.meta{color:#666;font-size:12px;text-transform:uppercase;letter-spacing:.12em}.page{margin-top:24px;padding-top:18px;border-top:1px solid #ddd}.content{white-space:pre-wrap;line-height:1.6}</style></head><body><div class="meta">SmartNotes</div><h1>${escapeHtml(note.title || "Без названия")}</h1><div class="content">${escapeHtml(getNotePlainText(note)).replace(/\n/g, "<br>")}</div></body></html>`;
-  const preview = window.open("", "_blank", "noopener,noreferrer");
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "none";
+  document.body.appendChild(iframe);
 
-  if (!preview) {
-    window.alert("Браузер заблокировал popup печати.");
+  const doc = iframe.contentWindow?.document || iframe.contentDocument;
+  if (!doc) {
+    window.alert("Не удалось запустить печать.");
+    document.body.removeChild(iframe);
     return;
   }
 
-  preview.document.open();
-  preview.document.write(html);
-  preview.document.close();
-  preview.focus();
-  preview.print();
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(note.title || "Note")}</title><style>body{font-family:Arial,sans-serif;padding:32px;max-width:900px;margin:0 auto;color:#111}.page{margin-top:24px;padding-top:18px;border-top:1px solid #ddd}.content{white-space:pre-wrap;line-height:1.6}</style></head><body><h1>${escapeHtml(note.title || "Без названия")}</h1><div class="content">${escapeHtml(getNotePlainText(note)).replace(/\n/g, "<br>")}</div></body></html>`;
+
+  doc.open();
+  doc.write(html);
+  doc.close();
+
+  setTimeout(() => {
+    iframe.contentWindow?.focus();
+    iframe.contentWindow?.print();
+    setTimeout(() => {
+      document.body.removeChild(iframe);
+    }, 1000);
+  }, 500);
 }
 
 export async function shareText(title: string, text: string) {
@@ -181,7 +195,6 @@ export function exportNoteAsPng(note: Note) {
   const sectionFont = "bold 20px system-ui, -apple-system, sans-serif";
   const bodyFont = "16px system-ui, -apple-system, sans-serif";
   const tagFont = "bold 14px system-ui, -apple-system, sans-serif";
-  const footerFont = "12px system-ui, -apple-system, sans-serif";
 
   function wrapText(text: string, font: string, maxWidth: number): string[] {
     ctx!.font = font;
@@ -210,7 +223,7 @@ export function exportNoteAsPng(note: Note) {
 
   const wrappedTitle = wrapText(note.title || "Без названия", titleFont, contentWidth);
   
-  type RenderItem = { type: "title" | "section" | "body" | "tag" | "footer"; text: string; height: number };
+  type RenderItem = { type: "title" | "section" | "body" | "tag"; text: string; height: number };
   const items: RenderItem[] = [];
 
   wrappedTitle.forEach(t => items.push({ type: "title", text: t, height: 40 }));
@@ -221,7 +234,7 @@ export function exportNoteAsPng(note: Note) {
     if (totalPages > 1) {
       items.push({ type: "section", text: `Страница ${index + 1}${page.title ? `: ${page.title}` : ""}`, height: 30 });
     }
-    const plainText = stripHtml(page.content);
+    const plainText = htmlToPlainText(page.content);
     const wrappedContent = wrapText(plainText, bodyFont, contentWidth);
     wrappedContent.forEach(t => {
       items.push({ type: "body", text: t, height: 24 });
@@ -235,8 +248,6 @@ export function exportNoteAsPng(note: Note) {
     wrappedTags.forEach(t => items.push({ type: "tag", text: t, height: 24 }));
     items.push({ type: "body", text: "", height: 10 });
   }
-
-  items.push({ type: "footer", text: "Создано в SmartNotes", height: 20 });
 
   let totalHeight = padding * 2;
   items.forEach(item => totalHeight += item.height);
@@ -284,10 +295,6 @@ export function exportNoteAsPng(note: Note) {
       ctx.font = tagFont;
       ctx.fillStyle = "#ff8a1d";
       ctx.fillText(item.text, padding, currentY + 16);
-    } else if (item.type === "footer") {
-      ctx.font = footerFont;
-      ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
-      ctx.fillText(item.text, padding, currentY + 12);
     }
     currentY += item.height;
   });

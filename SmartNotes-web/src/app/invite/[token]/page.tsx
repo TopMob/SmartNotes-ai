@@ -18,6 +18,7 @@ type InviteDetails = {
   role: "owner" | "editor" | "viewer";
   status: "pending" | "accepted" | "rejected";
   expiresAt: string | null;
+  type: "note" | "folder";
 };
 
 export default function InvitePage() {
@@ -75,7 +76,7 @@ export default function InvitePage() {
     if (!currentUser) return;
     setActionLoading(true);
     try {
-      await collabRepository.acceptInviteByToken(token, currentUser.id);
+      await collabRepository.acceptInviteByToken(token, currentUser.id, invite?.type);
       setStatus("success");
       setTimeout(() => {
         router.push("/");
@@ -91,7 +92,7 @@ export default function InvitePage() {
   async function handleReject() {
     setActionLoading(true);
     try {
-      await collabRepository.rejectInviteByToken(token);
+      await collabRepository.rejectInviteByToken(token, invite?.type);
       router.push("/");
     } catch (err) {
       console.error(err);
@@ -106,7 +107,6 @@ export default function InvitePage() {
 
   return (
     <main className="relative grid min-h-screen place-items-center px-4 py-4 sm:px-6 lg:p-6 overflow-hidden bg-background">
-      {/* Glow Effects */}
       <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
         <div className="absolute -top-[10%] left-[5%] h-[35rem] w-[35rem] rounded-full bg-accent/8 opacity-20 blur-[120px]" />
         <div className="absolute -bottom-[10%] right-[5%] h-[35rem] w-[35rem] rounded-full bg-violet-600/8 opacity-20 blur-[120px]" />
@@ -119,7 +119,6 @@ export default function InvitePage() {
           transition={{ duration: 0.4, ease: "easeOut" }}
           className="rounded-[2.2rem] border border-border bg-surface/90 p-6 shadow-2xl shadow-violet-950/10 backdrop-blur-2xl sm:p-8"
         >
-          {/* Header */}
           <div className="flex items-center gap-4 border-b border-border/60 pb-5">
             <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/10 text-accent border border-accent/25">
               <LogoMark className="h-7 w-7" />
@@ -130,7 +129,6 @@ export default function InvitePage() {
             </div>
           </div>
 
-          {/* Loading state */}
           {loading && status === "pending" && (
             <div className="flex flex-col items-center justify-center py-12 text-foreground/56 space-y-4">
               <Loader2 className="h-8 w-8 animate-spin text-accent" />
@@ -138,16 +136,14 @@ export default function InvitePage() {
             </div>
           )}
 
-          {/* Success state */}
           {status === "success" && (
             <div className="flex flex-col items-center justify-center py-10 space-y-4 text-center">
               <CheckCircle2 className="h-14 w-14 text-emerald-400" />
               <h2 className="text-xl font-black text-foreground">Доступ получен!</h2>
-              <p className="text-xs text-foreground/56">Вы успешно присоединились к заметке. Перенаправляем на дашборд...</p>
+              <p className="text-xs text-foreground/56">Вы успешно присоединились к {invite?.type === "folder" ? "папке" : "заметке"}. Перенаправляем на дашборд...</p>
             </div>
           )}
 
-          {/* Error / Expired state */}
           {(status === "error" || status === "expired") && (
             <div className="flex flex-col items-center justify-center py-10 space-y-4 text-center">
               <XCircle className="h-14 w-14 text-rose-400" />
@@ -159,12 +155,11 @@ export default function InvitePage() {
             </div>
           )}
 
-          {/* Pending state details */}
           {!loading && status === "pending" && invite && (
             <div className="py-6 space-y-6">
               <div className="space-y-2.5">
                 <p className="text-sm font-medium text-foreground/64">
-                  Пользователь <span className="font-bold text-foreground">{invite.inviterName || invite.inviterEmail}</span> приглашает вас стать соавтором заметки:
+                  Пользователь <span className="font-bold text-foreground">{invite.inviterName || invite.inviterEmail}</span> приглашает вас стать соавтором {invite.type === "folder" ? "папки" : "заметки"}:
                 </p>
                 <div className="rounded-2xl border border-border bg-surface-strong/60 p-4 text-center shadow-inner">
                   <h3 className="text-lg font-black text-accent">&quot;{invite.noteTitle}&quot;</h3>
@@ -187,7 +182,6 @@ export default function InvitePage() {
                   <Loader2 className="h-6 w-6 animate-spin text-accent" />
                 </div>
               ) : !currentUser ? (
-                /* Unauthenticated view */
                 <div className="space-y-4">
                   <div className="rounded-2xl bg-violet-500/10 border border-violet-500/20 p-3.5 text-xs text-violet-300 leading-relaxed font-medium">
                     Чтобы получить доступ, вам необходимо войти в систему под своим аккаунтом.
@@ -198,7 +192,6 @@ export default function InvitePage() {
                   </Button>
                 </div>
               ) : (
-                /* Authenticated view */
                 <div className="space-y-3 pt-2">
                   <Button
                     onClick={handleAccept}

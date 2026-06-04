@@ -303,3 +303,45 @@ export function useNoteCollabSnapshot(): YNoteDocSnapshot {
 
   return snapshot;
 }
+
+export function useOptionalNoteCollabSnapshot(): YNoteDocSnapshot | null {
+  const value = useContext(NoteCollabSessionContext);
+  const doc = value?.doc;
+  const [snapshot, setSnapshot] = useState(() => doc ? readNoteSnapshotFromYDoc(doc) : null);
+
+  useEffect(() => {
+    if (!doc) return;
+    setSnapshot(readNoteSnapshotFromYDoc(doc));
+
+    let timeoutId: number | null = null;
+
+    const handleUpdate = (_update: Uint8Array, origin: unknown) => {
+      if (origin === "note-doc:set-page-content") {
+        if (timeoutId) {
+          window.clearTimeout(timeoutId);
+        }
+        timeoutId = window.setTimeout(() => {
+          setSnapshot(readNoteSnapshotFromYDoc(doc));
+          timeoutId = null;
+        }, 1000);
+      } else {
+        if (timeoutId) {
+          window.clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        setSnapshot(readNoteSnapshotFromYDoc(doc));
+      }
+    };
+
+    doc.on("update", handleUpdate);
+    return () => {
+      doc.off("update", handleUpdate);
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [doc]);
+
+  return snapshot;
+}
+

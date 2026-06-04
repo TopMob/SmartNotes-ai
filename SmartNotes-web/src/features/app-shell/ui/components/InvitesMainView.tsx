@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, X, Users, Mail, Bookmark } from "lucide-react";
+import { Check, X, Users, Mail, Bookmark, Folder } from "lucide-react";
 import React from "react";
 
 import { useAuthStore } from "@/features/auth/model/auth-store";
@@ -21,6 +21,7 @@ type HeaderInvite = {
   token: string;
   expiresAt: string | null;
   createdAt: string;
+  type: "note" | "folder";
 };
 
 type InvitesMainViewProps = {
@@ -39,7 +40,7 @@ export function InvitesMainView({ onRefreshInvites }: InvitesMainViewProps) {
   async function handleAcceptInvite(invite: HeaderInvite) {
     if (!user) return;
     try {
-      await collabRepository.acceptInviteByToken(invite.token, user.id);
+      await collabRepository.acceptInviteByToken(invite.token, user.id, invite.type);
       void queryClient.invalidateQueries({ queryKey: ["invites"] });
       onRefreshInvites?.();
       window.location.reload();
@@ -50,7 +51,7 @@ export function InvitesMainView({ onRefreshInvites }: InvitesMainViewProps) {
 
   async function handleRejectInvite(invite: HeaderInvite) {
     try {
-      await collabRepository.rejectInviteByToken(invite.token);
+      await collabRepository.rejectInviteByToken(invite.token, invite.type);
       void queryClient.invalidateQueries({ queryKey: ["invites"] });
       onRefreshInvites?.();
     } catch (err) {
@@ -111,9 +112,11 @@ export function InvitesMainView({ onRefreshInvites }: InvitesMainViewProps) {
             className="flex flex-col justify-between rounded-[1.6rem] border border-border bg-surface-strong p-5 shadow-lg shadow-violet-950/4 hover:border-accent/40 transition-colors"
           >
             <div>
-              <div className="flex items-center justify-between gap-2">
+               <div className="flex items-center justify-between gap-2">
                 <span className="inline-flex items-center gap-1.5 rounded-xl bg-accent/12 px-3 py-1 text-xs font-black text-accent uppercase tracking-wider">
-                  <Bookmark className="h-3 w-3" />
+                  {invite.type === "folder" ? <Folder className="h-3 w-3" /> : <Bookmark className="h-3 w-3" />}
+                  {invite.type === "folder" ? (lang === "ru" ? "Папка" : "Folder") : (lang === "ru" ? "Заметка" : "Note")}
+                  {" • "}
                   {invite.role}
                 </span>
               </div>

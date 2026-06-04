@@ -65,24 +65,26 @@ export function BottomSheet({ sheet, activeFolder, isDesktop, onClose, onCloseWi
                 ? copy.shell.reminder
                 : name === "share"
                   ? copy.shell.actions.share
-                  : name === "invites"
-                    ? (lang === "ru" ? "Приглашения совместного доступа" : "Collaboration Invites")
-                    : copy.shell.aboutSheet;
+                  : name === "share-folder"
+                    ? (lang === "ru" ? "Поделиться папкой" : "Share Folder")
+                    : name === "invites"
+                      ? (lang === "ru" ? "Приглашения совместного доступа" : "Collaboration Invites")
+                      : copy.shell.aboutSheet;
   const topSheet = name === "pages";
   const mobileSheet = !isDesktop;
   const folderPopup = name === "folder" && !!anchor && !mobileSheet;
 
   function renderSheetContent() {
-    const isPositioned = !(name === "note" || name === "about" || name === "share" || mobileSheet || !anchor);
+    const isPositioned = !(name === "note" || name === "about" || name === "share" || name === "share-folder" || mobileSheet || !anchor);
     const animationClass = isPositioned
       ? "animate-premium-backdrop"
-      : (name === "note" || name === "about" || name === "share") && !mobileSheet
+      : (name === "note" || name === "about" || name === "share" || name === "share-folder") && !mobileSheet
         ? "animate-premium-modal"
         : "animate-premium-sheet";
 
     return (
       <section
-        className={`absolute border border-border bg-surface p-4 shadow-2xl shadow-violet-950/20 backdrop-blur-2xl ${mobileSheet ? "inset-3 max-h-[calc(100vh-1.5rem)] overflow-y-auto rounded-[2rem]" : name === "note" || name === "about" || name === "share" ? "left-1/2 top-1/2 w-[min(92vw,32rem)] max-h-[86vh] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[2rem]" : anchor ? "w-[min(92vw,24rem)] max-h-[82vh] overflow-y-auto rounded-[1.8rem]" : topSheet ? "inset-x-0 top-0 max-h-[86vh] overflow-y-auto rounded-b-[2rem] lg:left-1/2 lg:top-4 lg:w-[min(94vw,48rem)] lg:-translate-x-1/2 lg:rounded-[2rem]" : "inset-x-0 bottom-0 max-h-[86vh] overflow-y-auto rounded-t-[2rem] lg:inset-auto lg:bottom-6 lg:right-6 lg:w-[420px] lg:rounded-[2rem]"} ${animationClass}`}
+        className={`absolute border border-border bg-surface p-4 shadow-2xl shadow-violet-950/20 backdrop-blur-2xl ${mobileSheet ? "inset-3 max-h-[calc(100vh-1.5rem)] overflow-y-auto rounded-[2rem]" : name === "note" || name === "about" || name === "share" || name === "share-folder" ? "left-1/2 top-1/2 w-[min(92vw,32rem)] max-h-[86vh] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[2rem]" : anchor ? "w-[min(92vw,24rem)] max-h-[82vh] overflow-y-auto rounded-[1.8rem]" : topSheet ? "inset-x-0 top-0 max-h-[86vh] overflow-y-auto rounded-b-[2rem] lg:left-1/2 lg:top-4 lg:w-[min(94vw,48rem)] lg:-translate-x-1/2 lg:rounded-[2rem]" : "inset-x-0 bottom-0 max-h-[86vh] overflow-y-auto rounded-t-[2rem] lg:inset-auto lg:bottom-6 lg:right-6 lg:w-[420px] lg:rounded-[2rem]"} ${animationClass}`}
         style={isPositioned ? { left: `${anchor.x}px`, top: `${anchor.y}px`, transform: `translate(-50%, ${anchor.placement === "above" ? "-100%" : "0"})` } : undefined}
       >
         <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-foreground/18 lg:hidden" />
@@ -90,7 +92,7 @@ export function BottomSheet({ sheet, activeFolder, isDesktop, onClose, onCloseWi
           <h2 className="min-w-0 truncate text-xl font-black">{title}</h2>
           <button className="rounded-full p-2 hover:bg-surface-strong" onClick={onClose} type="button"><X className="h-5 w-5" /></button>
         </div>
-        {name === "folder" ? <FolderActionList copy={copy} activeFolder={activeFolder} onClose={onClose} /> : null}
+        {name === "folder" ? <FolderActionList copy={copy} activeFolder={activeFolder} onClose={onClose} onOpenSheet={onOpenSheet} /> : null}
         {name === "note" ? <NoteActionSheet copy={copy} onOpenSheet={onOpenSheet} onClose={onClose} onCloseEditor={onCloseEditor} /> : null}
         {name === "pages" ? <PagesContent copy={copy} /> : null}
         {name === "lock" ? <LockContent copy={copy} onClose={onCloseWithoutClear || onClose} onOpenEditor={onOpenEditor} /> : null}
@@ -98,6 +100,7 @@ export function BottomSheet({ sheet, activeFolder, isDesktop, onClose, onCloseWi
         {name === "create-folder" ? <CreateFolderContent copy={copy} onClose={onClose} /> : null}
         {name === "reminder" ? <ReminderContent copy={copy} onClose={onClose} /> : null}
         {name === "share" ? <ShareContent onClose={onClose} /> : null}
+        {name === "share-folder" ? <ShareFolderContent activeFolder={activeFolder} onClose={onClose} /> : null}
         {name === "invites" ? <InvitesContent copy={copy} /> : null}
       </section>
     );
@@ -326,14 +329,23 @@ function ActionCard({ label, onClick, active = false, destructive = false }: { l
   );
 }
 
-function FolderActionList({ copy, activeFolder, onClose }: { copy: ReturnType<typeof getUiCopy>; activeFolder: FolderEntity | null; onClose: () => void }) {
+function FolderActionList({ 
+  copy, 
+  activeFolder, 
+  onClose, 
+  onOpenSheet 
+}: { 
+  copy: ReturnType<typeof getUiCopy>; 
+  activeFolder: FolderEntity | null; 
+  onClose: () => void; 
+  onOpenSheet?: (name: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void;
+}) {
   const { hideFolder, renameFolder, trashFolder, unhideFolder, updateFolderDescription } = useFolderActions();
 
   const [isRenaming, setIsRenaming] = useState(false);
   const [isEditingDesc, setIsEditingDesc] = useState(false);
   const [nameVal, setNameVal] = useState(activeFolder?.name ?? "");
   const [descVal, setDescVal] = useState(activeFolder?.description ?? "");
-  const [isCopied, setIsCopied] = useState(false);
 
   if (!activeFolder) {
     return null;
@@ -366,34 +378,9 @@ function FolderActionList({ copy, activeFolder, onClose }: { copy: ReturnType<ty
     onClose();
   }
 
-  async function handleShare() {
-    const text = `${folder.name}\n${folder.description ?? ""}\nFolder ID: ${folder.id}`.trim();
-    try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(text);
-        setIsCopied(true);
-        setTimeout(() => setIsCopied(false), 2000);
-      } else {
-        const textArea = document.createElement("textarea");
-        textArea.value = text;
-        textArea.style.position = "fixed";
-        textArea.style.opacity = "0";
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        const successful = document.execCommand("copy");
-        document.body.removeChild(textArea);
-        if (successful) {
-          setIsCopied(true);
-          setTimeout(() => setIsCopied(false), 2000);
-        } else {
-          throw new Error("Fallback copy failed");
-        }
-      }
-    } catch (e) {
-      console.error(e);
-      setIsCopied(false);
-      window.alert("Не удалось скопировать автоматически. Скопируйте вручную:\n\n" + text);
+  function handleShare() {
+    if (onOpenSheet) {
+      onOpenSheet("share-folder");
     }
   }
 
@@ -442,7 +429,6 @@ function FolderActionList({ copy, activeFolder, onClose }: { copy: ReturnType<ty
         </div>
       ) : (
         <>
-          {/* Block 1: Info & Management */}
           <button className="flex w-full items-center gap-3 rounded-2xl p-3 text-left text-sm font-bold hover:bg-surface-strong transition-all" onClick={() => setIsRenaming(true)} type="button">
             <Pencil className="h-4 w-4 text-foreground/64" />
             {copy.shell.actions.rename}
@@ -467,18 +453,13 @@ function FolderActionList({ copy, activeFolder, onClose }: { copy: ReturnType<ty
 
           <div className="h-px bg-border my-2" />
 
-          {/* Block 3: Access & Sharing */}
           <button 
-            className={`flex w-full items-center gap-3 rounded-2xl p-3 text-left text-sm font-bold transition-all ${
-              isCopied 
-                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" 
-                : "hover:bg-surface-strong"
-            }`} 
+            className="flex w-full items-center gap-3 rounded-2xl p-3 text-left text-sm font-bold hover:bg-surface-strong transition-all" 
             onClick={handleShare} 
             type="button"
           >
-            <Users className={`h-4 w-4 ${isCopied ? "text-emerald-400" : "text-foreground/64"}`} />
-            <span>{isCopied ? "Скопировано в буфер! ✓" : copy.shell.actions.share}</span>
+            <Users className="h-4 w-4 text-foreground/64" />
+            <span>{copy.shell.actions.share}</span>
           </button>
 
           <div className="h-px bg-border my-2" />
@@ -766,9 +747,24 @@ function ShareContent({ onClose }: { onClose: () => void }) {
 
   return (
     <SharePrompt
-      noteId={note.id}
-      noteTitle={note.title}
+      id={note.id}
+      title={note.title}
       ownerId={note.ownerId}
+      type="note"
+      onClose={onClose}
+    />
+  );
+}
+
+function ShareFolderContent({ activeFolder, onClose }: { activeFolder: FolderEntity | null; onClose: () => void }) {
+  if (!activeFolder) return null;
+
+  return (
+    <SharePrompt
+      id={activeFolder.id}
+      title={activeFolder.name}
+      ownerId={activeFolder.ownerId}
+      type="folder"
       onClose={onClose}
     />
   );
@@ -784,6 +780,7 @@ type HeaderInvite = {
   token: string;
   expiresAt: string | null;
   createdAt: string;
+  type: "note" | "folder";
 };
 
 function InvitesContent({ copy }: { copy: ReturnType<typeof getUiCopy> }) {
@@ -807,7 +804,7 @@ function InvitesContent({ copy }: { copy: ReturnType<typeof getUiCopy> }) {
   async function handleAcceptInvite(invite: HeaderInvite) {
     if (!user) return;
     try {
-      await collabRepository.acceptInviteByToken(invite.token, user.id);
+      await collabRepository.acceptInviteByToken(invite.token, user.id, invite.type);
       setMyInvites((prev) => prev.filter((i) => i.id !== invite.id));
       window.location.reload();
     } catch (err) {
@@ -817,7 +814,7 @@ function InvitesContent({ copy }: { copy: ReturnType<typeof getUiCopy> }) {
 
   async function handleRejectInvite(invite: HeaderInvite) {
     try {
-      await collabRepository.rejectInviteByToken(invite.token);
+      await collabRepository.rejectInviteByToken(invite.token, invite.type);
       setMyInvites((prev) => prev.filter((i) => i.id !== invite.id));
     } catch (err) {
       console.error(err);

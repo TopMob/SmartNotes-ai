@@ -198,17 +198,17 @@ export function buildStructuredIdeaNoteContent(input: {
   const nextSteps = input.nextSteps.filter(Boolean);
   const tags = input.tags.filter(Boolean).map((tag) => (tag.startsWith("#") ? tag : `#${tag}`));
 
-  const sections: string[] = [`# ${title}`, ""];
+  const sections: string[] = [title, ""];
 
   if (input.saveMode === "human_plus_ai") {
-    sections.push("## Ваши мысли без структурирования", input.sourceText.trim(), "", "---", "");
+    sections.push("Ваши мысли без структурирования:", input.sourceText.trim(), "", "--------------------------------", "");
   }
 
-  sections.push("## Структурированно ИИ агентом", "### Summary", summary || "-", "", "### Key ideas");
-  sections.push(...(keyIdeas.length ? keyIdeas.map((item) => `- ${item}`) : ["-"]));
-  sections.push("", "### Next steps");
-  sections.push(...(nextSteps.length ? nextSteps.map((item) => `- ${item}`) : ["-"]));
-  sections.push("", "### Tags", tags.length ? tags.join(" ") : "#idea");
+  sections.push("Структурированно ИИ агентом:", "", "Summary:", summary || "-", "", "Key ideas:");
+  sections.push(...(keyIdeas.length ? keyIdeas.map((item) => `• ${item}`) : ["-"]));
+  sections.push("", "Next steps:");
+  sections.push(...(nextSteps.length ? nextSteps.map((item) => `• ${item}`) : ["-"]));
+  sections.push("", "Tags:", tags.length ? tags.join(" ") : "#idea");
 
   return sections.join("\n");
 }

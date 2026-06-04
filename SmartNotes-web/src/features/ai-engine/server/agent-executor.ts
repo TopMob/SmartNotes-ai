@@ -205,8 +205,8 @@ export async function executeAgentActions(
       }
 
       if (action.type === "deleteNotes") {
-        const affectedNoteIds = await deleteNotesAction(supabase, userId, action.noteIds);
-        results.push({ index, type: action.type, success: true, message: `Deleted ${affectedNoteIds.length} notes.`, affectedNoteIds });
+        const affectedNoteIds = await patchNotesAction(supabase, userId, action.noteIds, () => normalizeNotePatch({ trashedAt: nowIso() }, { scheduleAnalysis: false }));
+        results.push({ index, type: action.type, success: true, message: `Moved ${affectedNoteIds.length} notes to trash.`, affectedNoteIds });
         continue;
       }
 
@@ -809,7 +809,7 @@ async function mergeNotesAction(
   const merged = await createNoteAction(supabase, userId, { ...action, type: "createNote", content, folderId, tags }, createdFolderIdsByTempId);
 
   if (action.deleteSources !== false) {
-    await deleteNotesAction(supabase, userId, action.noteIds);
+    await patchNotesAction(supabase, userId, action.noteIds, () => normalizeNotePatch({ trashedAt: nowIso() }, { scheduleAnalysis: false }));
   }
 
   return merged;

@@ -517,7 +517,7 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
             className="mt-4 sm:mt-5 flex min-h-[60vh] flex-1 rounded-none sm:rounded-[1.5rem] border-0 sm:border border-border bg-transparent sm:bg-background/36 p-1 sm:p-5 mx-0 text-lg leading-9 outline-none cursor-text focus-within:ring-0 sm:focus-within:ring-2 sm:focus-within:ring-accent/25 sm:focus-within:border-accent/80 transition-all"
             onClick={() => editor.chain().focus().run()}
           >
-            <div className="min-h-full flex-1 [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[55vh]">
+            <div className="min-h-full flex-1 [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[55vh] [&_.ProseMirror]:pb-[45vh]">
               <EditorContent editor={editor} />
             </div>
           </div>

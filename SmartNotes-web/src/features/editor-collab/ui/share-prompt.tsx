@@ -6,13 +6,14 @@ import { collabRepository, type CollaboratorDetail, type PendingInviteDetail } f
 import { useAuthStore } from "@/features/auth/model/auth-store";
 
 type SharePromptProps = {
-  noteId: string;
-  noteTitle: string;
+  id: string;
+  title: string;
   ownerId: string;
+  type: "note" | "folder";
   onClose: () => void;
 };
 
-export function SharePrompt({ noteId, noteTitle, ownerId, onClose }: SharePromptProps) {
+export function SharePrompt({ id, title, ownerId, type, onClose }: SharePromptProps) {
   const currentUserId = useAuthStore((state) => state.user?.id);
   const isOwner = currentUserId === ownerId;
 
@@ -29,8 +30,12 @@ export function SharePrompt({ noteId, noteTitle, ownerId, onClose }: SharePrompt
     async function loadData() {
       setLoading(true);
       try {
-        const collabs = await collabRepository.fetchNoteCollaborators(noteId);
-        const invites = await collabRepository.fetchPendingInvites(noteId);
+        const collabs = type === "folder"
+          ? await collabRepository.fetchFolderCollaborators(id)
+          : await collabRepository.fetchNoteCollaborators(id);
+        const invites = type === "folder"
+          ? await collabRepository.fetchFolderPendingInvites(id)
+          : await collabRepository.fetchPendingInvites(id);
         setCollaborators(collabs);
         setPendingInvites(invites);
       } catch (err) {
@@ -40,7 +45,7 @@ export function SharePrompt({ noteId, noteTitle, ownerId, onClose }: SharePrompt
       }
     }
     loadData();
-  }, [noteId]);
+  }, [id, type]);
 
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault();
@@ -49,9 +54,15 @@ export function SharePrompt({ noteId, noteTitle, ownerId, onClose }: SharePrompt
     setErrorMsg("");
     setActionLoading(true);
     try {
-      await collabRepository.createInvite(noteId, emailInput, roleInput);
+      if (type === "folder") {
+        await collabRepository.createFolderInvite(id, emailInput, roleInput);
+      } else {
+        await collabRepository.createInvite(id, emailInput, roleInput);
+      }
       setEmailInput("");
-      const invites = await collabRepository.fetchPendingInvites(noteId);
+      const invites = type === "folder"
+        ? await collabRepository.fetchFolderPendingInvites(id)
+        : await collabRepository.fetchPendingInvites(id);
       setPendingInvites(invites);
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : "Не удалось отправить приглашение.");
@@ -64,7 +75,11 @@ export function SharePrompt({ noteId, noteTitle, ownerId, onClose }: SharePrompt
     if (!window.confirm("Отозвать это приглашение?")) return;
     setActionLoading(true);
     try {
-      await collabRepository.cancelPendingInvite(inviteId);
+      if (type === "folder") {
+        await collabRepository.cancelFolderPendingInvite(inviteId);
+      } else {
+        await collabRepository.cancelPendingInvite(inviteId);
+      }
       setPendingInvites((prev) => prev.filter((i) => i.id !== inviteId));
     } catch (err) {
       console.error(err);
@@ -77,7 +92,11 @@ export function SharePrompt({ noteId, noteTitle, ownerId, onClose }: SharePrompt
     if (!window.confirm("Удалить пользователя из списка соавторов?")) return;
     setActionLoading(true);
     try {
-      await collabRepository.revokeCollaboratorAccess(noteId, userId);
+      if (type === "folder") {
+        await collabRepository.revokeFolderCollaboratorAccess(id, userId);
+      } else {
+        await collabRepository.revokeCollaboratorAccess(id, userId);
+      }
       setCollaborators((prev) => prev.filter((c) => c.userId !== userId));
     } catch (err) {
       console.error(err);
@@ -96,7 +115,7 @@ export function SharePrompt({ noteId, noteTitle, ownerId, onClose }: SharePrompt
   return (
     <div className="mt-4 space-y-5 pb-6">
       <p className="text-xs text-foreground/56">
-        Управление доступом к заметке <span className="font-semibold text-accent">&quot;{noteTitle}&quot;</span>.
+        Управление доступом к {type === "folder" ? "папке" : "заметке"} <span className="font-semibold text-accent">&quot;{title}&quot;</span>.
       </p>
 
       {/* Invite Form (only visible to owner) */}

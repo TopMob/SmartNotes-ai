@@ -94,11 +94,6 @@ export async function syncLocalMedia() {
   const { SupabaseStorageProvider, GoogleDriveStorageProvider } = await import("@/features/notes/lib/storage-providers");
 
   const isGdriveDisabled = typeof window !== "undefined" && window.localStorage.getItem("smartnotes:disable-google-drive") === "true";
-  const googleAuthUser = user as unknown as {
-    app_metadata?: { provider?: string };
-    identities?: Array<{ provider: string }>;
-  } | null;
-  const isGoogleUser = googleAuthUser?.app_metadata?.provider === "google" || googleAuthUser?.identities?.some((i) => i.provider === "google") || false;
 
   let didSync = false;
 

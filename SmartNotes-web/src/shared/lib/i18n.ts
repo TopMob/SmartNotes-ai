@@ -157,8 +157,8 @@ export const uiCopy = {
         savePreset: "Сохранить пресет",
         resetAppearance: "Сбросить внешний вид",
         noCustomPresets: "Пока нет пользовательских пресетов.",
-        pendingSync: "Ожидает локальной синхронизации",
-        noPendingSync: "Синхронизация настроек не ожидается.",
+        pendingSync: "Последняя синхронизация настроек",
+        noPendingSync: "Синхронизация настроек не проводилась",
         currentSnapshot: "Текущий снимок",
       },
       editor: {
@@ -374,8 +374,8 @@ export const uiCopy = {
         savePreset: "Save preset",
         resetAppearance: "Reset appearance",
         noCustomPresets: "No custom presets yet.",
-        pendingSync: "Pending local sync",
-        noPendingSync: "No pending settings sync.",
+        pendingSync: "Last settings sync",
+        noPendingSync: "No settings sync recorded",
         currentSnapshot: "Current snapshot",
       },
       editor: {

@@ -50,15 +50,7 @@ export type Database = {
           results?: Json
           status?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "ai_agent_runs_owner_id_fkey"
-            columns: ["owner_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       ai_jobs: {
         Row: {
@@ -155,6 +147,158 @@ export type Database = {
           {
             foreignKeyName: "feedback_user_id_fkey"
             columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      folder_access: {
+        Row: {
+          created_at: string
+          folder_id: string
+          granted_by: string | null
+          role: Database["public"]["Enums"]["smartnotes_access_role"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          folder_id: string
+          granted_by?: string | null
+          role?: Database["public"]["Enums"]["smartnotes_access_role"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          folder_id?: string
+          granted_by?: string | null
+          role?: Database["public"]["Enums"]["smartnotes_access_role"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "folder_access_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "folders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "folder_access_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "folder_access_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      folder_effective_access: {
+        Row: {
+          created_at: string
+          folder_id: string
+          role: Database["public"]["Enums"]["smartnotes_access_role"]
+          source: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          folder_id: string
+          role?: Database["public"]["Enums"]["smartnotes_access_role"]
+          source: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          folder_id?: string
+          role?: Database["public"]["Enums"]["smartnotes_access_role"]
+          source?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "folder_effective_access_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "folders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "folder_effective_access_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      folder_invites: {
+        Row: {
+          created_at: string
+          expires_at: string | null
+          folder_id: string
+          id: string
+          invitee_email: string
+          invitee_id: string | null
+          inviter_id: string
+          role: Database["public"]["Enums"]["smartnotes_access_role"]
+          status: Database["public"]["Enums"]["smartnotes_invite_status"]
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string | null
+          folder_id: string
+          id?: string
+          invitee_email: string
+          invitee_id?: string | null
+          inviter_id: string
+          role?: Database["public"]["Enums"]["smartnotes_access_role"]
+          status?: Database["public"]["Enums"]["smartnotes_invite_status"]
+          token?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string | null
+          folder_id?: string
+          id?: string
+          invitee_email?: string
+          invitee_id?: string | null
+          inviter_id?: string
+          role?: Database["public"]["Enums"]["smartnotes_access_role"]
+          status?: Database["public"]["Enums"]["smartnotes_invite_status"]
+          token?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "folder_invites_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "folders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "folder_invites_invitee_id_fkey"
+            columns: ["invitee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "folder_invites_inviter_id_fkey"
+            columns: ["inviter_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -673,6 +817,42 @@ export type Database = {
         }
         Relationships: []
       }
+      user_google_integrations: {
+        Row: {
+          access_token: string | null
+          created_at: string
+          last_refreshed_at: string | null
+          provider: string
+          refresh_token: string
+          scope: string | null
+          token_type: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token?: string | null
+          created_at?: string
+          last_refreshed_at?: string | null
+          provider?: string
+          refresh_token: string
+          scope?: string | null
+          token_type?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string | null
+          created_at?: string
+          last_refreshed_at?: string | null
+          provider?: string
+          refresh_token?: string
+          scope?: string | null
+          token_type?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_settings: {
         Row: {
           cards_opacity: number
@@ -738,50 +918,6 @@ export type Database = {
           },
         ]
       }
-      user_google_integrations: {
-        Row: {
-          user_id: string
-          provider: string
-          access_token: string | null
-          refresh_token: string
-          scope: string | null
-          token_type: string | null
-          last_refreshed_at: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          user_id: string
-          provider?: string
-          access_token?: string | null
-          refresh_token: string
-          scope?: string | null
-          token_type?: string | null
-          last_refreshed_at?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          user_id?: string
-          provider?: string
-          access_token?: string | null
-          refresh_token?: string
-          scope?: string | null
-          token_type?: string | null
-          last_refreshed_at?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_google_integrations_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
     }
     Views: {
       [_ in never]: never
@@ -828,6 +964,10 @@ export type Database = {
       smartnotes_is_note_participant: {
         Args: { target_access: Json; target_owner_id: string }
         Returns: boolean
+      }
+      smartnotes_refresh_folder_effective_access: {
+        Args: { target_folder_id: string }
+        Returns: undefined
       }
       smartnotes_refresh_note_effective_access: {
         Args: { target_note_id: string }
@@ -997,3 +1137,4 @@ export const Constants = {
 } as const
 
 export type TypedSupabaseClient = SupabaseClient<Database>;
+

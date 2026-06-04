@@ -14,7 +14,6 @@ export async function createLocalInlineMediaDescriptor(file: File): Promise<Medi
 }
 
 export async function uploadMediaFile(file: File, noteId: string, isGoogleUser?: boolean): Promise<MediaDescriptor> {
-  const compressedFile = await compressImage(file);
   const isGdriveDisabled = typeof window !== "undefined" && window.localStorage.getItem("smartnotes:disable-google-drive") === "true";
 
   const providers: StorageProvider[] = [];
@@ -26,7 +25,8 @@ export async function uploadMediaFile(file: File, noteId: string, isGoogleUser?:
 
   for (const provider of providers) {
     try {
-      const descriptor = await provider.upload(compressedFile, noteId);
+      const uploadFile = provider.name === "supabase" ? await compressImage(file, 1024, 0.65) : file;
+      const descriptor = await provider.upload(uploadFile, noteId);
       
       setMediaDiagnostic({
         provider: provider.name,

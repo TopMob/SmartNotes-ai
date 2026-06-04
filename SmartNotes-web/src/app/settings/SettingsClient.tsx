@@ -642,8 +642,8 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                     </span>
                     <p className="mt-2 text-sm font-semibold text-emerald-500">
                       {lang === "ru" 
-                        ? "✓ Активно (Изображения сохраняются в Supabase Storage и сжимаются до 500KB)" 
-                        : "✓ Active (Images are saved in Supabase Storage and compressed to 500KB)"}
+                        ? "✓ Активно (Изображения сохраняются в Supabase Storage со сжатием для экономии места)" 
+                        : "✓ Active (Images are saved in Supabase Storage with compression to save space)"}
                     </p>
                     <p className="mt-1 text-xs leading-relaxed text-foreground/50">
                       {lang === "ru"
@@ -664,7 +664,7 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                       {gdriveDisabled ? (
                         <span className="text-amber-500">{lang === "ru" ? "Отключена пользователем" : "Disabled by user"}</span>
                       ) : driveConnected ? (
-                        <span className="text-emerald-500">{lang === "ru" ? "Подключено (Изображения сохраняются на ваш Google Диск)" : "Connected (Images are saved to your Google Drive)"}</span>
+                        <span className="text-emerald-500">{lang === "ru" ? "Подключено (Изображения сохраняются на ваш Google Диск в полном качестве)" : "Connected (Images are saved to your Google Drive in full quality)"}</span>
                       ) : (
                         <span className="text-foreground/48">{lang === "ru" ? "Не подключено" : "Not connected"}</span>
                       )}
