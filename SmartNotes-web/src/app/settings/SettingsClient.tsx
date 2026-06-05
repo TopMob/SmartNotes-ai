@@ -10,11 +10,9 @@ import {
   Plus,
   Upload,
   SlidersHorizontal,
-  Type,
   UserRound,
   RefreshCw,
   Trash2,
-  Save,
   X,
   Loader2,
   Edit2,
@@ -66,8 +64,7 @@ import { SectionIntro } from "./components/SectionIntro";
 
 const sections = [
   { id: "appearance", icon: Palette },
-  { id: "editor", icon: Type },
-  { id: "filters", icon: SlidersHorizontal },
+  { id: "workspace", icon: SlidersHorizontal },
   { id: "data", icon: Database },
   { id: "profile", icon: UserRound },
 ] as const;
@@ -120,7 +117,21 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
   const [googleLinked, setGoogleLinked] = useState(false);
   const [isAvatarMenuOpen, setIsAvatarMenuOpen] = useState(false);
 
+  const defaultUser = user?.email ? user.email.split("@")[0].replace(/[^a-zA-Z0-9_]/g, "") : "";
+  const savedUser = (typeof window !== "undefined" && window.localStorage.getItem("smartnotes:custom-username")) || defaultUser;
+  const isNameChanged = displayName.trim() !== (user?.displayName ?? "");
+  const isLoginChanged = !hasChangedUsername && username.trim() !== savedUser;
+
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = window.localStorage.getItem("smartnotes:custom-username");
+      const hasChanged = window.localStorage.getItem("smartnotes:has-changed-username") === "true";
+      setHasChangedUsername(hasChanged);
+      if (saved) {
+        setUsername(saved);
+        return;
+      }
+    }
     if (user?.email) {
       const defaultUsername = user.email.split("@")[0].replace(/[^a-zA-Z0-9_]/g, "");
       setUsername(defaultUsername);
@@ -140,6 +151,7 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
     cancelText: string;
     variant: "destructive" | "primary";
     onConfirm: () => void | Promise<void>;
+    onCancel?: () => void;
   }>({
     isOpen: false,
     title: "",
@@ -148,6 +160,7 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
     cancelText: "",
     variant: "destructive",
     onConfirm: () => {},
+    onCancel: () => {},
   });
 
   const [compression, setCompression] = useState(() => {
@@ -562,6 +575,42 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
     }
   }
 
+  function handleSaveUsername() {
+    if (hasChangedUsername) return;
+    const trimmed = username.trim();
+    if (!trimmed || trimmed === savedUser) return;
+
+    setConfirmModal({
+      isOpen: true,
+      title: lang === "ru" ? "Изменить логин?" : "Change login?",
+      description: lang === "ru"
+        ? "Вы уверены? Вы больше не сможете изменить логин, так как он используется для входа."
+        : "Are you sure? You will not be able to change your login again, as it is used for signing in.",
+      actionText: lang === "ru" ? "Изменить" : "Change",
+      cancelText: lang === "ru" ? "Отмена" : "Cancel",
+      variant: "primary",
+      onConfirm: async () => {
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem("smartnotes:custom-username", trimmed);
+          window.localStorage.setItem("smartnotes:has-changed-username", "true");
+        }
+        setHasChangedUsername(true);
+        setProfileSaveStatus("saving");
+        try {
+          await handleSaveProfileData({});
+          setProfileSaveStatus("saved");
+          setTimeout(() => setProfileSaveStatus("idle"), 2000);
+        } catch {
+          setProfileSaveStatus("error");
+          setTimeout(() => setProfileSaveStatus("idle"), 3000);
+        }
+      },
+      onCancel: () => {
+        setUsername(savedUser);
+      }
+    });
+  }
+
   async function uploadAvatar() {
     const picker = document.createElement("input");
     picker.type = "file";
@@ -658,6 +707,30 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
     ["pages", lang === "ru" ? "Многостраничность заметки" : "Note pages", Files],
     ["inlineTags", lang === "ru" ? "Тегирование (Inline tags)" : "Inline tag chips", Tag],
   ] as const, [lang]);
+
+  const editorCategories = useMemo(() => [
+    {
+      title: lang === "ru" ? "Интерфейс" : "Interface",
+      keys: ["toolbarVisible", "undoRedo", "pages"] as const
+    },
+    {
+      title: lang === "ru" ? "Форматирование текста" : "Text Formatting",
+      keys: ["bold", "italic", "underline", "strike", "clearFormat"] as const
+    },
+    {
+      title: lang === "ru" ? "Списки и разметка" : "Lists & Structure",
+      keys: ["bullets", "numbered", "hr"] as const
+    },
+    {
+      title: lang === "ru" ? "Выравнивание" : "Alignment",
+      keys: ["alignText", "alignMedia"] as const
+    },
+    {
+      title: lang === "ru" ? "Интерактивность" : "Interactive Elements",
+      keys: ["links", "inlineTags"] as const
+    }
+  ], [lang]);
+
 
   if (!settings || !draftSettings) {
     return (
@@ -1001,28 +1074,47 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
             </div>
           )}
 
-          {activeSection === "editor" && (
+          {activeSection === "workspace" && (
             <div className="space-y-4">
-              <SectionIntro title={copy.settings.editor.title} text={copy.settings.editor.subtitle} />
+              <SectionIntro title={lang === "ru" ? "Инструменты" : "Workspace Tools"} text={lang === "ru" ? "Настройка редактора и фильтров для вашего удобства" : "Configure the editor and active filters to match your workflow"} />
+              
               <Panel title={copy.settings.editor.tools} rightElement={renderStatus(settingsSaveStatus)}>
-                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                  {editorGroups.map(([key, label, Icon]) => (
-                    <button className={`flex w-full min-w-0 min-h-11 items-center justify-between rounded-2xl border px-4 py-2.5 text-left text-xs font-bold sm:text-sm transition hover:bg-surface-strong ${draftSettings.editor[key] ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={key} onClick={() => toggleEditorTool(key)} type="button">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <Icon className={`h-4 w-4 shrink-0 ${draftSettings.editor[key] ? "text-accent" : "text-foreground/50"}`} />
-                        <span className="truncate pr-3">{label}</span>
+                <div className="space-y-6">
+                  {editorCategories.map((category) => (
+                    <div key={category.title} className="space-y-2">
+                      <span className="block text-[10px] font-black uppercase tracking-[0.18em] text-foreground/45">
+                        {category.title}
+                      </span>
+                      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                        {category.keys.map((key) => {
+                          const group = editorGroups.find((g) => g[0] === key);
+                          if (!group) return null;
+                          const [, label, Icon] = group;
+                          return (
+                            <button
+                              className={`flex w-full min-w-0 min-h-11 items-center justify-between rounded-2xl border px-4 py-2.5 text-left text-xs font-bold sm:text-sm transition hover:bg-surface-strong ${
+                                draftSettings.editor[key]
+                                  ? "border-accent bg-accent/10 text-accent"
+                                  : "border-border bg-background"
+                              }`}
+                              key={key}
+                              onClick={() => toggleEditorTool(key)}
+                              type="button"
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <Icon className={`h-4 w-4 shrink-0 ${draftSettings.editor[key] ? "text-accent" : "text-foreground/50"}`} />
+                                <span className="truncate pr-3">{label}</span>
+                              </div>
+                              <span>{draftSettings.editor[key] ? copy.settings.editor.on : copy.settings.editor.off}</span>
+                            </button>
+                          );
+                        })}
                       </div>
-                      <span>{draftSettings.editor[key] ? copy.settings.editor.on : copy.settings.editor.off}</span>
-                    </button>
+                    </div>
                   ))}
                 </div>
               </Panel>
-            </div>
-          )}
 
-          {activeSection === "filters" && (
-            <div className="space-y-4">
-              <SectionIntro title={copy.settings.filters.title} text={copy.settings.filters.subtitle} />
               <Panel title={copy.settings.filters.sections} rightElement={renderStatus(settingsSaveStatus)}>
                 <div className="space-y-2">
                   {([
@@ -1060,96 +1152,95 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                   <button className="w-full min-h-11 rounded-2xl border border-border bg-background px-4 py-2.5 text-xs font-bold sm:text-sm transition hover:bg-surface-strong shadow-sm" onClick={handleResetPageCache} type="button">
                     {copy.settings.data.resetCache}
                   </button>
-                  <button className="w-full min-h-11 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-500 px-4 py-2.5 text-xs font-bold sm:text-sm transition hover:bg-rose-500/20 shadow-sm" onClick={handleResetSettings} type="button">
-                    {copy.settings.data.resetSettings}
-                  </button>
                 </div>
               </Panel>
 
-              <Panel title={lang === "ru" ? "Облачное хранилище медиафайлов" : "Cloud Media Storage"}>
+              <Panel title={lang === "ru" ? "Хранилище медиа" : "Media Storage"}>
                 <div className="rounded-[1.2rem] border border-border bg-surface-strong p-5 text-sm text-foreground/58 space-y-6">
-                  <div>
-                    <span className="block text-[10px] font-black uppercase tracking-[0.18em] text-foreground/42">
-                      {lang === "ru" ? "Основное хранилище (Supabase Storage)" : "Default Storage (Supabase Storage)"}
-                    </span>
-                    <div className="mt-2 flex items-start gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
-                      <Check className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
-                          {lang === "ru" ? "Активно и работает" : "Active and running"}
-                        </p>
+                  
+                  <div className="flex flex-col gap-4">
+                    <div className="flex items-start justify-between gap-4 p-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 transition">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <svg viewBox="0 0 24 24" className="h-9 w-9 shrink-0 select-none text-[#3ecf8e]" fill="currentColor">
+                          <path d="M21.362 9.354H12V3L2.638 14.646H12V21z" />
+                        </svg>
+                        <div className="min-w-0">
+                          <p className="text-sm font-black text-emerald-600 dark:text-emerald-400">Supabase Storage</p>
+                          <p className="text-[11px] font-medium text-emerald-600/80 dark:text-emerald-400/80">
+                            {lang === "ru" ? "Активно • Всегда 50 КБ" : "Active • Always 50 KB"}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded-md uppercase tracking-wider shrink-0 font-bold">
+                        {lang === "ru" ? "Системное" : "System"}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-4 p-4 rounded-2xl border border-border bg-background hover:bg-surface-strong transition">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <svg viewBox="0 0 360 360" className="h-9 w-9 shrink-0 select-none">
+                          <path fill="#0066da" d="M124.5 240H322.5L258 322.5H60L124.5 240Z" />
+                          <path fill="#00aa47" d="M60 322.5L124.5 240L37.5 90L22.5 115.5L60 322.5Z" />
+                          <path fill="#ffba00" d="M258 322.5L322.5 240L186 3.75H171L124.5 240L258 322.5Z" />
+                        </svg>
+                        <div className="min-w-0">
+                          <p className="text-sm font-black text-foreground">Google Drive</p>
+                          <p className="text-[11px] font-medium text-foreground/50 truncate">
+                            {driveConnected 
+                              ? (gdriveDisabled ? (lang === "ru" ? "Интеграция приостановлена" : "Integration paused") : (lang === "ru" ? "Активно" : "Active"))
+                              : (lang === "ru" ? "Не подключен" : "Not connected")}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {driveConnected ? (
+                          <>
+                            <button
+                              onClick={handleToggleGoogleDrive}
+                              className={`h-9 px-3 rounded-xl border text-[11px] font-bold transition-all duration-200 ${
+                                gdriveDisabled 
+                                  ? "border-accent bg-accent/10 text-accent hover:bg-accent/20" 
+                                  : "border-border bg-background text-foreground/70 hover:bg-surface-strong"
+                              }`}
+                              type="button"
+                            >
+                              {gdriveDisabled ? (lang === "ru" ? "Включить" : "Enable") : (lang === "ru" ? "Пауза" : "Pause")}
+                            </button>
+                            <button
+                              onClick={() => void handleDisconnectDrive()}
+                              className="h-9 w-9 flex items-center justify-center rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition active:scale-95"
+                              type="button"
+                              title={lang === "ru" ? "Отключить" : "Disconnect"}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => void connectGoogleDrive()}
+                            className="h-9 px-4 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 text-xs font-bold transition shadow-sm"
+                            type="button"
+                          >
+                            {lang === "ru" ? "Войти" : "Sign In"}
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
 
-                  <div className="h-px bg-border" />
+                  <p className="text-xs leading-relaxed text-foreground/60">
+                    {lang === "ru"
+                      ? "Supabase автоматически сжимает все изображения до 50 КБ. Подключите свой Google Диск (BYOS), чтобы сохранять файлы в оригинальном качестве или с выбранным уровнем сжатия."
+                      : "Supabase auto-compresses images to 50 KB. Link Google Drive (BYOS) to store images in original quality or custom compression level."}
+                  </p>
+
+                  <div className="h-px bg-border/60" />
 
                   <div>
-                    <span className="block text-[10px] font-black uppercase tracking-[0.18em] text-foreground/42">
-                      {lang === "ru" ? "Дополнительно: Google Диск (BYOS)" : "Optional: Google Drive (BYOS)"}
+                    <span className="block text-[10px] font-black uppercase tracking-[0.18em] text-foreground/42 mb-2">
+                      {lang === "ru" ? "Качество сжатия (только для Google Диска)" : "Compression quality (Google Drive only)"}
                     </span>
-
-                    <p className="mt-2 text-sm font-bold text-foreground">
-                      {lang === "ru" ? "Статус интеграции: " : "Integration Status: "}
-                      {gdriveDisabled ? (
-                        <span className="text-amber-500">{lang === "ru" ? "Отключена пользователем" : "Disabled by user"}</span>
-                      ) : driveConnected ? (
-                        <span className="text-emerald-500">{lang === "ru" ? "Подключено (Оригиналы)" : "Connected (Original Quality)"}</span>
-                      ) : (
-                        <span className="text-foreground/48">{lang === "ru" ? "Не подключено" : "Not connected"}</span>
-                      )}
-                    </p>
-
-                    <p className="mt-1.5 text-xs leading-relaxed text-foreground/60">
-                      {lang === "ru"
-                        ? "Концепция BYOS (Bring Your Own Storage) позволяет загружать все изображения напрямую в ваш личный Google Drive."
-                        : "The BYOS concept lets you upload photos directly to your personal Google Drive account."}
-                    </p>
-
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      {driveConnected && !gdriveDisabled && (
-                        <button
-                          onClick={() => void handleDisconnectDrive()}
-                          className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition text-xs font-bold px-4 py-2"
-                          type="button"
-                        >
-                          {lang === "ru" ? "Отключить аккаунт" : "Disconnect Account"}
-                        </button>
-                      )}
-                      
-                      {!driveConnected && (
-                        <button
-                          onClick={() => void connectGoogleDrive()}
-                          className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-accent px-4 py-2 text-xs font-bold text-accent-foreground transition hover:bg-accent/90 shadow-sm"
-                          type="button"
-                        >
-                          {lang === "ru" ? "Подключить Google Диск" : "Connect Google Drive"}
-                        </button>
-                      )}
-
-                      <button
-                        onClick={handleToggleGoogleDrive}
-                        className={`inline-flex min-h-10 items-center gap-2 rounded-xl border px-4 py-2 text-xs font-bold transition shadow-sm ${
-                          gdriveDisabled 
-                            ? "border-accent bg-accent/10 text-accent" 
-                            : "border-border bg-background hover:bg-surface-strong text-foreground/72"
-                        }`}
-                        type="button"
-                      >
-                        {gdriveDisabled 
-                          ? (lang === "ru" ? "Включить интеграцию" : "Enable Integration")
-                          : (lang === "ru" ? "Отключить интеграцию" : "Disable Integration")}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="h-px bg-border" />
-
-                  <div>
-                    <span className="block text-[10px] font-black uppercase tracking-[0.18em] text-foreground/42">
-                      {lang === "ru" ? "Степень сжатия изображений" : "Image Compression Quality"}
-                    </span>
-                    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                       {([
                         ["low", lang === "ru" ? "Низкое" : "Low"],
                         ["medium", lang === "ru" ? "Среднее" : "Medium"],
@@ -1254,6 +1345,17 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                   </div>
                 </Panel>
               )}
+
+              <div className="pt-6 border-t border-border/40 flex justify-center">
+                <button 
+                  className="w-full sm:w-auto min-h-11 rounded-2xl border border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/10 px-6 py-2.5 text-xs font-bold text-rose-500 transition active:scale-95 flex items-center justify-center gap-2" 
+                  onClick={handleResetSettings} 
+                  type="button"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  {copy.settings.data.resetSettings}
+                </button>
+              </div>
             </div>
           )}
 
@@ -1340,60 +1442,79 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div>
                         <span className="block mb-1.5 text-xs font-bold text-foreground/70">{copy.settings.profile.displayName}</span>
-                        <input
-                          id="profile_display_name"
-                          name="profile_display_name"
-                          className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm min-h-11 outline-none focus:border-accent focus:ring-1 focus:ring-accent transition font-normal"
-                          onChange={(e) => setDisplayName(e.target.value)}
-                          onBlur={() => {
-                            if (displayName.trim() !== (user?.displayName ?? "")) {
-                              void handleSaveProfileData({ displayName: displayName.trim() });
-                            }
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.currentTarget.blur();
-                            }
-                          }}
-                          placeholder={copy.settings.profile.displayNamePlaceholder}
-                          type="text"
-                          value={displayName}
-                        />
+                        <div className="flex items-center gap-2">
+                          <input
+                            id="profile_display_name"
+                            name="profile_display_name"
+                            className="flex-1 w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm min-h-11 outline-none focus:border-accent focus:ring-1 focus:ring-accent transition font-normal"
+                            onChange={(e) => setDisplayName(e.target.value)}
+                            onBlur={() => {
+                              if (displayName.trim() !== (user?.displayName ?? "")) {
+                                void handleSaveProfileData({ displayName: displayName.trim() });
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.currentTarget.blur();
+                              }
+                            }}
+                            placeholder={copy.settings.profile.displayNamePlaceholder}
+                            type="text"
+                            value={displayName}
+                          />
+                          {isNameChanged && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (displayName.trim() !== (user?.displayName ?? "")) {
+                                  void handleSaveProfileData({ displayName: displayName.trim() });
+                                }
+                              }}
+                              className="shrink-0 px-4 py-2.5 rounded-xl bg-accent text-accent-foreground text-xs font-bold hover:bg-accent/90 transition shadow-md min-h-11 flex items-center justify-center gap-1.5 animate-in slide-in-from-right-2 duration-150"
+                            >
+                              <Check className="h-3.5 w-3.5" />
+                              <span>{lang === "ru" ? "Сохранить" : "Save"}</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <div>
                         <div className="flex items-center justify-between mb-1.5">
-                          <span className="text-xs font-bold text-foreground/70">{lang === "ru" ? "Уникальный логин (никнейм)" : "Unique login (username)"}</span>
-                          <span className={`text-[10px] font-black uppercase tracking-wider ${hasChangedUsername ? "text-rose-500/70" : "text-emerald-500/70"}`}>
-                            {hasChangedUsername 
-                              ? (lang === "ru" ? "Изменено" : "Changed")
-                              : (lang === "ru" ? "1 попытка" : "1 limit")}
-                          </span>
+                          <span className="text-xs font-bold text-foreground/70">{lang === "ru" ? "Логин" : "Login"}</span>
                         </div>
-                        <input
-                          id="profile_username"
-                          name="profile_username"
-                          disabled={hasChangedUsername}
-                          className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm min-h-11 outline-none focus:border-accent focus:ring-1 focus:ring-accent transition font-normal disabled:opacity-60 disabled:cursor-not-allowed"
-                          onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, ""))}
-                          onBlur={() => {
-                            if (hasChangedUsername) return;
-                            if (user?.email) {
-                              const defaultUsername = user.email.split("@")[0].replace(/[^a-zA-Z0-9_]/g, "");
-                              if (username.trim() && username.trim().toLowerCase() !== defaultUsername.toLowerCase()) {
-                                setHasChangedUsername(true);
-                                void handleSaveProfileData({});
+                        <div className="flex items-center gap-2">
+                          <input
+                            id="profile_username"
+                            name="profile_username"
+                            disabled={hasChangedUsername}
+                            className="flex-1 w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm min-h-11 outline-none focus:border-accent focus:ring-1 focus:ring-accent transition font-normal disabled:text-foreground/50 disabled:bg-background/40 disabled:cursor-not-allowed"
+                            onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, ""))}
+                            onBlur={handleSaveUsername}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.currentTarget.blur();
                               }
-                            }
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.currentTarget.blur();
-                            }
-                          }}
-                          placeholder="login"
-                          type="text"
-                          value={username}
-                        />
+                            }}
+                            placeholder="login"
+                            type="text"
+                            value={username}
+                          />
+                          {isLoginChanged && (
+                            <button
+                              type="button"
+                              onClick={handleSaveUsername}
+                              className="shrink-0 px-4 py-2.5 rounded-xl bg-accent text-accent-foreground text-xs font-bold hover:bg-accent/90 transition shadow-md min-h-11 flex items-center justify-center gap-1.5 animate-in slide-in-from-right-2 duration-150"
+                            >
+                              <Check className="h-3.5 w-3.5" />
+                              <span>{lang === "ru" ? "Сохранить" : "Save"}</span>
+                            </button>
+                          )}
+                        </div>
+                        {!hasChangedUsername && (
+                          <p className="mt-1.5 text-[10px] text-foreground/45">
+                            {lang === "ru" ? "Можно изменить только один раз" : "Can only be changed once"}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1415,7 +1536,7 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                       <div className="space-y-2 font-sans">
                         <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-background text-xs font-bold">
                           <div className="flex items-center gap-2">
-                            <span className="text-foreground">{lang === "ru" ? "Почта и пароль" : "Email & Password"}</span>
+                            <span className="text-foreground">{lang === "ru" ? "Почта" : "Email"}</span>
                             <span className="text-[10px] text-foreground/50 font-normal">({user?.email})</span>
                           </div>
                           <span className="text-[10px] bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded-md uppercase tracking-wider shrink-0">
@@ -1425,7 +1546,7 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
 
                         <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-background text-xs font-bold">
                           <div className="flex items-center gap-2">
-                            <span className="text-foreground">{lang === "ru" ? "Логин (Никнейм)" : "Login (Username)"}</span>
+                            <span className="text-foreground">{lang === "ru" ? "Логин" : "Login"}</span>
                             <span className="text-[10px] text-foreground/50 font-normal">({username || "..."})</span>
                           </div>
                           <span className="text-[10px] bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded-md uppercase tracking-wider shrink-0">
@@ -1720,7 +1841,10 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
 
               <div className="flex gap-3">
                 <button
-                  onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                  onClick={() => {
+                    confirmModal.onCancel?.();
+                    setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                  }}
                   className="flex-1 min-h-11 rounded-xl border border-border bg-background hover:bg-surface-strong transition text-xs font-bold"
                   type="button"
                 >

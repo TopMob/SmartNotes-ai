@@ -141,8 +141,7 @@ export const uiCopy = {
       description: "Единый экран настроек по новой карте: внешний вид, редактор, фильтры и сброс кэша.",
       sections: {
         appearance: "Внешний вид",
-        editor: "Редактор",
-        filters: "Фильтры",
+        workspace: "Инструменты",
         data: "Данные",
         profile: "Профиль",
       },
@@ -358,8 +357,7 @@ export const uiCopy = {
       description: "One settings surface for appearance, editor, filters and cache reset.",
       sections: {
         appearance: "Appearance",
-        editor: "Editor",
-        filters: "Filters",
+        workspace: "Tools",
         data: "Data",
         profile: "Profile",
       },
