@@ -123,7 +123,7 @@ import { EditorHeader } from "./EditorHeader";
 import { EditorToolbar } from "./EditorToolbar";
 
 const EDITOR_EXTENSIONS = [
-  StarterKit.configure({ bulletList: { keepMarks: true, keepAttributes: false }, link: false }),
+  StarterKit.configure({ bulletList: { keepMarks: true, keepAttributes: false }, link: false, underline: false }),
   LinkExtension.configure({ openOnClick: false, autolink: true, linkOnPaste: true, defaultProtocol: "https" }),
   TextAlign.configure({ types: ["heading", "paragraph"] }),
   UnderlineExtension,
@@ -493,6 +493,8 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
           className="mt-3 min-h-0 flex-1 overflow-y-auto rounded-none sm:rounded-[2rem] border-x-0 sm:border border-border bg-surface/88 p-2 sm:p-8 shadow-none sm:shadow-2xl shadow-violet-950/8"
         >
            <input 
+             id="note-editor-title"
+             name="note-editor-title"
              disabled={role === "viewer"} 
              className="w-full border-0 bg-transparent px-0 py-2 text-2xl font-black tracking-tight outline-none focus:ring-0 placeholder:text-foreground/28 sm:text-4xl disabled:opacity-60 borderless-input" 
              onChange={(event) => handleTitleChange(event.target.value)} 
@@ -662,6 +664,8 @@ export function EditorOverlay({ note, onClose, onOpenSheet, toolbarVisible, setT
             <div className="relative mb-6">
               <div className="flex items-center gap-2 rounded-2xl bg-surface-strong px-4 py-3 border border-border focus-within:border-accent/80 focus-within:ring-2 focus-within:ring-accent/15 transition-all">
                 <input 
+                  id="note-tag-draft-input"
+                  name="note-tag-draft-input"
                   className="flex-1 bg-transparent text-base outline-none text-foreground placeholder:text-foreground/32" 
                   value={tagDraftVal}
                   onChange={(event) => setTagDraftVal(event.target.value)}

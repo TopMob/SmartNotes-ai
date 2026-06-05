@@ -42,7 +42,7 @@ export class GoogleDriveStorageProvider implements StorageProvider {
 export class SupabaseStorageProvider implements StorageProvider {
   readonly name = "supabase";
 
-  async upload(file: File, noteId?: string): Promise<MediaDescriptor> {
+  async upload(file: File, _noteId?: string): Promise<MediaDescriptor> {
     const { useAuthStore } = await import("@/features/auth/model/auth-store");
     const user = useAuthStore.getState().user;
     const userId = user?.id;
@@ -125,7 +125,7 @@ export class SupabaseStorageProvider implements StorageProvider {
 export class IndexedDbStorageProvider implements StorageProvider {
   readonly name = "local-inline";
 
-  async upload(file: File, noteId?: string): Promise<MediaDescriptor> {
+  async upload(file: File, _noteId?: string): Promise<MediaDescriptor> {
     const fileId = createId();
     await storeLocalMedia(fileId, file);
     const localUrl = `local-media:${fileId}`;

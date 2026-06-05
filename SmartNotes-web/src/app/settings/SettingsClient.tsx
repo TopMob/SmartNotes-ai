@@ -8,7 +8,6 @@ import {
   FileJson,
   Palette,
   Plus,
-  RotateCcw,
   Upload,
   SlidersHorizontal,
   Type,
@@ -176,7 +175,7 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
     try {
       await patchSettings(draftSettings);
       setDraftSettings(JSON.parse(JSON.stringify(draftSettings)));
-    } catch (err) {
+    } catch {
       window.alert(lang === "ru" ? "Ошибка сохранения настроек" : "Failed to save settings");
     } finally {
       setIsSaving(false);
@@ -298,7 +297,7 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
 
         const { data: { publicUrl } } = supabase.storage.from("note-images").getPublicUrl(filePath);
         handleUpdateDraft((prev) => ({ ...prev, [target]: publicUrl }));
-      } catch (err) {
+      } catch {
         window.alert(lang === "ru" ? "Не удалось загрузить фон." : "Failed to upload background.");
       }
     };
@@ -432,7 +431,7 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
         if (error) throw error;
         const { data: { publicUrl } } = supabase.storage.from("note-images").getPublicUrl(filePath);
         setAvatarUrl(publicUrl);
-      } catch (err) {
+      } catch {
         window.alert(lang === "ru" ? "Не удалось загрузить аватар." : "Failed to upload avatar.");
       }
     };
@@ -578,14 +577,14 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                   <div className="flex w-full min-w-0 flex-col gap-2">
                     <span className="text-sm font-bold text-foreground/72">{copy.settings.appearance.mainBackgroundUrl}</span>
                     <div className="flex gap-2">
-                      <input className="w-full min-w-0 rounded-2xl border border-border bg-background px-4 py-2.5 text-sm font-normal focus:border-accent focus:ring-1 focus:ring-accent outline-none transition" onChange={(e) => handleUpdateDraft(p => ({ ...p, mainBackgroundUrl: e.target.value || null }))} placeholder="https://..." type="url" value={draftSettings.mainBackgroundUrl ?? ""} />
+                      <input id="appearance_main_bg_url" name="appearance_main_bg_url" className="w-full min-w-0 rounded-2xl border border-border bg-background px-4 py-2.5 text-sm font-normal focus:border-accent focus:ring-1 focus:ring-accent outline-none transition" onChange={(e) => handleUpdateDraft(p => ({ ...p, mainBackgroundUrl: e.target.value || null }))} placeholder="https://..." type="url" value={draftSettings.mainBackgroundUrl ?? ""} />
                       <button className="shrink-0 inline-flex min-h-11 items-center gap-2 rounded-2xl border border-border bg-background px-4 py-2.5 text-xs font-bold sm:text-sm transition hover:bg-surface-strong" onClick={() => void uploadBackground("mainBackgroundUrl")} type="button"><Plus className="h-3.5 w-3.5" />{lang === "ru" ? "Файл" : "File"}</button>
                     </div>
                   </div>
                   <div className="flex w-full min-w-0 flex-col gap-2">
                     <span className="text-sm font-bold text-foreground/72">{copy.settings.appearance.sidebarBackgroundUrl}</span>
                     <div className="flex gap-2">
-                      <input className="w-full min-w-0 rounded-2xl border border-border bg-background px-4 py-2.5 text-sm font-normal focus:border-accent focus:ring-1 focus:ring-accent outline-none transition" onChange={(e) => handleUpdateDraft(p => ({ ...p, sidebarBackgroundUrl: e.target.value || null }))} placeholder="https://..." type="url" value={draftSettings.sidebarBackgroundUrl ?? ""} />
+                      <input id="appearance_sidebar_bg_url" name="appearance_sidebar_bg_url" className="w-full min-w-0 rounded-2xl border border-border bg-background px-4 py-2.5 text-sm font-normal focus:border-accent focus:ring-1 focus:ring-accent outline-none transition" onChange={(e) => handleUpdateDraft(p => ({ ...p, sidebarBackgroundUrl: e.target.value || null }))} placeholder="https://..." type="url" value={draftSettings.sidebarBackgroundUrl ?? ""} />
                       <button className="shrink-0 inline-flex min-h-11 items-center gap-2 rounded-2xl border border-border bg-background px-4 py-2.5 text-xs font-bold sm:text-sm transition hover:bg-surface-strong" onClick={() => void uploadBackground("sidebarBackgroundUrl")} type="button"><Plus className="h-3.5 w-3.5" />{lang === "ru" ? "Файл" : "File"}</button>
                     </div>
                   </div>
@@ -615,7 +614,7 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
 
               <Panel title={copy.settings.appearance.customPresets}>
                 <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap">
-                  <input className="w-full min-w-0 rounded-2xl border border-border bg-background px-4 py-2.5 text-sm sm:min-w-[16rem] sm:flex-1 focus:border-accent focus:ring-1 focus:ring-accent outline-none transition" onChange={(e) => setPresetName(e.target.value)} placeholder={copy.settings.appearance.customPresets} value={presetName} />
+                  <input id="appearance_preset_name" name="appearance_preset_name" className="w-full min-w-0 rounded-2xl border border-border bg-background px-4 py-2.5 text-sm sm:min-w-[16rem] sm:flex-1 focus:border-accent focus:ring-1 focus:ring-accent outline-none transition" onChange={(e) => setPresetName(e.target.value)} placeholder={copy.settings.appearance.customPresets} value={presetName} />
                   <button className="w-full min-h-11 rounded-2xl bg-accent px-4 py-2.5 text-sm font-bold text-accent-foreground sm:w-auto transition hover:bg-accent/90 shadow-sm" onClick={() => saveCurrentThemePreset(presetName)} type="button">
                     {copy.settings.appearance.savePreset}
                   </button>
@@ -632,6 +631,8 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                           <div className="flex flex-col gap-2 w-full">
                             <div className="flex items-center gap-1.5 w-full">
                               <input 
+                                id="appearance_edit_preset_name"
+                                name="appearance_edit_preset_name"
                                 className="w-full min-w-0 rounded-xl border border-border bg-background px-3 py-1.5 text-sm font-bold focus:border-accent focus:ring-1 focus:ring-accent outline-none transition" 
                                 value={editPresetName}
                                 onChange={(e) => setEditPresetName(e.target.value)}
@@ -997,6 +998,8 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                     <div>
                       <span className="block mb-1.5 text-xs font-bold text-foreground/70">{copy.settings.profile.avatarUrl}</span>
                       <input
+                        id="profile_avatar_url"
+                        name="profile_avatar_url"
                         className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm min-h-11 outline-none focus:border-accent focus:ring-1 focus:ring-accent transition font-normal"
                         onChange={(e) => setAvatarUrl(e.target.value)}
                         placeholder={copy.settings.profile.avatarUrlPlaceholder}
@@ -1008,6 +1011,8 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                     <div>
                       <span className="block mb-1.5 text-xs font-bold text-foreground/70">{copy.settings.profile.displayName}</span>
                       <input
+                        id="profile_display_name"
+                        name="profile_display_name"
                         className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm min-h-11 outline-none focus:border-accent focus:ring-1 focus:ring-accent transition font-normal"
                         onChange={(e) => setDisplayName(e.target.value)}
                         placeholder={copy.settings.profile.displayNamePlaceholder}
@@ -1108,6 +1113,8 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                               <div>
                                 <label className="block text-[10px] text-foreground/50 uppercase tracking-wider font-black mb-1.5">{lang === "ru" ? "Текущий пароль" : "Current Password"}</label>
                                 <input
+                                  id="security_current_password"
+                                  name="security_current_password"
                                   type="password"
                                   className="w-full min-h-10 px-3 rounded-xl border border-border/80 bg-background/50 text-sm font-medium text-foreground focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition"
                                   value={currentPassword}
@@ -1120,6 +1127,8 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                               <div>
                                 <label className="block text-[10px] text-foreground/50 uppercase tracking-wider font-black mb-1.5">{lang === "ru" ? "Новый пароль" : "New Password"}</label>
                                 <input
+                                  id="security_new_password"
+                                  name="security_new_password"
                                   type="password"
                                   className="w-full min-h-10 px-3 rounded-xl border border-border/80 bg-background/50 text-sm font-medium text-foreground focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition"
                                   value={newPassword}
@@ -1132,6 +1141,8 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                               <div>
                                 <label className="block text-[10px] text-foreground/50 uppercase tracking-wider font-black mb-1.5">{lang === "ru" ? "Подтвердите пароль" : "Confirm Password"}</label>
                                 <input
+                                  id="security_confirm_password"
+                                  name="security_confirm_password"
                                   type="password"
                                   className="w-full min-h-10 px-3 rounded-xl border border-border/80 bg-background/50 text-sm font-medium text-foreground focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition"
                                   value={confirmPassword}

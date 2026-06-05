@@ -5,7 +5,7 @@ import { updateSupabaseSession } from "@/shared/api/supabase/middleware";
 
 const PUBLIC_PATHS = new Set(["/login", "/auth/callback"]);
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const response = NextResponse.next({
     request: {
       headers: request.headers,

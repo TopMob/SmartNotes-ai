@@ -53,6 +53,8 @@ export function LockPrompt({ noteId, lock, onCancel }: LockPromptProps) {
 
         <form onSubmit={handleSubmit} className="space-y-4 text-left">
           <input
+            id="lock_password"
+            name="lock_password"
             type="text"
             style={{ WebkitTextSecurity: "disc" } as React.CSSProperties}
             autoComplete="off"

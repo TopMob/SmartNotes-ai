@@ -627,33 +627,6 @@ async function patchNotesAction(
   return notes.map((note) => note.id);
 }
 
-async function deleteNotesAction(supabase: ServerSupabase, userId: string, noteIds: string[]) {
-  const notes = await getOwnedNotes(supabase, userId, noteIds);
-  
-  const ownedNoteIds = notes.filter((note) => note.owner_id === userId).map((note) => note.id);
-  const sharedNoteIds = notes.filter((note) => note.owner_id !== userId).map((note) => note.id);
-
-  if (ownedNoteIds.length > 0) {
-    const { error } = await supabase.from("notes").delete().in("id", ownedNoteIds);
-    if (error) {
-      throw error;
-    }
-  }
-
-  if (sharedNoteIds.length > 0) {
-    const { error } = await supabase
-      .from("note_access")
-      .delete()
-      .eq("user_id", userId)
-      .in("note_id", sharedNoteIds);
-    if (error) {
-      throw error;
-    }
-  }
-
-  return notes.map((note) => note.id);
-}
-
 async function updateOwnedNote(supabase: ServerSupabase, userId: string, noteId: string, patch: Partial<Note>) {
   const notes = await getOwnedNotes(supabase, userId, [noteId]);
   const note = notes[0];
