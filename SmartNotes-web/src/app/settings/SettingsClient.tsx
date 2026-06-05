@@ -1482,7 +1482,7 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                       </div>
                     </div>
  
-                    <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="flex flex-col gap-4">
                       <div>
                         <span className="block mb-1.5 text-xs font-bold text-foreground/70">{copy.settings.profile.displayName}</span>
                         <div className="flex items-center gap-2">
@@ -1566,6 +1566,34 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                             {lang === "ru" ? "Можно изменить только один раз" : "Can only be changed once"}
                           </p>
                         )}
+                      </div>
+                      <div>
+                        <span className="block mb-1.5 text-xs font-bold text-foreground/70">{copy.settings.profile.email || "Email"}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="flex-1 flex min-h-11 items-center rounded-xl border border-border bg-background/40 px-4 py-2 opacity-75 cursor-default">
+                            <input
+                              type="text"
+                              readOnly
+                              className="min-w-0 flex-1 bg-transparent outline-none text-sm font-normal text-foreground/60 select-all"
+                              value={user?.email ?? "-"}
+                            />
+                          </span>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border/40 mt-2">
+                        <div>
+                          <span className="block mb-1 text-[10px] uppercase font-bold tracking-wider text-foreground/45">{lang === "ru" ? "Регистрация" : "Registered"}</span>
+                          <span className="text-xs font-medium text-foreground/80">
+                            {user?.createdAt ? new Date(user.createdAt).toLocaleDateString(lang === "ru" ? "ru-RU" : "en-US", { day: 'numeric', month: 'long', year: 'numeric' }) : "-"}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="block mb-1 text-[10px] uppercase font-bold tracking-wider text-foreground/45">{lang === "ru" ? "Тип аккаунта" : "Account type"}</span>
+                          <span className="inline-flex items-center gap-1.5 text-xs font-bold text-accent">
+                            <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
+                            {user?.id === "local-user" ? (lang === "ru" ? "Локальный" : "Local") : user?.id.startsWith("guest-") ? (lang === "ru" ? "Гость" : "Guest") : (lang === "ru" ? "Облачный" : "Cloud")}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
