@@ -313,7 +313,7 @@ export function SmartNotesShell() {
         </div>
       ) : null}
 
-      {/* FAB — shifts left on desktop when AI panel is open */}
+      {/* FAB - shifts left on desktop when AI panel is open */}
       {(view === "notes" || view === "folder") && (
         <button
           className={`btn-fab fixed bottom-5 z-30 flex h-14 w-14 items-center justify-center rounded-[1.2rem] bg-accent text-accent-foreground shadow-2xl shadow-violet-950/24 transition-[right] duration-300 ${
@@ -326,7 +326,7 @@ export function SmartNotesShell() {
         </button>
       )}
 
-      {/* Mobile FAB — always bottom-right, hidden when AI panel open on mobile */}
+      {/* Mobile FAB - always bottom-right, hidden when AI panel open on mobile */}
       {(view === "notes" || view === "folder") && (
         <button
           className={`btn-fab fixed bottom-5 right-5 z-30 flex h-16 w-16 items-center justify-center rounded-[1.4rem] bg-accent text-accent-foreground shadow-2xl shadow-violet-950/24 sm:hidden ${
@@ -339,10 +339,10 @@ export function SmartNotesShell() {
         </button>
       )}
 
-      {/* AI Notes Chat Panel — Gmail-style slide-in from right ✨ */}
+      {/* AI Notes Chat Panel - Gmail-style slide-in from right ✨ */}
       <AiChatPanel onOpenNote={(id) => openNote(id, notes)} activeNote={currentNote} />
 
-      {/* Command Palette — Cmd+K */}
+      {/* Command Palette - Cmd+K */}
       <CommandPalette
         onOpenNote={(id) => openNote(id, notes)}
         onCreateNote={createNoteDraft}

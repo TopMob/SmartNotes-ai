@@ -31,7 +31,7 @@ export default function ResetPasswordPage() {
     // Verify if there is an active session (set by the server during /auth/callback)
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
-        // No session — redirect to login
+        // No session - redirect to login
         router.replace("/login?error=Срок действия ссылки истек или сессия не найдена.");
       } else {
         setVerifying(false);

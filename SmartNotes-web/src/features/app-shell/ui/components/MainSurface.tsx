@@ -1,6 +1,7 @@
 import { Brain, Folder, Heart, RotateCcw, Shield, Sparkles } from "lucide-react";
 import { useMemo, useState, useEffect } from "react";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
+import { motion } from "framer-motion";
 
 import type { Folder as FolderEntity } from "@/entities/folder";
 import type { Note } from "@/entities/note";
@@ -462,23 +463,33 @@ function AdminToolsView({ notes }: { notes: Note[] }) {
     <div className="flex h-full flex-col">
       <div className="border-b border-border p-4 sm:p-6 pb-0">
         <h1 className="text-2xl font-black mb-6 tracking-tight">Admin Dashboard</h1>
-        <div className="flex gap-4">
+        <div className="flex gap-4 relative">
           {[
             { id: "overview", label: "Сводка" },
             { id: "feedback", label: "Отзывы" },
             { id: "admins", label: "Администраторы" },
             { id: "diagnostics", label: "Диагностика" },
-          ].map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id as any)}
-              className={`pb-3 text-sm font-bold border-b-2 transition ${
-                tab === t.id ? "border-accent text-accent" : "border-transparent text-foreground/50 hover:text-foreground"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+          ].map((t) => {
+            const isActive = tab === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id as any)}
+                className={`relative pb-3 text-sm font-bold transition-colors duration-200 active:scale-[0.98] ${
+                  isActive ? "text-accent" : "text-foreground/50 hover:text-foreground"
+                }`}
+              >
+                <span>{t.label}</span>
+                {isActive && (
+                  <motion.div
+                    layoutId="admin-active-tab"
+                    className="absolute bottom-0 left-0 right-0 h-[2px] bg-accent"
+                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                  />
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -527,8 +538,8 @@ function AdminToolsView({ notes }: { notes: Note[] }) {
                     {item.text || <span className="italic text-foreground/30">Без комментария</span>}
                   </p>
                   <div className="text-[10px] text-foreground/40 font-mono bg-background p-2 rounded-xl break-all">
-                    UserAgent: {item.technical_data?.userAgent || "—"}<br/>
-                    Language: {item.technical_data?.systemLanguage || "—"}<br/>
+                    UserAgent: {item.technical_data?.userAgent || "-"}<br/>
+                    Language: {item.technical_data?.systemLanguage || "-"}<br/>
                     {item.technical_data?.diagnostics ? `Diagnostics: ${JSON.stringify(item.technical_data.diagnostics).substring(0, 100)}...` : ""}
                   </div>
                 </div>

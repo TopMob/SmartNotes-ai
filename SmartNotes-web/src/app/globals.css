@@ -507,7 +507,7 @@ section,
   backdrop-filter: none !important;
 }
 
-/* Paper theme — explicit (same as :root defaults, useful for reset) */
+/* Paper theme - explicit (same as :root defaults, useful for reset) */
 :root[data-theme="paper"] {
   --background: #050505;
   --foreground: #ffffff;

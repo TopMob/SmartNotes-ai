@@ -151,18 +151,17 @@ export const Header = React.memo(function Header({
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          {/* Glowing AI Chat Button */}
           <button
-            className={`flex h-11 shrink-0 items-center gap-2 rounded-2xl border px-4 text-sm font-bold sm:h-10 transition-all duration-300 ${
+            className={`group relative flex h-11 shrink-0 items-center gap-2 rounded-2xl border px-4 text-sm font-bold sm:h-10 transition-all duration-300 active:scale-[0.97] overflow-hidden ${
               aiChatOpen
-                ? "bg-violet-600 border-violet-500 text-white shadow-[0_0_15px_rgba(124,58,237,0.4)]"
-                : "bg-surface-strong border-border text-foreground/72 hover:border-violet-500 hover:text-violet-600"
+                ? "bg-gradient-to-r from-violet-600 to-fuchsia-600 border-violet-500 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]"
+                : "bg-surface-strong border-border text-foreground/72 hover:border-violet-500/50 hover:bg-violet-500/5 hover:text-violet-400"
             }`}
             onClick={onToggleAiChat}
             type="button"
             title="AI Чат"
           >
-            <Sparkles className={`h-5 w-5 sm:h-4 sm:w-4 ${aiChatOpen ? "fill-white" : ""}`} />
+            <Sparkles className={`h-5 w-5 sm:h-4 sm:w-4 ${aiChatOpen ? "fill-white animate-pulse" : "group-hover:animate-bounce"}`} />
             <span className="hidden sm:inline">AI Чат</span>
           </button>
 

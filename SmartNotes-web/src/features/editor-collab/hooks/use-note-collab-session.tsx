@@ -161,12 +161,12 @@ export function NoteCollabSessionProvider({ note, children }: NoteCollabProvider
     }
 
     if (isNewEmptyNote) {
-      hydrateFromQuery("New empty note — skipped IndexedDB wait, applied query snapshot immediately.");
+      hydrateFromQuery("New empty note - skipped IndexedDB wait, applied query snapshot immediately.");
     } else {
 
       const hydrationTimeoutId = window.setTimeout(() => {
         if (!didHydrateFromQueryRef.current) {
-          hydrateFromQuery("IndexedDB hydration timeout — fell back to query snapshot.");
+          hydrateFromQuery("IndexedDB hydration timeout - fell back to query snapshot.");
         }
       }, 600);
 

@@ -4,6 +4,7 @@ import React, { useRef } from "react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { motion } from "framer-motion";
 
 import type { Folder as FolderEntity } from "@/entities/folder";
 import { getUiCopy } from "@/shared/lib/i18n";
@@ -56,7 +57,7 @@ function SortableFolderItem({ folder, isActive, folderViewMode, onOpenFolder }: 
   return (
     <div ref={setNodeRef} style={style} className="relative w-full">
       <button 
-        className={`group flex w-full items-start gap-2 rounded-2xl border p-3 text-left transition ${
+        className={`group relative flex w-full items-start gap-2 rounded-2xl border p-3 text-left transition-all duration-200 active:scale-[0.98] ${
           isActive 
             ? "border-accent bg-accent/15 text-accent ring-1 ring-accent/50" 
             : "border-transparent hover:border-border hover:bg-surface-strong"
@@ -72,7 +73,7 @@ function SortableFolderItem({ folder, isActive, folderViewMode, onOpenFolder }: 
         >
           <GripVertical className="h-[18px] w-[18px]" />
         </div>
-        <div className="flex-1 text-left flex items-start gap-2 pointer-events-none">
+        <div className="flex-1 text-left flex items-start gap-2 pointer-events-none z-10">
           <Folder className={`mt-0.5 h-[18px] w-[18px] shrink-0 ${isActive ? "text-accent" : "text-foreground/50"}`} />
           <span>
             <span className="block text-sm font-bold text-foreground">{folder.name}</span>
@@ -125,19 +126,35 @@ export const Sidebar = React.memo(function Sidebar({ copy, currentView, folders,
 
       <div className="min-h-0 flex flex-1 flex-col">
         <div className="flex-1 min-h-0 overflow-y-auto pr-2">
-          <nav className="mt-0 space-y-1">
+          <nav className="mt-0 space-y-1 relative">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = currentView === item.view;
 
               return (
-                <button className={`flex w-full items-center justify-between rounded-2xl border px-3 py-3 text-left text-sm font-bold transition ${isActive ? "border-accent bg-accent/15 text-accent ring-1 ring-accent/50" : "border-transparent text-foreground/70 hover:border-border hover:bg-surface-strong"}`} key={item.key} onClick={() => onSwitchView(item.view)} type="button">
-                  <span className="flex items-center gap-3">
+                <button 
+                  className={`relative flex w-full items-center justify-between rounded-2xl px-3 py-3 text-left text-sm font-bold transition-all duration-200 active:scale-[0.98] ${
+                    isActive 
+                      ? "text-accent" 
+                      : "text-foreground/70 hover:bg-surface-strong"
+                  }`} 
+                  key={item.key} 
+                  onClick={() => onSwitchView(item.view)} 
+                  type="button"
+                >
+                  {isActive && (
+                    <motion.div
+                      layoutId="active-sidebar-pill"
+                      className="absolute inset-0 rounded-2xl border border-accent bg-accent/15 ring-1 ring-accent/50"
+                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                    />
+                  )}
+                  <span className="relative z-10 flex items-center gap-3">
                     <Icon className="h-[18px] w-[18px]" />
                     <span>{copy.shell[item.key]}</span>
                   </span>
                   {item.key === "invites" && invitesCount > 0 && (
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent text-[10px] font-black text-background animate-pulse shrink-0">
+                    <span className="relative z-10 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-[10px] font-black text-background animate-pulse shrink-0">
                       {invitesCount}
                     </span>
                   )}

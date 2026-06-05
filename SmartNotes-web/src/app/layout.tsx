@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "SmartNotes",
-  description: "Создал и забыл — SmartNotes напомнит, найдет и разложит заметки по смыслу.",
+  description: "Создал и забыл. SmartNotes напомнит, найдет и разложит заметки по смыслу.",
   applicationName: "SmartNotes",
   icons: {
     icon: [{ url: "/icon.svg", type: "image/svg+xml" }],

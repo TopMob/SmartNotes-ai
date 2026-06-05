@@ -1,4 +1,4 @@
-import { Heart, MoreHorizontal, Pin } from "lucide-react";
+import { Heart, MoreHorizontal, Pin, Lock, Users } from "lucide-react";
 import { useState, memo } from "react";
 import type { Folder as FolderEntity } from "@/entities/folder";
 import type { Note } from "@/entities/note";
@@ -103,15 +103,14 @@ export const NoteCard = memo(function NoteCard({ note, folders, onOpenNote, onOp
           </p>
         </div>
         
-        {/* z-20 relative wrapper so that other text links or tags stay interactable if needed, or simply render cleanly. */}
         <div className="relative z-20 pointer-events-none mt-auto pt-3.5 w-full">
           {Boolean(note.reminderAt || note.lock || note.isArchived || folder || isShared) && (
-            <div className="flex flex-wrap items-center gap-2 text-[12px] font-black uppercase tracking-[0.18em] text-foreground/42">
+            <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-foreground/42">
               {note.reminderAt ? <span className="rounded-full bg-amber-500/10 px-2 py-1 text-amber-600">{reminderLabel}</span> : null}
-              {note.lock ? <span className="rounded-full bg-foreground/8 px-2 py-1">🔒</span> : null}
+              {note.lock ? <span className="rounded-full bg-foreground/8 px-2 py-1 flex items-center gap-1.5"><Lock className="h-3 w-3" /> Lock</span> : null}
               {note.isArchived ? <span className="rounded-full bg-foreground/8 px-2 py-1">Archive</span> : null}
               {folder ? <span className="rounded-full bg-accent/10 px-2 py-1 text-accent">{folder.name}</span> : null}
-              {isShared ? <span className="rounded-full bg-violet-500/10 px-2.5 py-1 text-violet-400">👥 Collab</span> : null}
+              {isShared ? <span className="rounded-full bg-violet-500/10 px-2.5 py-1 text-violet-400 flex items-center gap-1.5"><Users className="h-3 w-3" /> Collab</span> : null}
             </div>
           )}
           {(!note.lock || isUnlocked) && note.userTags.length > 0 && (

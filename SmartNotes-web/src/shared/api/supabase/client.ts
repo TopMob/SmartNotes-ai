@@ -21,4 +21,4 @@ export function createSupabaseBrowserClient() {
   return browserClient;
 }
 
-/** Reset the singleton — useful for tests or when config changes */
+/** Reset the singleton - useful for tests or when config changes */

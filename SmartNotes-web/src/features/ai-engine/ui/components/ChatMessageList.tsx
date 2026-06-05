@@ -116,7 +116,7 @@ export function ChatMessageList({
           <div>
             <h3 className="text-sm font-black tracking-tight">Твой AI-гид по заметкам</h3>
             <p className="mt-1.5 text-xs text-foreground/54 max-w-[260px] leading-relaxed font-medium">
-              Задай вопрос — найду ответ в твоих заметках
+              Задай вопрос, и я найду ответ в твоих заметках
             </p>
           </div>
           <motion.div

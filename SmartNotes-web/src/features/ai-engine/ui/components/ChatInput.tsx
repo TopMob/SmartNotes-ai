@@ -45,7 +45,7 @@ export function ChatInput({ input, setInput, loading, inputRef, onSend }: ChatIn
         </button>
       </div>
       <p className="mt-1.5 text-center text-[10px] text-foreground/32 font-bold tracking-wider uppercase">
-        Enter — отправить · Shift+Enter — новая строка
+        Enter для отправки · Shift+Enter для новой строки
       </p>
     </div>
   );

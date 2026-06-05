@@ -350,7 +350,7 @@ export function CommandPalette({ onOpenNote, onCreateNote }: CommandPaletteProps
 
   return (
     <>
-      {/* Keyboard hint in sidebar / header — invisible trigger, shortcut visible via tooltip */}
+      {/* Keyboard hint in sidebar / header - invisible trigger, shortcut visible via tooltip */}
       <AnimatePresence>
         {open && (
           <>

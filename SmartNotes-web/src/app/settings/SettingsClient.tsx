@@ -1045,7 +1045,7 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                       <input
                         className="w-full min-h-11 rounded-xl border border-border/80 bg-background/50 px-4 py-2 text-sm text-foreground/60 select-all cursor-default font-normal"
                         readOnly
-                        value={user?.email ?? "—"}
+                        value={user?.email ?? "-"}
                       />
                     </div>
 
@@ -1055,7 +1055,7 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                         <input
                           className="min-w-0 flex-1 rounded-xl border border-border/80 bg-background/50 px-4 py-2 font-mono text-[11px] text-foreground/60 select-all cursor-default min-h-11"
                           readOnly
-                          value={user?.id ?? "—"}
+                          value={user?.id ?? "-"}
                         />
                         <button
                           className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border transition-all ${uidCopied ? "border-emerald-500 bg-emerald-500/10 text-emerald-500" : "border-border/80 bg-background text-foreground/60 hover:bg-surface-strong"}`}
@@ -1084,7 +1084,7 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                         <div>
                           <span className="block text-[10px] text-foreground/45 uppercase tracking-wider font-black">{copy.settings.profile.lastLoginAt || "Последний вход"}</span>
                           <span className="mt-1 block truncate text-foreground font-bold">
-                            {user.lastSignInAt ? new Date(user.lastSignInAt).toLocaleDateString(lang === "ru" ? "ru-RU" : "en-US", { year: "numeric", month: "short", day: "numeric" }) : "—"}
+                            {user.lastSignInAt ? new Date(user.lastSignInAt).toLocaleDateString(lang === "ru" ? "ru-RU" : "en-US", { year: "numeric", month: "short", day: "numeric" }) : "-"}
                           </span>
                         </div>
                       </div>

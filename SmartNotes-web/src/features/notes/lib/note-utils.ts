@@ -17,7 +17,7 @@ const analysisFields = new Set<keyof Note>(ANALYSIS_FIELD_KEYS);
 
 /**
  * Generate a plain UUID v4 suitable for database primary keys.
- * The database expects native UUIDs — string prefixes like "note_" cause
+ * The database expects native UUIDs - string prefixes like "note_" cause
  * type mismatches when the column is uuid or when referencing across tables.
  */
 export function createId(): string {

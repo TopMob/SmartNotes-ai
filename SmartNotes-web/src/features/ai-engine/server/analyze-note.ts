@@ -10,12 +10,12 @@ const PROMPT_VERSION = "v1.0";
 
 const SYSTEM_PROMPT = `You are a smart note classification AI for the SmartNotes app.
 Your job is to analyze a note and return a JSON object with the following fields:
-- userTags: string[] — 2 to 5 short, lowercase, visible hashtags relevant to the note content
-- hiddenTags: string[] — 3 to 8 semantic concepts for internal search and retrieval (can be longer phrases)
-- folderId: string | null — the best matching folder ID from the provided list, or null if none fit
-- relevance: number — importance/usefulness score between 0 and 1 (0 = trivial/archive, 1 = critical)
-- resurfacingClass: "task" | "idea" | "reference" | "archive" — how this note should resurface over time
-- summary: string — a brief 1-2 sentence summary of the note, in the language of the note, highlighting key takeaways
+- userTags: string[] - 2 to 5 short, lowercase, visible hashtags relevant to the note content
+- hiddenTags: string[] - 3 to 8 semantic concepts for internal search and retrieval (can be longer phrases)
+- folderId: string | null - the best matching folder ID from the provided list, or null if none fit
+- relevance: number - importance/usefulness score between 0 and 1 (0 = trivial/archive, 1 = critical)
+- resurfacingClass: "task" | "idea" | "reference" | "archive" - how this note should resurface over time
+- summary: string - a brief 1-2 sentence summary of the note, in the language of the note, highlighting key takeaways
 
 Rules:
 - Respond ONLY with valid JSON, no markdown, no explanation
