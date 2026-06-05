@@ -1186,10 +1186,10 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                     <div className="flex flex-col gap-1.5">
                       <div className="flex items-center justify-between gap-4 p-4 rounded-2xl border border-border bg-background hover:bg-surface-strong transition">
                         <div className="flex items-center gap-3 min-w-0">
-                          <svg viewBox="0 0 24 24" className="h-9 w-9 shrink-0 select-none">
-                            <path fill="#34a853" d="M9.062 4L2 16.23h4.637l7.063-12.23H9.062z" />
-                            <path fill="#4285f4" d="M22 16.23H7.875l3.531 6.115H22v-6.115z" />
-                            <path fill="#f9ab00" d="M14.938 4l7.062 12.23-3.531 6.115L11.406 4h3.532z" />
+                          <svg viewBox="4.5 6 15 13" className="h-9 w-9 shrink-0 select-none">
+                            <path fill="#4285F4" d="M17.15 15.35h-10.3l-1.8 3.1h13.9z" />
+                            <path fill="#34A853" d="M6.85 15.35L12 6.45 13.8 9.55 8.65 18.45z" />
+                            <path fill="#FBBC05" d="M12 6.45l5.15 8.9H13.8L10.2 9.55z" />
                           </svg>
                           <div className="min-w-0">
                             <p className="text-sm font-black text-foreground">Google Drive</p>
@@ -1242,37 +1242,39 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                     </div>
                   </div>
 
-                  <div>
-                    <span className="block text-[10px] font-black uppercase tracking-[0.18em] text-foreground/42 mb-2">
-                      {lang === "ru" ? "Качество сжатия (только для Google Диска)" : "Compression quality (Google Drive only)"}
-                    </span>
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                      {([
-                        ["low", lang === "ru" ? "Низкое" : "Low"],
-                        ["medium", lang === "ru" ? "Среднее" : "Medium"],
-                        ["high", lang === "ru" ? "Высокое" : "High"],
-                        ["original", lang === "ru" ? "Оригинал" : "Original"]
-                      ] as const).map(([level, label]) => (
-                        <button
-                          key={level}
-                          onClick={() => handleSetCompression(level)}
-                          className={`flex min-h-10 items-center justify-center rounded-xl border px-3 py-2 text-xs font-bold transition shadow-sm ${
-                            compression === level 
-                              ? "border-accent bg-accent text-accent-foreground ring-2 ring-accent/20" 
-                              : "border-border bg-background hover:bg-surface-strong text-foreground/72"
-                          }`}
-                          type="button"
-                        >
-                          {label}
-                        </button>
-                      ))}
+                  {driveConnected && (
+                    <div className="space-y-3 pt-2">
+                      <span className="block text-[10px] font-black uppercase tracking-[0.18em] text-foreground/42">
+                        {lang === "ru" ? "Качество сжатия" : "Compression Quality"}
+                      </span>
+                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                        {([
+                          ["low", lang === "ru" ? "Низкое" : "Low"],
+                          ["medium", lang === "ru" ? "Среднее" : "Medium"],
+                          ["high", lang === "ru" ? "Сильное" : "High"],
+                          ["original", lang === "ru" ? "Оригинал" : "Original"]
+                        ] as const).map(([level, label]) => (
+                          <button
+                            key={level}
+                            onClick={() => handleSetCompression(level)}
+                            className={`flex min-h-10 items-center justify-center rounded-xl border px-3 py-2 text-xs font-bold transition shadow-sm ${
+                              compression === level 
+                                ? "border-accent bg-accent text-accent-foreground ring-2 ring-accent/20" 
+                                : "border-border bg-background hover:bg-surface-strong text-foreground/72"
+                            }`}
+                            type="button"
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-[11px] leading-relaxed text-foreground/50">
+                        {lang === "ru"
+                          ? "Низкое сжатие — до ~1 МБ, среднее — ~500 КБ, сильное — до 50 КБ."
+                          : "Low compression — up to ~1 MB, medium — ~500 KB, high — up to 50 KB."}
+                      </p>
                     </div>
-                    <p className="mt-2 text-[11px] leading-relaxed text-foreground/50">
-                      {lang === "ru"
-                        ? "Изменения применяются мгновенно и локально."
-                        : "Changes apply instantly to this device."}
-                    </p>
-                  </div>
+                  )}
                 </div>
               </Panel>
 
