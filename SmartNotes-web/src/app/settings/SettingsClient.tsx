@@ -108,7 +108,7 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
   const userId = useAuthStore((state) => state.user?.id ?? "local-user");
   const { createNote } = useNoteActions();
   const { patchSettings, resetSettings } = useSettingsActions();
-  const { updateProfile, pending: profilePending, connectGoogleDrive, logout } = useAuthActions();
+  const { updateProfile, connectGoogleDrive, logout } = useAuthActions();
 
   const [displayName, setDisplayName] = useState(user?.displayName ?? "");
   const [avatarUrl, setAvatarUrl] = useState(user?.photoURL ?? "");
@@ -1159,82 +1159,88 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                 <div className="rounded-[1.2rem] border border-border bg-surface-strong p-5 text-sm text-foreground/58 space-y-6">
                   
                   <div className="flex flex-col gap-4">
-                    <div className="flex items-start justify-between gap-4 p-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 transition">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <svg viewBox="0 0 24 24" className="h-9 w-9 shrink-0 select-none text-[#3ecf8e]" fill="currentColor">
-                          <path d="M21.362 9.354H12V3L2.638 14.646H12V21z" />
-                        </svg>
-                        <div className="min-w-0">
-                          <p className="text-sm font-black text-emerald-600 dark:text-emerald-400">Supabase Storage</p>
-                          <p className="text-[11px] font-medium text-emerald-600/80 dark:text-emerald-400/80">
-                            {lang === "ru" ? "Активно • Всегда 50 КБ" : "Active • Always 50 KB"}
-                          </p>
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center justify-between gap-4 p-4 rounded-2xl border border-border bg-background hover:bg-surface-strong transition">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <svg viewBox="0 0 24 24" className="h-9 w-9 shrink-0 select-none text-[#3ecf8e]" fill="currentColor">
+                            <path d="M21.362 9.354H12V3L2.638 14.646H12V21z" />
+                          </svg>
+                          <div className="min-w-0">
+                            <p className="text-sm font-black text-foreground">Supabase Storage</p>
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end shrink-0 gap-0.5">
+                          <span className="text-xs font-bold text-foreground/50">50 KB</span>
+                          <span className="text-[10px] text-emerald-500 font-bold uppercase tracking-wider">
+                            {lang === "ru" ? "Активно" : "Active"}
+                          </span>
                         </div>
                       </div>
-                      <span className="text-[10px] bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded-md uppercase tracking-wider shrink-0 font-bold">
-                        {lang === "ru" ? "Системное" : "System"}
-                      </span>
+                      <p className="px-1 text-[11px] leading-relaxed text-foreground/50">
+                        {lang === "ru"
+                          ? "Автоматически сжимает все изображения до 50 КБ для экономии места."
+                          : "Automatically compresses all images to 50 KB to save space."}
+                      </p>
                     </div>
 
-                    <div className="flex items-center justify-between gap-4 p-4 rounded-2xl border border-border bg-background hover:bg-surface-strong transition">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <svg viewBox="0 0 360 360" className="h-9 w-9 shrink-0 select-none">
-                          <path fill="#0066da" d="M124.5 240H322.5L258 322.5H60L124.5 240Z" />
-                          <path fill="#00aa47" d="M60 322.5L124.5 240L37.5 90L22.5 115.5L60 322.5Z" />
-                          <path fill="#ffba00" d="M258 322.5L322.5 240L186 3.75H171L124.5 240L258 322.5Z" />
-                        </svg>
-                        <div className="min-w-0">
-                          <p className="text-sm font-black text-foreground">Google Drive</p>
-                          <p className="text-[11px] font-medium text-foreground/50 truncate">
-                            {driveConnected 
-                              ? (gdriveDisabled ? (lang === "ru" ? "Интеграция приостановлена" : "Integration paused") : (lang === "ru" ? "Активно" : "Active"))
-                              : (lang === "ru" ? "Не подключен" : "Not connected")}
-                          </p>
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center justify-between gap-4 p-4 rounded-2xl border border-border bg-background hover:bg-surface-strong transition">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <svg viewBox="0 0 24 24" className="h-9 w-9 shrink-0 select-none">
+                            <path fill="#34a853" d="M9.062 4L2 16.23h4.637l7.063-12.23H9.062z" />
+                            <path fill="#4285f4" d="M22 16.23H7.875l3.531 6.115H22v-6.115z" />
+                            <path fill="#f9ab00" d="M14.938 4l7.062 12.23-3.531 6.115L11.406 4h3.532z" />
+                          </svg>
+                          <div className="min-w-0">
+                            <p className="text-sm font-black text-foreground">Google Drive</p>
+                            <p className="text-[11px] font-medium text-foreground/50 truncate">
+                              {driveConnected 
+                                ? (gdriveDisabled ? (lang === "ru" ? "Интеграция приостановлена" : "Integration paused") : (lang === "ru" ? "Активно" : "Active"))
+                                : (lang === "ru" ? "Не подключен" : "Not connected")}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {driveConnected ? (
+                            <>
+                              <button
+                                onClick={handleToggleGoogleDrive}
+                                className={`h-9 px-3 rounded-xl border text-[11px] font-bold transition-all duration-200 ${
+                                  gdriveDisabled 
+                                    ? "border-accent bg-accent/10 text-accent hover:bg-accent/20" 
+                                    : "border-border bg-background text-foreground/70 hover:bg-surface-strong"
+                                }`}
+                                type="button"
+                              >
+                                {gdriveDisabled ? (lang === "ru" ? "Включить" : "Enable") : (lang === "ru" ? "Пауза" : "Pause")}
+                              </button>
+                              <button
+                                onClick={() => void handleDisconnectDrive()}
+                                className="h-9 w-9 flex items-center justify-center rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition active:scale-95"
+                                type="button"
+                                title={lang === "ru" ? "Отключить" : "Disconnect"}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              onClick={() => void connectGoogleDrive()}
+                              className="h-9 px-4 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 text-xs font-bold transition shadow-sm"
+                              type="button"
+                            >
+                              {lang === "ru" ? "Войти" : "Sign In"}
+                            </button>
+                          )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {driveConnected ? (
-                          <>
-                            <button
-                              onClick={handleToggleGoogleDrive}
-                              className={`h-9 px-3 rounded-xl border text-[11px] font-bold transition-all duration-200 ${
-                                gdriveDisabled 
-                                  ? "border-accent bg-accent/10 text-accent hover:bg-accent/20" 
-                                  : "border-border bg-background text-foreground/70 hover:bg-surface-strong"
-                              }`}
-                              type="button"
-                            >
-                              {gdriveDisabled ? (lang === "ru" ? "Включить" : "Enable") : (lang === "ru" ? "Пауза" : "Pause")}
-                            </button>
-                            <button
-                              onClick={() => void handleDisconnectDrive()}
-                              className="h-9 w-9 flex items-center justify-center rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition active:scale-95"
-                              type="button"
-                              title={lang === "ru" ? "Отключить" : "Disconnect"}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </>
-                        ) : (
-                          <button
-                            onClick={() => void connectGoogleDrive()}
-                            className="h-9 px-4 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 text-xs font-bold transition shadow-sm"
-                            type="button"
-                          >
-                            {lang === "ru" ? "Войти" : "Sign In"}
-                          </button>
-                        )}
-                      </div>
+                      <p className="px-1 text-[11px] leading-relaxed text-foreground/50">
+                        {lang === "ru"
+                          ? "Принесите свое собственное хранилище (BYOS). Позволяет сохранять файлы в оригинальном качестве или с выбранным уровнем сжатия."
+                          : "Bring Your Own Storage (BYOS). Allows you to store files in original quality or custom compression level."}
+                      </p>
                     </div>
                   </div>
-
-                  <p className="text-xs leading-relaxed text-foreground/60">
-                    {lang === "ru"
-                      ? "Supabase автоматически сжимает все изображения до 50 КБ. Подключите свой Google Диск (BYOS), чтобы сохранять файлы в оригинальном качестве или с выбранным уровнем сжатия."
-                      : "Supabase auto-compresses images to 50 KB. Link Google Drive (BYOS) to store images in original quality or custom compression level."}
-                  </p>
-
-                  <div className="h-px bg-border/60" />
 
                   <div>
                     <span className="block text-[10px] font-black uppercase tracking-[0.18em] text-foreground/42 mb-2">
@@ -1446,7 +1452,7 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                           <input
                             id="profile_display_name"
                             name="profile_display_name"
-                            className="flex-1 w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm min-h-11 outline-none focus:border-accent focus:ring-1 focus:ring-accent transition font-normal"
+                            className="flex-1 w-full rounded-xl border border-border/80 bg-background/50 px-4 py-2.5 text-sm min-h-11 outline-none focus:border-accent focus:ring-1 focus:ring-accent transition font-normal"
                             onChange={(e) => setDisplayName(e.target.value)}
                             onBlur={() => {
                               if (displayName.trim() !== (user?.displayName ?? "")) {
@@ -1487,7 +1493,7 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                             id="profile_username"
                             name="profile_username"
                             disabled={hasChangedUsername}
-                            className="flex-1 w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm min-h-11 outline-none focus:border-accent focus:ring-1 focus:ring-accent transition font-normal disabled:text-foreground/50 disabled:bg-background/40 disabled:cursor-not-allowed"
+                            className="flex-1 w-full rounded-xl border border-border/80 bg-background/50 px-4 py-2.5 text-sm min-h-11 outline-none focus:border-accent focus:ring-1 focus:ring-accent transition font-normal disabled:text-foreground/50 disabled:bg-background/20 disabled:cursor-not-allowed"
                             onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, ""))}
                             onBlur={handleSaveUsername}
                             onKeyDown={(e) => {
