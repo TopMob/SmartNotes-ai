@@ -794,6 +794,8 @@ export type Database = {
           metadata: Json
           plan: Database["public"]["Enums"]["smartnotes_plan"]
           updated_at: string
+          username: string | null
+          username_changed: boolean
         }
         Insert: {
           avatar_url?: string | null
@@ -804,6 +806,8 @@ export type Database = {
           metadata?: Json
           plan?: Database["public"]["Enums"]["smartnotes_plan"]
           updated_at?: string
+          username?: string | null
+          username_changed?: boolean
         }
         Update: {
           avatar_url?: string | null
@@ -814,6 +818,8 @@ export type Database = {
           metadata?: Json
           plan?: Database["public"]["Enums"]["smartnotes_plan"]
           updated_at?: string
+          username?: string | null
+          username_changed?: boolean
         }
         Relationships: []
       }

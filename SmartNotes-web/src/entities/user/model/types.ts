@@ -12,4 +12,6 @@ export type User = {
   hasPassword?: boolean;
   createdAt?: string;
   lastSignInAt?: string;
+  username?: string | null;
+  usernameChanged?: boolean;
 };

@@ -104,7 +104,7 @@ export async function signInWithGoogleIdToken(credential: string, nonce?: string
   return data;
 }
 
-export async function updateCurrentProfile(payload: { displayName?: string; photoURL?: string | null }) {
+export async function updateCurrentProfile(payload: { displayName?: string; photoURL?: string | null; username?: string }) {
   const supabase = createSupabaseBrowserClient();
 
   if (!supabase) {
@@ -120,6 +120,19 @@ export async function updateCurrentProfile(payload: { displayName?: string; phot
 
   if (error) {
     throw error;
+  }
+
+  if (payload.username !== undefined) {
+    const { data: userData } = await supabase.auth.getUser();
+    if (userData.user?.id) {
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({ username: payload.username })
+        .eq("id", userData.user.id);
+      if (profileError) {
+        throw profileError;
+      }
+    }
   }
 
   return true;

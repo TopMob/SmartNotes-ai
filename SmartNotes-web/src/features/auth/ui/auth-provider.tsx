@@ -59,8 +59,28 @@ async function syncSession(session: Session | null) {
 
   await bootstrapProfile(supabase, session.user);
   
-  // Migrate guest data to the newly authenticated user!
-  const mappedUser = mapAuthUser(session.user);
+  let username: string | null = null;
+  let usernameChanged = false;
+  try {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("username, username_changed")
+      .eq("id", session.user.id)
+      .single();
+    if (profile) {
+      username = profile.username;
+      usernameChanged = profile.username_changed;
+    }
+  } catch (err) {
+    console.error("Failed to fetch profile details:", err);
+  }
+
+  const mappedUser = {
+    ...mapAuthUser(session.user),
+    username,
+    usernameChanged,
+  };
+
   try {
     const guestSession = readGuestSessionWithoutCleanup();
     if (guestSession && guestSession.user.id !== mappedUser.id) {

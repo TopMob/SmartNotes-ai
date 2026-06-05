@@ -5,16 +5,18 @@ import { useEffect } from "react";
 import { useUiStore } from "@/shared/store/ui-store";
 import type { Note } from "@/entities/note";
 import { useAiChat } from "../hooks/use-ai-chat";
+import { getUiCopy } from "@/shared/lib/i18n";
 import { ChatHeader } from "./components/ChatHeader";
 import { ChatMessageList } from "./components/ChatMessageList";
 import { ChatInput } from "./components/ChatInput";
 
 type AiChatPanelProps = {
+  copy: ReturnType<typeof getUiCopy>;
   onOpenNote?: (noteId: string) => void;
   activeNote?: Note | null;
 };
 
-export function AiChatPanel({ onOpenNote, activeNote }: AiChatPanelProps) {
+export function AiChatPanel({ copy, onOpenNote, activeNote }: AiChatPanelProps) {
   const open = useUiStore((s) => s.aiChatOpen);
   const setAiChatOpen = useUiStore((s) => s.setAiChatOpen);
 
@@ -61,7 +63,7 @@ export function AiChatPanel({ onOpenNote, activeNote }: AiChatPanelProps) {
         {open && (
           <motion.aside
             animate={{ x: 0, opacity: 1 }}
-            aria-label="AI чат по заметкам"
+            aria-label={copy.ai.chatAriaLabel}
             className="fixed inset-y-0 right-0 z-[70] flex w-full flex-col border-l border-border/40 bg-surface-strong/85 shadow-2xl shadow-violet-950/10 backdrop-blur-xl sm:w-[420px] transition-colors duration-300"
             exit={{ x: "100%", opacity: 0 }}
             id="ai-chat-panel"
@@ -71,12 +73,14 @@ export function AiChatPanel({ onOpenNote, activeNote }: AiChatPanelProps) {
             style={{ willChange: "transform, opacity" }}
           >
             <ChatHeader
+              copy={copy}
               hasMessages={messages.length > 0}
               onClear={handleClear}
               onClose={() => setAiChatOpen(false)}
             />
 
             <ChatMessageList
+              copy={copy}
               messages={messages}
               notes={notes}
               rawFolders={rawFolders}
@@ -91,6 +95,7 @@ export function AiChatPanel({ onOpenNote, activeNote }: AiChatPanelProps) {
             />
 
             <ChatInput
+              copy={copy}
               input={input}
               setInput={setInput}
               loading={loading}

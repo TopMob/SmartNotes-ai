@@ -38,7 +38,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState, useEffect } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 
 import { mapAuthUser } from "@/features/auth/lib/map-auth-user";
@@ -144,21 +144,15 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
   }, [user]);
 
   const defaultUser = user?.email ? user.email.split("@")[0].replace(/[^a-zA-Z0-9_]/g, "") : "";
-  const savedUser = (typeof window !== "undefined" && window.localStorage.getItem("smartnotes:custom-username")) || defaultUser;
+  const savedUser = user?.username || defaultUser;
   const isNameChanged = displayName.trim() !== (user?.displayName ?? "");
   const isLoginChanged = !hasChangedUsername && username.trim() !== savedUser;
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const saved = window.localStorage.getItem("smartnotes:custom-username");
-      const hasChanged = window.localStorage.getItem("smartnotes:has-changed-username") === "true";
-      setHasChangedUsername(hasChanged);
-      if (saved) {
-        setUsername(saved);
-        return;
-      }
-    }
-    if (user?.email) {
+    setHasChangedUsername(!!user?.usernameChanged);
+    if (user?.username) {
+      setUsername(user.username);
+    } else if (user?.email) {
       const defaultUsername = user.email.split("@")[0].replace(/[^a-zA-Z0-9_]/g, "");
       setUsername(defaultUsername);
     }
@@ -598,7 +592,7 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
     });
   }
 
-  async function handleSaveProfileData(updates: { displayName?: string; photoURL?: string | null }) {
+  async function handleSaveProfileData(updates: { displayName?: string; photoURL?: string | null; username?: string }) {
     setProfileSaveStatus("saving");
     try {
       await updateProfile(updates);
@@ -607,6 +601,7 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
     } catch {
       setProfileSaveStatus("error");
       setTimeout(() => setProfileSaveStatus("idle"), 3000);
+      throw new Error("Failed to update profile");
     }
   }
 
@@ -614,6 +609,13 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
     if (hasChangedUsername) return;
     const trimmed = username.trim();
     if (!trimmed || trimmed === savedUser) return;
+
+    if (!/^[a-zA-Z0-9_]{3,30}$/.test(trimmed)) {
+      alert(lang === "ru" 
+        ? "Логин должен быть от 3 до 30 символов и содержать только латинские буквы, цифры и символ подчеркивания."
+        : "Username must be 3 to 30 characters long and contain only letters, numbers, and underscores.");
+      return;
+    }
 
     setConfirmModal({
       isOpen: true,
@@ -625,19 +627,15 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
       cancelText: lang === "ru" ? "Отмена" : "Cancel",
       variant: "primary",
       onConfirm: async () => {
-        if (typeof window !== "undefined") {
-          window.localStorage.setItem("smartnotes:custom-username", trimmed);
-          window.localStorage.setItem("smartnotes:has-changed-username", "true");
-        }
-        setHasChangedUsername(true);
-        setProfileSaveStatus("saving");
         try {
-          await handleSaveProfileData({});
-          setProfileSaveStatus("saved");
-          setTimeout(() => setProfileSaveStatus("idle"), 2000);
+          await handleSaveProfileData({ username: trimmed });
+          if (typeof window !== "undefined") {
+            window.localStorage.setItem("smartnotes:custom-username", trimmed);
+            window.localStorage.setItem("smartnotes:has-changed-username", "true");
+          }
+          setHasChangedUsername(true);
         } catch {
-          setProfileSaveStatus("error");
-          setTimeout(() => setProfileSaveStatus("idle"), 3000);
+          setUsername(savedUser);
         }
       },
       onCancel: () => {
@@ -1567,48 +1565,14 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                           </p>
                         )}
                       </div>
-                      <div>
-                        <span className="block mb-1.5 text-xs font-bold text-foreground/70">{copy.settings.profile.email || "Email"}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="flex-1 flex min-h-11 items-center rounded-xl border border-border bg-background/40 px-4 py-2 opacity-75 cursor-default">
-                            <input
-                              type="text"
-                              readOnly
-                              className="min-w-0 flex-1 bg-transparent outline-none text-sm font-normal text-foreground/60 select-all"
-                              value={user?.email ?? "-"}
-                            />
-                          </span>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border/40 mt-2">
-                        <div>
-                          <span className="block mb-1 text-[10px] uppercase font-bold tracking-wider text-foreground/45">{lang === "ru" ? "Регистрация" : "Registered"}</span>
-                          <span className="text-xs font-medium text-foreground/80">
-                            {user?.createdAt ? new Date(user.createdAt).toLocaleDateString(lang === "ru" ? "ru-RU" : "en-US", { day: 'numeric', month: 'long', year: 'numeric' }) : "-"}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="block mb-1 text-[10px] uppercase font-bold tracking-wider text-foreground/45">{lang === "ru" ? "Тип аккаунта" : "Account type"}</span>
-                          <span className="inline-flex items-center gap-1.5 text-xs font-bold text-accent">
-                            <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
-                            {user?.id === "local-user" ? (lang === "ru" ? "Локальный" : "Local") : user?.id.startsWith("guest-") ? (lang === "ru" ? "Гость" : "Guest") : (lang === "ru" ? "Облачный" : "Cloud")}
-                          </span>
-                        </div>
-                      </div>
+
                     </div>
                   </div>
                 </Panel>
 
                 <Panel title={copy.settings.profile.securityAndSession || "Безопасность и сессия"}>
                   <div className="space-y-5">
-                    <div>
-                      <span className="block mb-1.5 text-xs font-bold text-foreground/70">{copy.settings.profile.email}</span>
-                      <input
-                        className="w-full min-h-11 rounded-xl border border-border/80 bg-background/50 px-4 py-2 text-sm text-foreground/60 select-all cursor-default font-normal"
-                        readOnly
-                        value={user?.email ?? "-"}
-                      />
-                    </div>
+
 
                     <div>
                       <span className="block mb-2 text-xs font-bold text-foreground/70">{lang === "ru" ? "Способы входа" : "Sign-in methods"}</span>

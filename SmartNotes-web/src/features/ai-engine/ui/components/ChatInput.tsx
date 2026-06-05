@@ -1,6 +1,8 @@
+import { getUiCopy } from "@/shared/lib/i18n";
 import { Send } from "lucide-react";
 
 interface ChatInputProps {
+  copy: ReturnType<typeof getUiCopy>;
   input: string;
   setInput: (value: string) => void;
   loading: boolean;
@@ -8,7 +10,7 @@ interface ChatInputProps {
   onSend: () => void;
 }
 
-export function ChatInput({ input, setInput, loading, inputRef, onSend }: ChatInputProps) {
+export function ChatInput({ copy, input, setInput, loading, inputRef, onSend }: ChatInputProps) {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -24,7 +26,7 @@ export function ChatInput({ input, setInput, loading, inputRef, onSend }: ChatIn
           className="max-h-32 min-h-[2.25rem] flex-1 resize-none bg-transparent text-sm outline-none placeholder:text-foreground/38 py-1"
           disabled={loading}
           id="ai-chat-input"
-          placeholder="Спроси что-нибудь о своих заметках…"
+          placeholder={copy.ai.chatInputPlaceholder}
           rows={1}
           value={input}
           onChange={(e) => {
@@ -35,7 +37,7 @@ export function ChatInput({ input, setInput, loading, inputRef, onSend }: ChatIn
           onKeyDown={handleKeyDown}
         />
         <button
-          aria-label="Отправить"
+          aria-label={copy.ai.chatSend}
           className="mb-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-violet-600 to-indigo-600 text-white transition disabled:opacity-40 hover:brightness-110 active:scale-95 shadow-md shadow-violet-600/10"
           disabled={!input.trim() || loading}
           type="button"
@@ -45,7 +47,7 @@ export function ChatInput({ input, setInput, loading, inputRef, onSend }: ChatIn
         </button>
       </div>
       <p className="mt-1.5 text-center text-[10px] text-foreground/32 font-bold tracking-wider uppercase">
-        Enter для отправки · Shift+Enter для новой строки
+        {copy.ai.chatInputHint}
       </p>
     </div>
   );

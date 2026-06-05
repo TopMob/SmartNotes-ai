@@ -2,11 +2,13 @@ import { Copy } from "lucide-react";
 import type { Folder as FolderEntity } from "@/entities/folder";
 import type { Note } from "@/entities/note";
 import type { AiAction } from "@/features/ai-engine/model/agent-actions";
+import { getUiCopy } from "@/shared/lib/i18n";
 import { renderMarkdown } from "../utils/render-markdown";
 import { AgentActionCard } from "./AgentActionCard";
 import type { Message } from "../../hooks/use-ai-chat";
 
 interface ChatMessageItemProps {
+  copy: ReturnType<typeof getUiCopy>;
   msg: Message;
   notes: Note[];
   rawFolders: FolderEntity[];
@@ -18,6 +20,7 @@ interface ChatMessageItemProps {
 }
 
 export function ChatMessageItem({
+  copy,
   msg,
   notes,
   rawFolders,
@@ -70,7 +73,7 @@ export function ChatMessageItem({
         {!isUser && !msg.streaming && !msg.error && (
           <button
             className="absolute -right-8 top-2 hidden h-6 w-6 items-center justify-center rounded-lg text-foreground/40 hover:bg-background/60 hover:text-foreground active:scale-95 transition group-hover:flex"
-            title="Скопировать"
+            title={copy.ai.chatCopy}
             type="button"
             onClick={handleCopy}
           >
@@ -81,7 +84,7 @@ export function ChatMessageItem({
 
       {msg.citations && msg.citations.length > 0 && (
         <div className="flex flex-wrap gap-1.5 pr-8 items-center">
-          <span className="text-[10px] uppercase font-bold tracking-wider text-foreground/40">Источники:</span>
+          <span className="text-[10px] uppercase font-bold tracking-wider text-foreground/40">{copy.ai.chatSources}</span>
           {msg.citations.map((c) => (
             <button
               className="rounded-xl border border-violet-200 bg-violet-50/70 px-2.5 py-1 text-xs font-bold text-violet-700 transition hover:bg-violet-100 hover:shadow-sm dark:border-violet-900/30 dark:bg-violet-950/20 dark:text-violet-400 dark:hover:bg-violet-950/40"
@@ -97,6 +100,7 @@ export function ChatMessageItem({
 
       {msg.actions && msg.actions.length > 0 && msg.actionsStatus && (
         <AgentActionCard
+          copy={copy}
           msgId={msg.id}
           actions={msg.actions}
           actionsStatus={msg.actionsStatus}

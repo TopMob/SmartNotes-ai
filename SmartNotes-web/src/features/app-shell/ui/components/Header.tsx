@@ -159,10 +159,10 @@ export const Header = React.memo(function Header({
             }`}
             onClick={onToggleAiChat}
             type="button"
-            title="AI Чат"
+            title={copy.ai.chatTitle}
           >
             <Sparkles className={`h-5 w-5 sm:h-4 sm:w-4 ${aiChatOpen ? "fill-white animate-pulse" : "group-hover:animate-bounce"}`} />
-            <span className="hidden sm:inline">AI Чат</span>
+            <span className="hidden sm:inline">{copy.ai.chatTitle}</span>
           </button>
 
           <div className="relative shrink-0" ref={filtersRef}>

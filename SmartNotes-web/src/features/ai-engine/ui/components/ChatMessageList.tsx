@@ -4,10 +4,12 @@ import { motion, type Variants } from "framer-motion";
 import type { Folder as FolderEntity } from "@/entities/folder";
 import type { Note } from "@/entities/note";
 import type { AiAction } from "@/features/ai-engine/model/agent-actions";
+import { getUiCopy } from "@/shared/lib/i18n";
 import { ChatMessageItem } from "./ChatMessageItem";
 import type { Message } from "../../hooks/use-ai-chat";
 
 interface ChatMessageListProps {
+  copy: ReturnType<typeof getUiCopy>;
   messages: Message[];
   notes: Note[];
   rawFolders: FolderEntity[];
@@ -21,28 +23,19 @@ interface ChatMessageListProps {
   onExecuteActions: (msgId: string, actionsList: AiAction[]) => void;
 }
 
-const DEFAULT_PROMPTS = [
-  "Что я знаю о React?",
-  "Мои задачи на эту неделю",
-  "Идеи для проектов",
-  "Заметки по дизайну",
-];
-
-function generateDynamicPrompts(notes: Note[]): string[] {
-  if (!notes || notes.length === 0) return DEFAULT_PROMPTS;
+function generateDynamicPrompts(notes: Note[], copy: ReturnType<typeof getUiCopy>): string[] {
+  if (!notes || notes.length === 0) return [...copy.ai.defaultPrompts];
 
   const prompts: string[] = [];
   
-  // Find a note with a reasonable title length to ask about
   const titledNotes = notes.filter(n => n.title && n.title.length > 3 && n.title.length < 50 && n.title !== "Без названия" && n.title !== "Untitled note");
   if (titledNotes.length > 0) {
     const randomNote = titledNotes[Math.floor(Math.random() * titledNotes.length)];
-    prompts.push(`Сделай выжимку из заметки "${randomNote.title}"`);
+    prompts.push(copy.ai.summaryTemplate.replace("{title}", randomNote.title));
   } else {
-    prompts.push("Сделай сводку моих последних заметок");
+    prompts.push(copy.ai.lastNotesSummary);
   }
 
-  // Find popular tags
   const tagsCount: Record<string, number> = {};
   notes.forEach(n => {
     (n.userTags || []).forEach(tag => {
@@ -51,20 +44,22 @@ function generateDynamicPrompts(notes: Note[]): string[] {
   });
   const popularTags = Object.entries(tagsCount).sort((a, b) => b[1] - a[1]);
   if (popularTags.length > 0) {
-    prompts.push(`Что у меня есть по тегу #${popularTags[0][0]}?`);
+    prompts.push(copy.ai.tagTemplate.replace("{tag}", popularTags[0][0]));
   } else {
-    prompts.push("Какие задачи мне нужно выполнить?");
+    prompts.push(copy.ai.todoQuery);
   }
 
-  // Try finding notes with "идеи" or "планы"
-  const ideaNotes = titledNotes.filter(n => n.title.toLowerCase().includes("идеи") || n.title.toLowerCase().includes("идея"));
-  if (ideaNotes.length > 0) {
-    prompts.push("Напиши список моих главных идей");
+  const hasIdeas = titledNotes.some(n => {
+    const t = n.title.toLowerCase();
+    return t.includes("идеи") || t.includes("идея") || t.includes("ideas") || t.includes("idea");
+  });
+  if (hasIdeas) {
+    prompts.push(copy.ai.ideasQuery);
   } else {
-    prompts.push("Помоги структурировать мои записи");
+    prompts.push(copy.ai.structureQuery);
   }
 
-  prompts.push("Найди связь между моими недавними заметками");
+  prompts.push(copy.ai.connectionsQuery);
 
   return prompts.slice(0, 4);
 }
@@ -85,6 +80,7 @@ const itemVariants: Variants = {
 };
 
 export function ChatMessageList({
+  copy,
   messages,
   notes,
   rawFolders,
@@ -99,7 +95,7 @@ export function ChatMessageList({
 }: ChatMessageListProps) {
   const isEmpty = messages.length === 0;
 
-  const dynamicPrompts = useMemo(() => generateDynamicPrompts(notes), [notes]);
+  const dynamicPrompts = useMemo(() => generateDynamicPrompts(notes, copy), [notes, copy]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4 scrollbar-thin">
@@ -114,9 +110,9 @@ export function ChatMessageList({
             <Bot className="h-8 w-8 animate-bounce" />
           </motion.span>
           <div>
-            <h3 className="text-sm font-black tracking-tight">Твой AI-гид по заметкам</h3>
+            <h3 className="text-sm font-black tracking-tight">{copy.ai.chatGuideTitle}</h3>
             <p className="mt-1.5 text-xs text-foreground/54 max-w-[260px] leading-relaxed font-medium">
-              Задай вопрос, и я найду ответ в твоих заметках
+              {copy.ai.chatGuideDescription}
             </p>
           </div>
           <motion.div
@@ -145,6 +141,7 @@ export function ChatMessageList({
       {messages.map((msg) => (
         <ChatMessageItem
           key={msg.id}
+          copy={copy}
           msg={msg}
           notes={notes}
           rawFolders={rawFolders}
@@ -164,7 +161,7 @@ export function ChatMessageList({
               <div className="h-2 w-2 animate-bounce rounded-full bg-violet-600 [animation-delay:-0.15s]" />
               <div className="h-2 w-2 animate-bounce rounded-full bg-violet-600" />
             </div>
-            <span className="font-bold text-xs tracking-wide">AI думает…</span>
+            <span className="font-bold text-xs tracking-wide">{copy.ai.chatThinking}</span>
           </div>
         </div>
       )}

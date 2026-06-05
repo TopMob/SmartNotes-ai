@@ -77,7 +77,7 @@ export function useAuthActions() {
       window.location.assign('/');
     }, [setAuthState]),
 
-    updateProfile: useCallback(async (payload: { displayName?: string; photoURL?: string | null }) => {
+    updateProfile: useCallback(async (payload: { displayName?: string; photoURL?: string | null; username?: string }) => {
       await run(async () => {
         const remoteUpdated = await updateCurrentProfile(payload);
 
@@ -88,6 +88,8 @@ export function useAuthActions() {
               ...user,
               displayName: payload.displayName === undefined ? user.displayName : payload.displayName,
               photoURL: payload.photoURL === undefined ? user.photoURL : payload.photoURL,
+              username: payload.username === undefined ? user.username : payload.username,
+              usernameChanged: payload.username === undefined ? user.usernameChanged : true,
             },
             degraded: !remoteUpdated,
             error: remoteUpdated ? null : "Профиль обновлен локально: Supabase runtime config не задан.",
