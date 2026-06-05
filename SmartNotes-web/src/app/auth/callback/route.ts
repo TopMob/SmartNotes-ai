@@ -52,6 +52,12 @@ export async function GET(request: NextRequest) {
     },
   });
 
+  let currentUser = null;
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    currentUser = user;
+  } catch {}
+
   let data = null;
   let error = null;
 
@@ -71,6 +77,10 @@ export async function GET(request: NextRequest) {
   if (error) {
     console.error("[auth/callback] authentication failed:", error.message);
     return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(error.message)}`, request.url));
+  }
+
+  if (currentUser && data?.session?.user && data.session.user.id !== currentUser.id) {
+    return NextResponse.redirect(new URL("/settings?error=google_already_linked", request.url));
   }
 
   if (data?.session?.provider_token) {

@@ -50,15 +50,18 @@ export async function signUpWithEmail(payload: EmailAuthPayload) {
   return data;
 }
 
-export async function signInWithGoogle(requestDriveAccess: boolean = false) {
+export async function signInWithGoogle(requestDriveAccess: boolean = false, nextPath: string = "/") {
   const supabase = createSupabaseBrowserClient();
 
   if (!supabase) {
     throw new Error("Supabase runtime config не задан. Google-вход недоступен в локальном режиме.");
   }
 
+  const baseRedirect = getAuthRedirectTo();
+  const redirectTo = baseRedirect ? `${baseRedirect}?next=${encodeURIComponent(nextPath)}` : undefined;
+
   const options: any = {
-    redirectTo: getAuthRedirectTo(),
+    redirectTo,
   };
 
   if (requestDriveAccess) {

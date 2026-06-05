@@ -38,8 +38,10 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 
+import { mapAuthUser } from "@/features/auth/lib/map-auth-user";
 import type { CustomThemePreset, EditorToolKey, UserSettings } from "@/entities/settings";
 import { useAuthActions } from "@/features/auth/hooks/use-auth-actions";
 import { useAuthStore } from "@/features/auth/model/auth-store";
@@ -82,6 +84,9 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
   const [editingPresetId, setEditingPresetId] = useState<string | null>(null);
   const [editPresetName, setEditPresetName] = useState("");
   const { data: settings, isLoading: _isLoading, error } = useSettingsQuery();
+  const [draftSettings, setDraftSettings] = useState<UserSettings | null>(null);
+  const lang = draftSettings?.lang ?? settings?.lang ?? "ru";
+  const copy = getUiCopy(lang);
   const { data: folders = [] } = useFoldersQuery();
   const { data: notes = [] } = useNotesFlat();
   const user = useAuthStore((state) => state.user);
@@ -108,14 +113,35 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
   const userId = useAuthStore((state) => state.user?.id ?? "local-user");
   const { createNote } = useNoteActions();
   const { patchSettings, resetSettings } = useSettingsActions();
-  const { updateProfile, connectGoogleDrive, logout } = useAuthActions();
+  const { updateProfile, connectGoogleDrive, logout, loginWithGoogle } = useAuthActions();
 
   const [displayName, setDisplayName] = useState(user?.displayName ?? "");
   const [avatarUrl, setAvatarUrl] = useState(user?.photoURL ?? "");
   const [username, setUsername] = useState("");
   const [hasChangedUsername, setHasChangedUsername] = useState(false);
-  const [googleLinked, setGoogleLinked] = useState(false);
+  const [googleLinked, setGoogleLinked] = useState(!!user?.hasGoogleLinked);
   const [isAvatarMenuOpen, setIsAvatarMenuOpen] = useState(false);
+
+  const searchParams = useSearchParams();
+  const errorParam = searchParams.get("error");
+
+  useEffect(() => {
+    if (errorParam) {
+      if (errorParam === "google_already_linked") {
+        window.alert(lang === "ru"
+          ? "Этот Google аккаунт уже привязан к другой учетной записи."
+          : "This Google account is already linked to another user account.");
+      } else {
+        window.alert(errorParam);
+      }
+      const newUrl = window.location.pathname;
+      window.history.replaceState(null, "", newUrl);
+    }
+  }, [errorParam, lang]);
+
+  useEffect(() => {
+    setGoogleLinked(!!user?.hasGoogleLinked);
+  }, [user]);
 
   const defaultUser = user?.email ? user.email.split("@")[0].replace(/[^a-zA-Z0-9_]/g, "") : "";
   const savedUser = (typeof window !== "undefined" && window.localStorage.getItem("smartnotes:custom-username")) || defaultUser;
@@ -191,7 +217,6 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
   }, []);
 
   // --- DRAFT STATE LOGIC ---
-  const [draftSettings, setDraftSettings] = useState<UserSettings | null>(null);
 
   useEffect(() => {
     if (draftSettings?.notesPerPage !== undefined) {
@@ -377,9 +402,6 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
     picker.click();
   }
 
-  const lang = draftSettings?.lang ?? settings?.lang ?? "ru";
-  const copy = getUiCopy(lang);
-
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -389,12 +411,13 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
 
   async function handleChangePassword(e: React.FormEvent) {
     e.preventDefault();
-    if (!currentPassword) {
+    const isChange = !!user?.hasPassword;
+    if (isChange && !currentPassword) {
       setPasswordError(lang === "ru" ? "Введите текущий пароль" : "Enter current password");
       return;
     }
     if (newPassword.length < 6) {
-      setPasswordError(lang === "ru" ? "Новый пароль должен быть не менее 6 символов" : "New password must be at least 6 characters");
+      setPasswordError(lang === "ru" ? "Пароль должен быть не менее 6 символов" : "Password must be at least 6 characters");
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -409,23 +432,35 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
       const supabase = createSupabaseBrowserClient();
       if (!supabase) throw new Error("Supabase client not initialized");
 
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: user?.email || "",
-        password: currentPassword,
-      });
-
-      if (signInError) throw new Error(lang === "ru" ? "Неверный текущий пароль" : "Incorrect current password");
+      if (isChange) {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: user?.email || "",
+          password: currentPassword,
+        });
+        if (signInError) throw new Error(lang === "ru" ? "Неверный текущий пароль" : "Incorrect current password");
+      }
 
       const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
       if (updateError) throw updateError;
 
-      window.alert(lang === "ru" ? "Пароль успешно изменен!" : "Password changed successfully!");
+      const { data: { user: updatedUser } } = await supabase.auth.getUser();
+      if (updatedUser) {
+        useAuthStore.getState().setAuthState({
+          status: "authenticated",
+          user: mapAuthUser(updatedUser),
+        });
+      }
+
+      window.alert(isChange 
+        ? (lang === "ru" ? "Пароль успешно изменен!" : "Password changed successfully!") 
+        : (lang === "ru" ? "Пароль успешно создан!" : "Password created successfully!")
+      );
       setShowChangePassword(false);
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
     } catch (e: any) {
-      setPasswordError(e.message || "Ошибка при смене пароля");
+      setPasswordError(e.message || "Ошибка при обновлении пароля");
     } finally {
       setPasswordLoading(false);
     }
@@ -1451,25 +1486,27 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                       <div>
                         <span className="block mb-1.5 text-xs font-bold text-foreground/70">{copy.settings.profile.displayName}</span>
                         <div className="flex items-center gap-2">
-                          <input
-                            id="profile_display_name"
-                            name="profile_display_name"
-                            className="flex-1 w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm min-h-11 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition font-normal"
-                            onChange={(e) => setDisplayName(e.target.value)}
-                            onBlur={() => {
-                              if (displayName.trim() !== (user?.displayName ?? "")) {
-                                void handleSaveProfileData({ displayName: displayName.trim() });
-                              }
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.currentTarget.blur();
-                              }
-                            }}
-                            placeholder={copy.settings.profile.displayNamePlaceholder}
-                            type="text"
-                            value={displayName}
-                          />
+                          <span className="flex-1 flex min-h-11 items-center rounded-xl border border-border bg-background px-4 py-2 focus-within:border-accent/80 focus-within:ring-2 focus-within:ring-accent/15 transition-all duration-200">
+                            <input
+                              id="profile_display_name"
+                              name="profile_display_name"
+                              className="min-w-0 flex-1 bg-transparent outline-none text-sm font-normal text-foreground"
+                              onChange={(e) => setDisplayName(e.target.value)}
+                              onBlur={() => {
+                                if (displayName.trim() !== (user?.displayName ?? "")) {
+                                  void handleSaveProfileData({ displayName: displayName.trim() });
+                                }
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.currentTarget.blur();
+                                }
+                              }}
+                              placeholder={copy.settings.profile.displayNamePlaceholder}
+                              type="text"
+                              value={displayName}
+                            />
+                          </span>
                           {isNameChanged && (
                             <button
                               type="button"
@@ -1491,22 +1528,28 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                           <span className="text-xs font-bold text-foreground/70">{lang === "ru" ? "Логин" : "Login"}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <input
-                            id="profile_username"
-                            name="profile_username"
-                            disabled={hasChangedUsername}
-                            className="flex-1 w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm min-h-11 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition font-normal disabled:text-foreground/50 disabled:bg-background/20 disabled:cursor-not-allowed"
-                            onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, ""))}
-                            onBlur={handleSaveUsername}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.currentTarget.blur();
-                              }
-                            }}
-                            placeholder="login"
-                            type="text"
-                            value={username}
-                          />
+                          <span className={`flex-1 flex min-h-11 items-center rounded-xl border border-border bg-background px-4 py-2 transition-all duration-200 ${
+                            hasChangedUsername
+                              ? "opacity-50 bg-background/20 cursor-not-allowed"
+                              : "focus-within:border-accent/80 focus-within:ring-2 focus-within:ring-accent/15"
+                          }`}>
+                            <input
+                              id="profile_username"
+                              name="profile_username"
+                              disabled={hasChangedUsername}
+                              className="min-w-0 flex-1 bg-transparent outline-none text-sm font-normal text-foreground disabled:cursor-not-allowed"
+                              onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, ""))}
+                              onBlur={handleSaveUsername}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.currentTarget.blur();
+                                }
+                              }}
+                              placeholder="login"
+                              type="text"
+                              value={username}
+                            />
+                          </span>
                           {isLoginChanged && (
                             <button
                               type="button"
@@ -1576,7 +1619,7 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                           ) : (
                             <button
                               type="button"
-                              onClick={() => setGoogleLinked(true)}
+                              onClick={() => loginWithGoogle("/settings")}
                               className="text-[10px] bg-accent text-accent-foreground px-2 py-1 rounded-md hover:bg-accent/90 transition shrink-0"
                             >
                               {lang === "ru" ? "Привязать" : "Link"}
@@ -1628,52 +1671,66 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                               onClick={() => setShowChangePassword(true)}
                               type="button"
                             >
-                              {copy.settings.profile.changePassword || (lang === "ru" ? "Сменить пароль" : "Change password")}
+                              {user?.hasPassword
+                                ? (lang === "ru" ? "Сменить пароль" : "Change password")
+                                : (lang === "ru" ? "Создать пароль" : "Create password")}
                             </button>
                           ) : (
                             <form onSubmit={handleChangePassword} className="p-4 rounded-[1.3rem] bg-surface-strong border border-border flex flex-col gap-3 shadow-inner">
-                              <h3 className="text-sm font-black text-foreground">{lang === "ru" ? "Смена пароля" : "Change Password"}</h3>
+                              <h3 className="text-sm font-black text-foreground">
+                                {user?.hasPassword
+                                  ? (lang === "ru" ? "Смена пароля" : "Change Password")
+                                  : (lang === "ru" ? "Создание пароля" : "Create Password")}
+                              </h3>
                               
-                              <div>
-                                <label className="block text-[10px] text-foreground/50 uppercase tracking-wider font-black mb-1.5">{lang === "ru" ? "Текущий пароль" : "Current Password"}</label>
-                                <input
-                                  id="security_current_password"
-                                  name="security_current_password"
-                                  type="password"
-                                  className="w-full min-h-10 px-3 rounded-xl border border-border bg-background text-sm font-medium text-foreground focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition"
-                                  value={currentPassword}
-                                  onChange={(e) => setCurrentPassword(e.target.value)}
-                                  disabled={passwordLoading}
-                                  required
-                                />
-                              </div>
+                              {user?.hasPassword && (
+                                <div>
+                                  <label className="block text-[10px] text-foreground/50 uppercase tracking-wider font-black mb-1.5">{lang === "ru" ? "Текущий пароль" : "Current Password"}</label>
+                                  <span className="flex min-h-10 items-center rounded-xl border border-border bg-background px-3 py-1.5 focus-within:border-accent/80 focus-within:ring-2 focus-within:ring-accent/15 transition-all duration-200">
+                                    <input
+                                      id="security_current_password"
+                                      name="security_current_password"
+                                      type="password"
+                                      className="min-w-0 flex-1 bg-transparent outline-none text-sm font-medium text-foreground disabled:cursor-not-allowed"
+                                      value={currentPassword}
+                                      onChange={(e) => setCurrentPassword(e.target.value)}
+                                      disabled={passwordLoading}
+                                      required
+                                    />
+                                  </span>
+                                </div>
+                              )}
 
                               <div>
                                 <label className="block text-[10px] text-foreground/50 uppercase tracking-wider font-black mb-1.5">{lang === "ru" ? "Новый пароль" : "New Password"}</label>
-                                <input
-                                  id="security_new_password"
-                                  name="security_new_password"
-                                  type="password"
-                                  className="w-full min-h-10 px-3 rounded-xl border border-border bg-background text-sm font-medium text-foreground focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition"
-                                  value={newPassword}
-                                  onChange={(e) => setNewPassword(e.target.value)}
-                                  disabled={passwordLoading}
-                                  required
-                                />
+                                <span className="flex min-h-10 items-center rounded-xl border border-border bg-background px-3 py-1.5 focus-within:border-accent/80 focus-within:ring-2 focus-within:ring-accent/15 transition-all duration-200">
+                                  <input
+                                    id="security_new_password"
+                                    name="security_new_password"
+                                    type="password"
+                                    className="min-w-0 flex-1 bg-transparent outline-none text-sm font-medium text-foreground disabled:cursor-not-allowed"
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    disabled={passwordLoading}
+                                    required
+                                  />
+                                </span>
                               </div>
 
                               <div>
                                 <label className="block text-[10px] text-foreground/50 uppercase tracking-wider font-black mb-1.5">{lang === "ru" ? "Подтвердите пароль" : "Confirm Password"}</label>
-                                <input
-                                  id="security_confirm_password"
-                                  name="security_confirm_password"
-                                  type="password"
-                                  className="w-full min-h-10 px-3 rounded-xl border border-border bg-background text-sm font-medium text-foreground focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition"
-                                  value={confirmPassword}
-                                  onChange={(e) => setConfirmPassword(e.target.value)}
-                                  disabled={passwordLoading}
-                                  required
-                                />
+                                <span className="flex min-h-10 items-center rounded-xl border border-border bg-background px-3 py-1.5 focus-within:border-accent/80 focus-within:ring-2 focus-within:ring-accent/15 transition-all duration-200">
+                                  <input
+                                    id="security_confirm_password"
+                                    name="security_confirm_password"
+                                    type="password"
+                                    className="min-w-0 flex-1 bg-transparent outline-none text-sm font-medium text-foreground disabled:cursor-not-allowed"
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    disabled={passwordLoading}
+                                    required
+                                  />
+                                </span>
                               </div>
 
                               {passwordError && (
@@ -1703,7 +1760,9 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                                   className="flex-[1.5] min-h-10 rounded-xl bg-accent text-accent-foreground text-xs font-bold hover:bg-accent/90 shadow-sm transition flex items-center justify-center gap-2 disabled:opacity-50"
                                 >
                                   {passwordLoading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                                  {lang === "ru" ? "Сохранить пароль" : "Save Password"}
+                                  {user?.hasPassword
+                                    ? (lang === "ru" ? "Сохранить пароль" : "Save Password")
+                                    : (lang === "ru" ? "Создать пароль" : "Create Password")}
                                 </button>
                               </div>
                             </form>

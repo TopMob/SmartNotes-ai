@@ -46,15 +46,15 @@ export function useAuthActions() {
       });
     }, []),
 
-    loginWithGoogle: useCallback(async () => {
+    loginWithGoogle: useCallback(async (nextPath?: string) => {
       await run(async () => {
-        await signInWithGoogle(false);
+        await signInWithGoogle(false, nextPath);
       });
     }, []),
 
-    connectGoogleDrive: useCallback(async () => {
+    connectGoogleDrive: useCallback(async (nextPath?: string) => {
       await run(async () => {
-        await signInWithGoogle(true);
+        await signInWithGoogle(true, nextPath);
       });
     }, []),
 

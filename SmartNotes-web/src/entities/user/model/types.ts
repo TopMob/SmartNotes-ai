@@ -9,6 +9,7 @@ export type User = {
   photoURL: string | null;
   accessToken?: string;
   hasGoogleLinked?: boolean;
+  hasPassword?: boolean;
   createdAt?: string;
   lastSignInAt?: string;
 };
