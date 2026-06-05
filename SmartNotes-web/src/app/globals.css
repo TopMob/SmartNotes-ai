@@ -202,24 +202,18 @@ select:focus-visible {
 .search-container input,
 .search-bar input,
 input.bg-transparent,
-input.outline-none,
 input.borderless-input,
 textarea.bg-transparent,
-textarea.outline-none,
 .search-container input:focus,
 .search-bar input:focus,
 input.bg-transparent:focus,
-input.outline-none:focus,
 input.borderless-input:focus,
 textarea.bg-transparent:focus,
-textarea.outline-none:focus,
 .search-container input:focus-visible,
 .search-bar input:focus-visible,
 input.bg-transparent:focus-visible,
-input.outline-none:focus-visible,
 input.borderless-input:focus-visible,
-textarea.bg-transparent:focus-visible,
-textarea.outline-none:focus-visible {
+textarea.bg-transparent:focus-visible {
   border: none !important;
   outline: none !important;
   box-shadow: none !important;

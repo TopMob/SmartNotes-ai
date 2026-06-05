@@ -994,7 +994,7 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                               <input 
                                 id="appearance_edit_preset_name"
                                 name="appearance_edit_preset_name"
-                                className="w-full min-w-0 rounded-xl border border-border bg-background px-3 py-1.5 text-sm font-bold focus:border-accent focus:ring-1 focus:ring-accent outline-none transition" 
+                                className="w-full min-w-0 rounded-xl border border-border bg-background px-3 py-1.5 text-sm font-bold focus:border-accent focus:ring-1 focus:ring-accent focus:outline-none transition" 
                                 value={editPresetName}
                                 onChange={(e) => setEditPresetName(e.target.value)}
                                 onKeyDown={(e) => {
@@ -1454,7 +1454,7 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                           <input
                             id="profile_display_name"
                             name="profile_display_name"
-                            className="flex-1 w-full rounded-xl border border-border/80 bg-background/50 px-4 py-2.5 text-sm min-h-11 outline-none focus:border-accent focus:ring-1 focus:ring-accent transition font-normal"
+                            className="flex-1 w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm min-h-11 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition font-normal"
                             onChange={(e) => setDisplayName(e.target.value)}
                             onBlur={() => {
                               if (displayName.trim() !== (user?.displayName ?? "")) {
@@ -1495,7 +1495,7 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                             id="profile_username"
                             name="profile_username"
                             disabled={hasChangedUsername}
-                            className="flex-1 w-full rounded-xl border border-border/80 bg-background/50 px-4 py-2.5 text-sm min-h-11 outline-none focus:border-accent focus:ring-1 focus:ring-accent transition font-normal disabled:text-foreground/50 disabled:bg-background/20 disabled:cursor-not-allowed"
+                            className="flex-1 w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm min-h-11 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition font-normal disabled:text-foreground/50 disabled:bg-background/20 disabled:cursor-not-allowed"
                             onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, ""))}
                             onBlur={handleSaveUsername}
                             onKeyDown={(e) => {
@@ -1640,7 +1640,7 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                                   id="security_current_password"
                                   name="security_current_password"
                                   type="password"
-                                  className="w-full min-h-10 px-3 rounded-xl border border-border/80 bg-background/50 text-sm font-medium text-foreground focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition"
+                                  className="w-full min-h-10 px-3 rounded-xl border border-border bg-background text-sm font-medium text-foreground focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition"
                                   value={currentPassword}
                                   onChange={(e) => setCurrentPassword(e.target.value)}
                                   disabled={passwordLoading}
@@ -1654,7 +1654,7 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                                   id="security_new_password"
                                   name="security_new_password"
                                   type="password"
-                                  className="w-full min-h-10 px-3 rounded-xl border border-border/80 bg-background/50 text-sm font-medium text-foreground focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition"
+                                  className="w-full min-h-10 px-3 rounded-xl border border-border bg-background text-sm font-medium text-foreground focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition"
                                   value={newPassword}
                                   onChange={(e) => setNewPassword(e.target.value)}
                                   disabled={passwordLoading}
@@ -1668,7 +1668,7 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                                   id="security_confirm_password"
                                   name="security_confirm_password"
                                   type="password"
-                                  className="w-full min-h-10 px-3 rounded-xl border border-border/80 bg-background/50 text-sm font-medium text-foreground focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition"
+                                  className="w-full min-h-10 px-3 rounded-xl border border-border bg-background text-sm font-medium text-foreground focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition"
                                   value={confirmPassword}
                                   onChange={(e) => setConfirmPassword(e.target.value)}
                                   disabled={passwordLoading}
@@ -1910,7 +1910,7 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                 name="modal_preset_name"
                 type="text"
                 autoFocus
-                className="w-full mb-6 rounded-xl border border-border bg-background px-4 py-2.5 text-sm outline-none focus:border-accent focus:ring-1 focus:ring-accent transition font-normal"
+                className="w-full mb-6 rounded-xl border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition font-normal"
                 placeholder={lang === "ru" ? "Мой пресет" : "My Preset"}
                 value={presetName}
                 onChange={(e) => setPresetName(e.target.value)}
