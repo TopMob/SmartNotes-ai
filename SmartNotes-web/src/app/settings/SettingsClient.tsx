@@ -821,36 +821,41 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                     {(() => {
                       const isCustom = ![10, 30, 50, 100].includes(draftSettings.notesPerPage);
                       return (
-                        <div className={`col-span-2 xs:col-span-1 flex items-center gap-2 px-3 py-1.5 min-h-11 rounded-2xl border transition ${isCustom ? "border-accent bg-accent/10 text-accent" : "border-border bg-background text-foreground"}`}>
-                          <div className="relative flex items-center justify-center w-full gap-2">
-                            <input
-                              id="notes_per_page_custom"
-                              name="notes_per_page_custom"
-                              type="text"
-                              className="w-12 bg-transparent text-xs font-bold text-center outline-none border-b border-foreground/20 focus:border-accent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                              value={notesPerPageInput}
-                              onChange={(e) => {
-                                const raw = e.target.value.replace(/\D/g, "");
-                                setNotesPerPageInput(raw);
-                              }}
-                              onBlur={() => {
-                                const num = parseInt(notesPerPageInput) || 10;
-                                const clamped = Math.min(1000, Math.max(1, num));
-                                setNotesPerPageInput(clamped.toString());
-                                handleUpdateDraft(p => ({ ...p, notesPerPage: clamped }));
-                              }}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
+                        <div 
+                          className={`col-span-2 xs:col-span-1 flex items-center px-4 py-1.5 min-h-11 rounded-2xl border cursor-pointer transition ${isCustom ? "border-accent bg-accent/10 text-accent" : "border-border bg-background text-foreground"}`}
+                          onClick={() => document.getElementById("notes_per_page_custom")?.focus()}
+                        >
+                          <div className="relative flex items-center justify-between w-full">
+                            <div className="flex-1 flex justify-center pl-4">
+                              <input
+                                id="notes_per_page_custom"
+                                name="notes_per_page_custom"
+                                type="text"
+                                className="w-12 bg-transparent text-xs font-bold text-center outline-none border-b border-foreground/20 focus:border-accent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                value={notesPerPageInput}
+                                onChange={(e) => {
+                                  const raw = e.target.value.replace(/\D/g, "");
+                                  setNotesPerPageInput(raw);
+                                }}
+                                onBlur={() => {
                                   const num = parseInt(notesPerPageInput) || 10;
                                   const clamped = Math.min(1000, Math.max(1, num));
                                   setNotesPerPageInput(clamped.toString());
                                   handleUpdateDraft(p => ({ ...p, notesPerPage: clamped }));
-                                  e.currentTarget.blur();
-                                }
-                              }}
-                              placeholder="..."
-                            />
-                            <div className="flex flex-col shrink-0">
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    const num = parseInt(notesPerPageInput) || 10;
+                                    const clamped = Math.min(1000, Math.max(1, num));
+                                    setNotesPerPageInput(clamped.toString());
+                                    handleUpdateDraft(p => ({ ...p, notesPerPage: clamped }));
+                                    e.currentTarget.blur();
+                                  }
+                                }}
+                                placeholder="..."
+                              />
+                            </div>
+                            <div className="flex flex-col shrink-0" onClick={(e) => e.stopPropagation()}>
                               <button
                                 type="button"
                                 className="p-0.5 text-foreground/50 hover:text-accent transition active:scale-75"
