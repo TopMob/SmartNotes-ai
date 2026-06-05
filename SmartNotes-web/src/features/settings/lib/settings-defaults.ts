@@ -22,7 +22,7 @@ export const DEFAULT_USER_SETTINGS: Omit<UserSettings, "id" | "createdAt" | "upd
   preset: "paper",
   lang: "ru",
   folderViewMode: "full",
-  notesPerPage: 10,
+  notesPerPage: 30,
   reduceMotion: false,
   uiOpacity: 0.88,
   cardsOpacity: 0.92,
@@ -46,7 +46,7 @@ export function clampOpacity(value: number) {
 }
 
 export function normalizeNotesPerPage(value: number) {
-  return [5, 10, 20, 50].includes(value) ? (value as UserSettings["notesPerPage"]) : 10;
+  return Math.min(1000, Math.max(1, typeof value === "number" ? value : 30));
 }
 
 export function normalizeSettings(settings: UserSettings): UserSettings {

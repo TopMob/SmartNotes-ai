@@ -18,9 +18,29 @@ import {
   X,
   Loader2,
   Edit2,
+  Folder,
+  Layout,
+  Bold,
+  Italic,
+  Underline,
+  Strikethrough,
+  List,
+  ListOrdered,
+  Minus,
+  AlignLeft,
+  Image as ImageIcon,
+  Eraser,
+  Undo2,
+  Link as LinkIcon,
+  Files,
+  Tag,
+  ChevronUp,
+  ChevronDown,
+  Camera,
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState, useEffect } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 
 import type { CustomThemePreset, EditorToolKey, UserSettings } from "@/entities/settings";
 import { useAuthActions } from "@/features/auth/hooks/use-auth-actions";
@@ -31,6 +51,7 @@ import { useNotesFlat } from "@/features/notes/hooks/use-notes-query";
 import { parseImportedNotesFile } from "@/features/notes/lib/note-import";
 import { useSettingsActions } from "@/features/settings/hooks/use-settings-mutations";
 import { useSettingsQuery } from "@/features/settings/hooks/use-settings-query";
+import { DEFAULT_EDITOR_SETTINGS, DEFAULT_USER_SETTINGS } from "@/features/settings/lib/settings-defaults";
 import { publish, subscribe } from "@/services/event-bus";
 import { downloadTextFile, safeFileName } from "@/features/app-shell/ui/components/shared";
 import { getUiCopy } from "@/shared/lib/i18n";
@@ -51,7 +72,7 @@ const sections = [
   { id: "profile", icon: UserRound },
 ] as const;
 
-const themePresets = ["paper", "smarthub", "smartlib", "cyber", "lego", "classic"] as const;
+const themePresets = ["classic", "smarthub", "smartlib", "cyber", "lego", "paper"] as const;
 
 type SettingsClientProps = {
   initialDriveConnected: boolean;
@@ -60,6 +81,7 @@ type SettingsClientProps = {
 export default function SettingsClient({ initialDriveConnected }: SettingsClientProps) {
   const [activeSection, setActiveSection] = useState<(typeof sections)[number]["id"]>("appearance");
   const [presetName, setPresetName] = useState("");
+  const [isSavePresetModalOpen, setIsSavePresetModalOpen] = useState(false);
   const [editingPresetId, setEditingPresetId] = useState<string | null>(null);
   const [editPresetName, setEditPresetName] = useState("");
   const { data: settings, isLoading: _isLoading, error } = useSettingsQuery();
@@ -67,6 +89,8 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
   const { data: notes = [] } = useNotesFlat();
   const user = useAuthStore((state) => state.user);
   const developerMode = useUiStore((s) => s.developerMode);
+  
+  const [notesPerPageInput, setNotesPerPageInput] = useState("10");
   
   const [driveConnected, setDriveConnected] = useState(initialDriveConnected);
   const [gdriveDisabled, setGdriveDisabled] = useState(() => {
@@ -91,8 +115,40 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
 
   const [displayName, setDisplayName] = useState(user?.displayName ?? "");
   const [avatarUrl, setAvatarUrl] = useState(user?.photoURL ?? "");
+  const [username, setUsername] = useState("");
+  const [hasChangedUsername, setHasChangedUsername] = useState(false);
+  const [googleLinked, setGoogleLinked] = useState(false);
+  const [isAvatarMenuOpen, setIsAvatarMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (user?.email) {
+      const defaultUsername = user.email.split("@")[0].replace(/[^a-zA-Z0-9_]/g, "");
+      setUsername(defaultUsername);
+    }
+  }, [user]);
+
   const [uidCopied, setUidCopied] = useState(false);
-  const [profileSaved, setProfileSaved] = useState(false);
+  const [profileSaveStatus, setProfileSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [settingsSaveStatus, setSettingsSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [isExportFolderModalOpen, setIsExportFolderModalOpen] = useState(false);
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    actionText: string;
+    cancelText: string;
+    variant: "destructive" | "primary";
+    onConfirm: () => void | Promise<void>;
+  }>({
+    isOpen: false,
+    title: "",
+    description: "",
+    actionText: "",
+    cancelText: "",
+    variant: "destructive",
+    onConfirm: () => {},
+  });
 
   const [compression, setCompression] = useState(() => {
     if (typeof window !== "undefined") {
@@ -123,7 +179,12 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
 
   // --- DRAFT STATE LOGIC ---
   const [draftSettings, setDraftSettings] = useState<UserSettings | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (draftSettings?.notesPerPage !== undefined) {
+      setNotesPerPageInput(draftSettings.notesPerPage.toString());
+    }
+  }, [draftSettings?.notesPerPage]);
 
   useEffect(() => {
     if (settings && !draftSettings) {
@@ -143,7 +204,6 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
     root.style.setProperty("--sidebar-background-url", draftSettings.sidebarBackgroundUrl ? `url(${draftSettings.sidebarBackgroundUrl})` : "none");
 
     return () => {
-      // Revert to db settings on cleanup/unmount
       if (settings) {
         root.lang = settings.lang;
         root.dataset.theme = settings.preset;
@@ -155,37 +215,37 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
     };
   }, [draftSettings, settings]);
 
-  const isDirty = useMemo(() => {
-    if (!settings || !draftSettings) return false;
+  // --- AUTO-SAVE EFFECT ---
+  useEffect(() => {
+    if (!draftSettings || !settings) return;
+
     const a = { ...settings, updatedAt: undefined };
     const b = { ...draftSettings, updatedAt: undefined };
-    return JSON.stringify(a) !== JSON.stringify(b);
-  }, [settings, draftSettings]);
+    const hasChanges = JSON.stringify(a) !== JSON.stringify(b);
+    if (!hasChanges) return;
+
+    setSettingsSaveStatus("saving");
+    const timer = setTimeout(async () => {
+      try {
+        await patchSettings(draftSettings);
+        setSettingsSaveStatus("saved");
+        const resetTimer = setTimeout(() => setSettingsSaveStatus("idle"), 2000);
+        return () => clearTimeout(resetTimer);
+      } catch {
+        setSettingsSaveStatus("error");
+        const resetTimer = setTimeout(() => setSettingsSaveStatus("idle"), 3000);
+        return () => clearTimeout(resetTimer);
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [draftSettings, settings, patchSettings]);
 
   function handleUpdateDraft(updater: (prev: UserSettings) => UserSettings) {
     setDraftSettings((prev) => {
       if (!prev) return prev;
       return updater(prev);
     });
-  }
-
-  async function handleSaveChanges() {
-    if (!draftSettings) return;
-    setIsSaving(true);
-    try {
-      await patchSettings(draftSettings);
-      setDraftSettings(JSON.parse(JSON.stringify(draftSettings)));
-    } catch {
-      window.alert(lang === "ru" ? "Ошибка сохранения настроек" : "Failed to save settings");
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  function handleDiscardChanges() {
-    if (settings) {
-      setDraftSettings(JSON.parse(JSON.stringify(settings)));
-    }
   }
 
   // --- SETTINGS MUTATORS ---
@@ -381,22 +441,105 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
   }
 
   function exportAllNotes() {
-    const exportable = notes.filter((note) => !note.lock?.hidden);
-    downloadTextFile(`smartnotes-all-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), notes: exportable }, null, 2), "application/json;charset=utf-8");
+    setConfirmModal({
+      isOpen: true,
+      title: lang === "ru" ? "Экспорт заметок?" : "Export notes?",
+      description: lang === "ru"
+        ? `Вы собираетесь экспортировать все ваши заметки (${notes.filter((note) => !note.lock?.hidden).length} шт.) в JSON-файл.`
+        : `You are about to export all your notes (${notes.filter((note) => !note.lock?.hidden).length} pcs) to a JSON file.`,
+      actionText: lang === "ru" ? "Экспортировать" : "Export",
+      cancelText: lang === "ru" ? "Отмена" : "Cancel",
+      variant: "primary",
+      onConfirm: () => {
+        const exportable = notes.filter((note) => !note.lock?.hidden);
+        downloadTextFile(`smartnotes-all-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), notes: exportable }, null, 2), "application/json;charset=utf-8");
+      }
+    });
   }
 
-  function exportFolderNotes() {
-    const visibleFolders = folders.filter((folder) => !folder.trashedAt);
-    const folderName = window.prompt(visibleFolders.length ? `Название папки для экспорта:\n${visibleFolders.map((folder) => `• ${folder.name}`).join("\n")}` : "Пока нет папок для экспорта.")?.trim();
-    if (!folderName) return;
-    const folder = visibleFolders.find((item) => item.name.toLocaleLowerCase() === folderName.toLocaleLowerCase());
-    if (!folder) {
-      window.alert("Папка не найдена. Введите название папки из списка.");
-      return;
-    }
-    const folderId = folder.id;
-    const exportable = notes.filter((note) => note.folderId === folderId && !note.lock?.hidden);
-    downloadTextFile(`${safeFileName(`smartnotes-folder-${folder.name}`)}.json`, JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), folderId, folderName: folder.name, notes: exportable }, null, 2), "application/json;charset=utf-8");
+  async function handleResetSettings() {
+    setConfirmModal({
+      isOpen: true,
+      title: lang === "ru" ? "Сбросить настройки?" : "Reset settings?",
+      description: lang === "ru"
+        ? "Вы уверены, что хотите сбросить все настройки? Это сбросит абсолютно всё, включая тему, оформление, язык и параметры редактора."
+        : "Are you sure you want to reset all settings? This will reset everything, including the theme, appearance, language, and editor settings.",
+      actionText: lang === "ru" ? "Сбросить" : "Reset",
+      cancelText: lang === "ru" ? "Отмена" : "Cancel",
+      variant: "destructive",
+      onConfirm: async () => {
+        try {
+          const defaults = {
+            ...DEFAULT_USER_SETTINGS,
+            editor: DEFAULT_EDITOR_SETTINGS,
+          };
+          setDraftSettings(JSON.parse(JSON.stringify(defaults)));
+          await resetSettings();
+        } catch {
+          if (settings) {
+            setDraftSettings(JSON.parse(JSON.stringify(settings)));
+          }
+        }
+      }
+    });
+  }
+
+  function handleResetPageCache() {
+    setConfirmModal({
+      isOpen: true,
+      title: lang === "ru" ? "Сбросить кэш страницы?" : "Reset page cache?",
+      description: lang === "ru"
+        ? "Это действие полностью очистит все локальные данные, куки и временные файлы на этом сайте. Вы будете разлогинены."
+        : "This will completely clear all local data, cookies, and temporary files on this site. You will be logged out.",
+      actionText: lang === "ru" ? "Сбросить и выйти" : "Reset and log out",
+      cancelText: lang === "ru" ? "Отмена" : "Cancel",
+      variant: "destructive",
+      onConfirm: async () => {
+        if (typeof window !== "undefined") {
+          window.localStorage.clear();
+          window.sessionStorage.clear();
+          const cookies = document.cookie.split(";");
+          for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i];
+            const eqPos = cookie.indexOf("=");
+            const name = eqPos > -1 ? cookie.substring(0, eqPos).trim() : cookie.trim();
+            document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
+          }
+          if (window.caches) {
+            try {
+              const keys = await window.caches.keys();
+              await Promise.all(keys.map(key => window.caches.delete(key)));
+            } catch (e) {
+              console.error(e);
+            }
+          }
+        }
+        await logout();
+      }
+    });
+  }
+
+  function handleResetAppearance() {
+    setConfirmModal({
+      isOpen: true,
+      title: lang === "ru" ? "Сбросить внешний вид?" : "Reset appearance?",
+      description: lang === "ru" 
+        ? "Вы уверены, что хотите сбросить все настройки внешнего вида к значениям по умолчанию? Это действие нельзя отменить."
+        : "Are you sure you want to reset all appearance settings to their defaults? This action cannot be undone.",
+      actionText: lang === "ru" ? "Сбросить" : "Reset",
+      cancelText: lang === "ru" ? "Отмена" : "Cancel",
+      variant: "destructive",
+      onConfirm: () => {
+        handleUpdateDraft((prev) => ({
+          ...prev,
+          preset: DEFAULT_USER_SETTINGS.preset,
+          mainBackgroundUrl: DEFAULT_USER_SETTINGS.mainBackgroundUrl,
+          sidebarBackgroundUrl: DEFAULT_USER_SETTINGS.sidebarBackgroundUrl,
+          uiOpacity: DEFAULT_USER_SETTINGS.uiOpacity,
+          cardsOpacity: DEFAULT_USER_SETTINGS.cardsOpacity,
+        }));
+      }
+    });
   }
 
   function copyUid() {
@@ -407,10 +550,16 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
     });
   }
 
-  async function handleSaveProfile() {
-    await updateProfile({ displayName: displayName.trim() || undefined, photoURL: avatarUrl.trim() || null });
-    setProfileSaved(true);
-    setTimeout(() => setProfileSaved(false), 2000);
+  async function handleSaveProfileData(updates: { displayName?: string; photoURL?: string | null }) {
+    setProfileSaveStatus("saving");
+    try {
+      await updateProfile(updates);
+      setProfileSaveStatus("saved");
+      setTimeout(() => setProfileSaveStatus("idle"), 2000);
+    } catch {
+      setProfileSaveStatus("error");
+      setTimeout(() => setProfileSaveStatus("idle"), 3000);
+    }
   }
 
   async function uploadAvatar() {
@@ -431,43 +580,83 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
         if (error) throw error;
         const { data: { publicUrl } } = supabase.storage.from("note-images").getPublicUrl(filePath);
         setAvatarUrl(publicUrl);
-      } catch {
-        window.alert(lang === "ru" ? "Не удалось загрузить аватар." : "Failed to upload avatar.");
+        void handleSaveProfileData({ photoURL: publicUrl });
+      } catch (e) {
+        console.error(e);
+        setProfileSaveStatus("error");
+        setTimeout(() => setProfileSaveStatus("idle"), 3000);
       }
     };
     picker.click();
   }
 
+  function renderStatus(status: "idle" | "saving" | "saved" | "error") {
+    if (status === "idle") return null;
+    return (
+      <div className="flex items-center gap-1.5 text-xs font-bold transition-all animate-in fade-in duration-200">
+        {status === "saving" && (
+          <span className="flex items-center gap-1 text-foreground/50 animate-pulse">
+            <Loader2 className="h-3 w-3 animate-spin text-accent" />
+            <span>{lang === "ru" ? "Сохранение..." : "Saving..."}</span>
+          </span>
+        )}
+        {status === "saved" && (
+          <span className="flex items-center gap-1 text-emerald-500">
+            <Check className="h-3.5 w-3.5" />
+            <span>{lang === "ru" ? "Сохранено" : "Saved"}</span>
+          </span>
+        )}
+        {status === "error" && (
+          <span className="flex items-center gap-1 text-rose-500">
+            <X className="h-3.5 w-3.5" />
+            <span>{lang === "ru" ? "Ошибка" : "Error"}</span>
+          </span>
+        )}
+      </div>
+    );
+  }
+
   async function handleDisconnectDrive() {
-    if (!window.confirm(lang === "ru" ? "Вы уверены, что хотите отключить Google Диск?" : "Are you sure you want to disconnect Google Drive?")) return;
-    try {
-      const response = await fetch("/api/media/google-drive/disconnect", { method: "POST" });
-      if (response.ok) {
-        setDriveConnected(false);
-      } else {
-        throw new Error("Failed to disconnect");
+    setConfirmModal({
+      isOpen: true,
+      title: lang === "ru" ? "Отключить Google Диск?" : "Disconnect Google Drive?",
+      description: lang === "ru"
+        ? "Вы уверены, что хотите отключить Google Диск?"
+        : "Are you sure you want to disconnect Google Drive?",
+      actionText: lang === "ru" ? "Отключить" : "Disconnect",
+      cancelText: lang === "ru" ? "Отмена" : "Cancel",
+      variant: "destructive",
+      onConfirm: async () => {
+        try {
+          const response = await fetch("/api/media/google-drive/disconnect", { method: "POST" });
+          if (response.ok) {
+            setDriveConnected(false);
+          } else {
+            throw new Error("Failed to disconnect");
+          }
+        } catch (e) {
+          console.error(e);
+        }
       }
-    } catch {
-      window.alert(lang === "ru" ? "Не удалось отключить Диск." : "Failed to disconnect Drive.");
-    }
+    });
   }
 
   const editorGroups = useMemo(() => [
-    ["toolbarVisible", lang === "ru" ? "Тулбар форматирования" : "Formatting toolbar"],
-    ["bold", lang === "ru" ? "Жирный шрифт" : "Bold text"],
-    ["italic", lang === "ru" ? "Курсив" : "Italic text"],
-    ["underline", lang === "ru" ? "Подчеркнутый шрифт" : "Underline text"],
-    ["strike", lang === "ru" ? "Зачеркнутый шрифт" : "Strikethrough text"],
-    ["bullets", lang === "ru" ? "Маркированный список" : "Bullet list"],
-    ["numbered", lang === "ru" ? "Нумерация списков" : "Numbered list"],
-    ["hr", lang === "ru" ? "Разделительная линия" : "Horizontal divider"],
-    ["alignText", lang === "ru" ? "Выравнивание текста" : "Text alignment"],
-    ["alignMedia", lang === "ru" ? "Выравнивание медиа" : "Media alignment"],
-    ["clearFormat", lang === "ru" ? "Очистить форматирование" : "Clear formatting"],
-    ["undoRedo", lang === "ru" ? "Отмена / Повтор (Undo / Redo)" : "Undo / Redo controls"],
-    ["links", lang === "ru" ? "Вставка ссылок" : "Insert links"],
-    ["pages", lang === "ru" ? "Многостраничность заметки" : "Note pages"],
-    ["inlineTags", lang === "ru" ? "Тегирование (Inline tags)" : "Inline tag chips"],
+    ["toolbarVisible", lang === "ru" ? "Тулбар форматирования" : "Formatting toolbar", Layout],
+    ["bold", lang === "ru" ? "Жирный шрифт" : "Bold text", Bold],
+    ["italic", lang === "ru" ? "Курсив" : "Italic text", Italic],
+    ["underline", lang === "ru" ? "Подчеркнутый шрифт" : "Underline text", Underline],
+    ["strike", lang === "ru" ? "Зачеркнутый шрифт" : "Strikethrough text", Strikethrough],
+    ["bullets", lang === "ru" ? "Маркированный список" : "Bullet list", List],
+    ["numbered", lang === "ru" ? "Нумерация списков" : "Numbered list", ListOrdered],
+    ["hr", lang === "ru" ? "Разделительная линия" : "Horizontal divider", Minus],
+    ["alignText", lang === "ru" ? "Выравнивание текста" : "Text alignment", AlignLeft],
+    ["alignMedia", lang === "ru" ? "Выравнивание медиа" : "Media alignment", ImageIcon],
+    ["clearFormat", lang === "ru" ? "Очистить форматирование" : "Clear formatting", Eraser],
+    ["undoRedo", lang === "ru" ? "Отмена / Повтор (Undo / Redo)" : "Undo / Redo controls", Undo2],
+    ["links", lang === "ru" ? "Вставка ссылок" : "Insert links", LinkIcon],
+    ["pages", lang === "ru" ? "Многостраничность заметки" : "Note pages", Files],
+    ["inlineTags", lang === "ru" ? "Тегирование (Inline tags)" : "Inline tag chips", Tag],
   ] as const, [lang]);
 
   if (!settings || !draftSettings) {
@@ -485,34 +674,6 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
 
   return (
     <main className="h-[100dvh] overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-6 lg:p-6 pb-24 relative">
-      
-      {/* --- DRAFT SAVE BAR --- */}
-      {isDirty && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-4 rounded-full border border-border bg-surface/95 px-4 py-3 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.4)] backdrop-blur-xl animate-in slide-in-from-bottom-8 duration-300 z-[100]">
-          <div className="flex flex-col pr-4 border-r border-border">
-            <span className="text-xs font-black text-foreground">{lang === "ru" ? "Несохраненные изменения" : "Unsaved changes"}</span>
-            <span className="text-[10px] font-medium text-foreground/50">{lang === "ru" ? "Нажмите сохранить, чтобы применить" : "Click save to apply"}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={handleDiscardChanges} 
-              disabled={isSaving}
-              className="flex h-9 items-center justify-center rounded-full px-4 text-xs font-bold text-foreground/70 transition hover:bg-surface-strong hover:text-foreground disabled:opacity-50"
-            >
-              <X className="mr-1.5 h-3.5 w-3.5" />
-              {lang === "ru" ? "Отмена" : "Discard"}
-            </button>
-            <button 
-              onClick={() => void handleSaveChanges()} 
-              disabled={isSaving}
-              className="flex h-9 items-center justify-center rounded-full bg-accent px-5 text-xs font-bold text-accent-foreground shadow-lg transition hover:bg-accent/90 disabled:opacity-50"
-            >
-              {isSaving ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-1.5 h-3.5 w-3.5" />}
-              {lang === "ru" ? "Сохранить" : "Save"}
-            </button>
-          </div>
-        </div>
-      )}
 
       <div className="mx-auto grid max-w-7xl min-w-0 gap-4 lg:grid-cols-[320px_minmax(0,1fr)] pb-12">
         <aside className="app-surface rounded-[1.6rem] min-w-0 border border-border p-4 shadow-2xl shadow-violet-950/8 backdrop-blur-2xl lg:sticky lg:top-6 lg:self-start z-10">
@@ -553,13 +714,16 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
           {activeSection === "appearance" && (
             <div className="space-y-4">
               <SectionIntro title={copy.settings.appearance.title} text={copy.settings.appearance.subtitle} />
-              <Panel title={copy.settings.appearance.themePresets}>
-                <div className="flex flex-wrap gap-2">
-                  {themePresets.map((item) => (
-                    <button className={`min-h-11 rounded-2xl border px-4 py-2.5 text-xs font-black sm:text-sm transition ${draftSettings.preset === item ? "border-accent bg-accent/10 text-accent ring-2 ring-accent/20" : "border-border bg-background hover:bg-surface-strong"}`} key={item} onClick={() => applyBuiltInPreset(item)} type="button">
-                      {item}
-                    </button>
-                  ))}
+              <Panel title={copy.settings.appearance.themePresets} rightElement={renderStatus(settingsSaveStatus)}>
+                <div className="flex flex-col gap-2">
+                  <span className="text-xs font-bold text-foreground/50 uppercase tracking-wider">{lang === "ru" ? "Пресеты" : "Presets"}</span>
+                  <div className="grid grid-cols-2 xs:grid-cols-3 sm:flex sm:flex-wrap gap-2.5">
+                    {themePresets.map((item) => (
+                      <button className={`min-h-11 rounded-2xl border px-4 py-2.5 text-xs font-black sm:text-sm transition ${draftSettings.preset === item ? "border-accent bg-accent/10 text-accent ring-2 ring-accent/20" : "border-border bg-background hover:bg-surface-strong"}`} key={item} onClick={() => applyBuiltInPreset(item)} type="button">
+                        {item}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="mt-6 grid gap-6 sm:grid-cols-2">
@@ -575,51 +739,170 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
 
                 <div className="mt-6 grid gap-4 sm:grid-cols-2">
                   <div className="flex w-full min-w-0 flex-col gap-2">
-                    <span className="text-sm font-bold text-foreground/72">{copy.settings.appearance.mainBackgroundUrl}</span>
-                    <div className="flex gap-2">
-                      <input id="appearance_main_bg_url" name="appearance_main_bg_url" className="w-full min-w-0 rounded-2xl border border-border bg-background px-4 py-2.5 text-sm font-normal focus:border-accent focus:ring-1 focus:ring-accent outline-none transition" onChange={(e) => handleUpdateDraft(p => ({ ...p, mainBackgroundUrl: e.target.value || null }))} placeholder="https://..." type="url" value={draftSettings.mainBackgroundUrl ?? ""} />
-                      <button className="shrink-0 inline-flex min-h-11 items-center gap-2 rounded-2xl border border-border bg-background px-4 py-2.5 text-xs font-bold sm:text-sm transition hover:bg-surface-strong" onClick={() => void uploadBackground("mainBackgroundUrl")} type="button"><Plus className="h-3.5 w-3.5" />{lang === "ru" ? "Файл" : "File"}</button>
-                    </div>
+                    <span className="text-xs font-bold text-foreground/50 uppercase tracking-wider">{copy.settings.appearance.mainBackgroundUrl}</span>
+                    {draftSettings.mainBackgroundUrl ? (
+                      <div className="flex items-center gap-3 rounded-2xl border border-border bg-background p-2 transition hover:border-border/80">
+                        <img src={draftSettings.mainBackgroundUrl} className="h-12 w-12 rounded-xl object-cover border border-border" alt="Workspace background" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-black text-foreground truncate">{lang === "ru" ? "Активный фон" : "Active background"}</p>
+                          <p className="text-[10px] text-foreground/50 truncate">{draftSettings.mainBackgroundUrl}</p>
+                        </div>
+                        <button 
+                          type="button" 
+                          onClick={() => handleUpdateDraft(p => ({ ...p, mainBackgroundUrl: null }))}
+                          className="h-9 w-9 shrink-0 flex items-center justify-center rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition active:scale-95"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => void uploadBackground("mainBackgroundUrl")}
+                        className="flex min-h-[4.5rem] w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-background hover:bg-surface-strong transition-all duration-200 active:scale-[0.99] group"
+                      >
+                        <Plus className="h-4 w-4 text-foreground/40 group-hover:text-accent transition" />
+                        <span className="text-xs font-bold text-foreground/60 group-hover:text-foreground transition">{lang === "ru" ? "Выбрать изображение" : "Select image"}</span>
+                      </button>
+                    )}
                   </div>
+
                   <div className="flex w-full min-w-0 flex-col gap-2">
-                    <span className="text-sm font-bold text-foreground/72">{copy.settings.appearance.sidebarBackgroundUrl}</span>
-                    <div className="flex gap-2">
-                      <input id="appearance_sidebar_bg_url" name="appearance_sidebar_bg_url" className="w-full min-w-0 rounded-2xl border border-border bg-background px-4 py-2.5 text-sm font-normal focus:border-accent focus:ring-1 focus:ring-accent outline-none transition" onChange={(e) => handleUpdateDraft(p => ({ ...p, sidebarBackgroundUrl: e.target.value || null }))} placeholder="https://..." type="url" value={draftSettings.sidebarBackgroundUrl ?? ""} />
-                      <button className="shrink-0 inline-flex min-h-11 items-center gap-2 rounded-2xl border border-border bg-background px-4 py-2.5 text-xs font-bold sm:text-sm transition hover:bg-surface-strong" onClick={() => void uploadBackground("sidebarBackgroundUrl")} type="button"><Plus className="h-3.5 w-3.5" />{lang === "ru" ? "Файл" : "File"}</button>
-                    </div>
+                    <span className="text-xs font-bold text-foreground/50 uppercase tracking-wider">{copy.settings.appearance.sidebarBackgroundUrl}</span>
+                    {draftSettings.sidebarBackgroundUrl ? (
+                      <div className="flex items-center gap-3 rounded-2xl border border-border bg-background p-2 transition hover:border-border/80">
+                        <img src={draftSettings.sidebarBackgroundUrl} className="h-12 w-12 rounded-xl object-cover border border-border" alt="Sidebar background" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-black text-foreground truncate">{lang === "ru" ? "Активный фон" : "Active background"}</p>
+                          <p className="text-[10px] text-foreground/50 truncate">{draftSettings.sidebarBackgroundUrl}</p>
+                        </div>
+                        <button 
+                          type="button" 
+                          onClick={() => handleUpdateDraft(p => ({ ...p, sidebarBackgroundUrl: null }))}
+                          className="h-9 w-9 shrink-0 flex items-center justify-center rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition active:scale-95"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => void uploadBackground("sidebarBackgroundUrl")}
+                        className="flex min-h-[4.5rem] w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-background hover:bg-surface-strong transition-all duration-200 active:scale-[0.99] group"
+                      >
+                        <Plus className="h-4 w-4 text-foreground/40 group-hover:text-accent transition" />
+                        <span className="text-xs font-bold text-foreground/60 group-hover:text-foreground transition">{lang === "ru" ? "Выбрать изображение" : "Select image"}</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               </Panel>
 
-              <Panel title={copy.settings.appearance.localeAndLayout}>
-                <div className="flex flex-wrap gap-2">
-                  {(["ru", "en"] as const).map((item) => (
-                    <button className={`min-h-11 rounded-2xl border px-4 py-2.5 text-xs font-black sm:text-sm transition ${draftSettings.lang === item ? "border-accent bg-accent/10 text-accent" : "border-border bg-background hover:bg-surface-strong"}`} key={item} onClick={() => handleUpdateDraft(p => ({ ...p, lang: item }))} type="button">
-                      {item.toUpperCase()}
-                    </button>
-                  ))}
+              <Panel title={copy.settings.appearance.localeAndLayout} rightElement={renderStatus(settingsSaveStatus)}>
+                <div className="flex flex-col gap-2">
+                  <span className="text-xs font-bold text-foreground/50 uppercase tracking-wider">{lang === "ru" ? "Язык интерфейса" : "Language"}</span>
+                  <div className="grid grid-cols-2 gap-2.5 sm:flex sm:flex-wrap">
+                    {(["ru", "en"] as const).map((item) => (
+                      <button className={`min-h-11 rounded-2xl border px-4 py-2.5 text-xs font-black sm:text-sm transition ${draftSettings.lang === item ? "border-accent bg-accent/10 text-accent" : "border-border bg-background hover:bg-surface-strong"}`} key={item} onClick={() => handleUpdateDraft(p => ({ ...p, lang: item }))} type="button">
+                        {item.toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {([5, 10, 20, 50] as const).map((item) => (
-                    <button className={`min-h-11 rounded-2xl border px-4 py-2.5 text-xs font-black sm:text-sm transition ${draftSettings.notesPerPage === item ? "border-accent bg-accent/10 text-accent" : "border-border bg-background hover:bg-surface-strong"}`} key={item} onClick={() => handleUpdateDraft(p => ({ ...p, notesPerPage: item }))} type="button">
-                      {lang === "ru" ? `${item} на стр.` : `${item} / page`}
-                    </button>
-                  ))}
+                <div className="mt-5 flex flex-col gap-2">
+                  <span className="text-xs font-bold text-foreground/50 uppercase tracking-wider">{lang === "ru" ? "Количество заметок на странице" : "Notes per page"}</span>
+                  <div className="grid grid-cols-2 xs:grid-cols-3 sm:flex sm:flex-wrap gap-2.5">
+                    {([10, 30, 50, 100] as const).map((item) => (
+                      <button className={`min-h-11 rounded-2xl border px-4 py-2.5 text-xs font-black sm:text-sm transition ${draftSettings.notesPerPage === item ? "border-accent bg-accent/10 text-accent" : "border-border bg-background hover:bg-surface-strong"}`} key={item} onClick={() => handleUpdateDraft(p => ({ ...p, notesPerPage: item }))} type="button">
+                        {lang === "ru" ? `${item} на стр.` : `${item} / page`}
+                      </button>
+                    ))}
+                    {(() => {
+                      const isCustom = ![10, 30, 50, 100].includes(draftSettings.notesPerPage);
+                      return (
+                        <div className={`col-span-2 xs:col-span-1 flex items-center gap-2 px-3 py-1.5 min-h-11 rounded-2xl border transition ${isCustom ? "border-accent bg-accent/10 text-accent" : "border-border bg-background text-foreground"}`}>
+                          <div className="relative flex items-center justify-center w-full gap-2">
+                            <input
+                              id="notes_per_page_custom"
+                              name="notes_per_page_custom"
+                              type="text"
+                              className="w-12 bg-transparent text-xs font-bold text-center outline-none border-b border-foreground/20 focus:border-accent [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              value={notesPerPageInput}
+                              onChange={(e) => {
+                                const raw = e.target.value.replace(/\D/g, "");
+                                setNotesPerPageInput(raw);
+                              }}
+                              onBlur={() => {
+                                const num = parseInt(notesPerPageInput) || 10;
+                                const clamped = Math.min(1000, Math.max(1, num));
+                                setNotesPerPageInput(clamped.toString());
+                                handleUpdateDraft(p => ({ ...p, notesPerPage: clamped }));
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  const num = parseInt(notesPerPageInput) || 10;
+                                  const clamped = Math.min(1000, Math.max(1, num));
+                                  setNotesPerPageInput(clamped.toString());
+                                  handleUpdateDraft(p => ({ ...p, notesPerPage: clamped }));
+                                  e.currentTarget.blur();
+                                }
+                              }}
+                              placeholder="..."
+                            />
+                            <div className="flex flex-col shrink-0">
+                              <button
+                                type="button"
+                                className="p-0.5 text-foreground/50 hover:text-accent transition active:scale-75"
+                                onClick={() => {
+                                  const current = parseInt(notesPerPageInput) || 10;
+                                  const val = Math.min(1000, current + 1);
+                                  setNotesPerPageInput(val.toString());
+                                  handleUpdateDraft(p => ({ ...p, notesPerPage: val }));
+                                }}
+                              >
+                                <ChevronUp className="h-3 w-3" />
+                              </button>
+                              <button
+                                type="button"
+                                className="p-0.5 text-foreground/50 hover:text-accent transition active:scale-75"
+                                onClick={() => {
+                                  const current = parseInt(notesPerPageInput) || 10;
+                                  const val = Math.max(1, current - 1);
+                                  setNotesPerPageInput(val.toString());
+                                  handleUpdateDraft(p => ({ ...p, notesPerPage: val }));
+                                }}
+                              >
+                                <ChevronDown className="h-3 w-3" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
                 </div>
-                <button className={`mt-4 min-h-11 rounded-2xl border px-4 py-2.5 text-left text-xs font-bold sm:text-sm transition ${draftSettings.reduceMotion ? "border-accent bg-accent/10 text-accent" : "border-border bg-background hover:bg-surface-strong"}`} onClick={() => handleUpdateDraft(p => ({ ...p, reduceMotion: !p.reduceMotion }))} type="button">
-                  {lang === "ru" ? `Упрощенные анимации: ${draftSettings.reduceMotion ? "Вкл" : "Выкл"}` : `Reduce motion: ${draftSettings.reduceMotion ? "On" : "Off"}`}
-                </button>
+
+                <div className="mt-5 flex flex-col gap-2">
+                  <span className="text-xs font-bold text-foreground/50 uppercase tracking-wider">{lang === "ru" ? "Анимации и эффекты" : "Animations and effects"}</span>
+                  <button className={`min-h-11 rounded-2xl border px-4 py-2.5 text-left text-xs font-bold sm:text-sm transition ${draftSettings.reduceMotion ? "border-accent bg-accent/10 text-accent" : "border-border bg-background hover:bg-surface-strong"}`} onClick={() => handleUpdateDraft(p => ({ ...p, reduceMotion: !p.reduceMotion }))} type="button">
+                    {lang === "ru" ? `Упрощенные анимации: ${draftSettings.reduceMotion ? "Вкл" : "Выкл"}` : `Reduce motion: ${draftSettings.reduceMotion ? "On" : "Off"}`}
+                  </button>
+                </div>
               </Panel>
 
               <Panel title={copy.settings.appearance.customPresets}>
-                <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap">
-                  <input id="appearance_preset_name" name="appearance_preset_name" className="w-full min-w-0 rounded-2xl border border-border bg-background px-4 py-2.5 text-sm sm:min-w-[16rem] sm:flex-1 focus:border-accent focus:ring-1 focus:ring-accent outline-none transition" onChange={(e) => setPresetName(e.target.value)} placeholder={copy.settings.appearance.customPresets} value={presetName} />
-                  <button className="w-full min-h-11 rounded-2xl bg-accent px-4 py-2.5 text-sm font-bold text-accent-foreground sm:w-auto transition hover:bg-accent/90 shadow-sm" onClick={() => saveCurrentThemePreset(presetName)} type="button">
+                <div className="flex justify-start">
+                  <button 
+                    className="w-full sm:w-auto min-h-11 rounded-2xl bg-accent px-5 py-2.5 text-sm font-bold text-accent-foreground transition hover:bg-accent/90 shadow-sm flex items-center justify-center gap-2" 
+                    onClick={() => {
+                      setPresetName("");
+                      setIsSavePresetModalOpen(true);
+                    }} 
+                    type="button"
+                  >
+                    <Plus className="h-4 w-4" />
                     {copy.settings.appearance.savePreset}
-                  </button>
-                  <button className="w-full min-h-11 rounded-2xl border border-border bg-background px-4 py-2.5 text-sm font-bold sm:w-auto transition hover:bg-surface-strong" onClick={() => void resetSettings()} type="button">
-                    {copy.settings.appearance.resetAppearance}
                   </button>
                 </div>
 
@@ -699,17 +982,31 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                   )}
                 </div>
               </Panel>
+              
+              <div className="pt-6 border-t border-border/40 flex justify-center">
+                <button 
+                  className="w-full sm:w-auto min-h-11 rounded-2xl border border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/10 px-6 py-2.5 text-xs font-bold text-rose-500 transition active:scale-95 flex items-center justify-center gap-2" 
+                  onClick={handleResetAppearance} 
+                  type="button"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  {copy.settings.appearance.resetAppearance}
+                </button>
+              </div>
             </div>
           )}
 
           {activeSection === "editor" && (
             <div className="space-y-4">
               <SectionIntro title={copy.settings.editor.title} text={copy.settings.editor.subtitle} />
-              <Panel title={copy.settings.editor.tools}>
+              <Panel title={copy.settings.editor.tools} rightElement={renderStatus(settingsSaveStatus)}>
                 <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                  {editorGroups.map(([key, label]) => (
+                  {editorGroups.map(([key, label, Icon]) => (
                     <button className={`flex w-full min-w-0 min-h-11 items-center justify-between rounded-2xl border px-4 py-2.5 text-left text-xs font-bold sm:text-sm transition hover:bg-surface-strong ${draftSettings.editor[key] ? "border-accent bg-accent/10 text-accent" : "border-border bg-background"}`} key={key} onClick={() => toggleEditorTool(key)} type="button">
-                      <span className="truncate pr-3">{label}</span>
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <Icon className={`h-4 w-4 shrink-0 ${draftSettings.editor[key] ? "text-accent" : "text-foreground/50"}`} />
+                        <span className="truncate pr-3">{label}</span>
+                      </div>
                       <span>{draftSettings.editor[key] ? copy.settings.editor.on : copy.settings.editor.off}</span>
                     </button>
                   ))}
@@ -721,7 +1018,7 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
           {activeSection === "filters" && (
             <div className="space-y-4">
               <SectionIntro title={copy.settings.filters.title} text={copy.settings.filters.subtitle} />
-              <Panel title={copy.settings.filters.sections}>
+              <Panel title={copy.settings.filters.sections} rightElement={renderStatus(settingsSaveStatus)}>
                 <div className="space-y-2">
                   {([
                     ["showSavedFilters", copy.settings.filters.savedFilters],
@@ -751,14 +1048,14 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                     <Download className="h-4 w-4" />
                     {copy.settings.data.exportAll}
                   </button>
-                  <button className="flex w-full min-h-11 items-center justify-center gap-2 rounded-2xl border border-border bg-background px-4 py-2.5 text-xs font-bold sm:text-sm transition hover:bg-surface-strong shadow-sm" onClick={exportFolderNotes} type="button">
+                  <button className="flex w-full min-h-11 items-center justify-center gap-2 rounded-2xl border border-border bg-background px-4 py-2.5 text-xs font-bold sm:text-sm transition hover:bg-surface-strong shadow-sm" onClick={() => { setSelectedFolderId(null); setIsExportFolderModalOpen(true); }} type="button">
                     <FileJson className="h-4 w-4" />
                     {copy.settings.data.exportFolder}
                   </button>
-                  <button className="w-full min-h-11 rounded-2xl border border-border bg-background px-4 py-2.5 text-xs font-bold sm:text-sm transition hover:bg-surface-strong shadow-sm" onClick={() => window.location.reload()} type="button">
+                  <button className="w-full min-h-11 rounded-2xl border border-border bg-background px-4 py-2.5 text-xs font-bold sm:text-sm transition hover:bg-surface-strong shadow-sm" onClick={handleResetPageCache} type="button">
                     {copy.settings.data.resetCache}
                   </button>
-                  <button className="w-full min-h-11 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-500 px-4 py-2.5 text-xs font-bold sm:text-sm transition hover:bg-rose-500/20 shadow-sm" onClick={() => void resetSettings()} type="button">
+                  <button className="w-full min-h-11 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-500 px-4 py-2.5 text-xs font-bold sm:text-sm transition hover:bg-rose-500/20 shadow-sm" onClick={handleResetSettings} type="button">
                     {copy.settings.data.resetSettings}
                   </button>
                 </div>
@@ -775,11 +1072,6 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                       <div>
                         <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
                           {lang === "ru" ? "Активно и работает" : "Active and running"}
-                        </p>
-                        <p className="mt-1 text-xs leading-relaxed text-foreground/60">
-                          {lang === "ru"
-                            ? "Каждому пользователю предоставляется бесплатное защищённое хранилище объёмом до 1 ГБ. Все медиафайлы автоматически оптимизируются."
-                            : "Each user gets up to 1 GB of secure storage free of charge. All media assets are automatically optimized."}
                         </p>
                       </div>
                     </div>
@@ -882,79 +1174,81 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                 </div>
               </Panel>
 
-              <Panel title={lang === "ru" ? "Диагностика синхронизации" : "Sync Diagnostics"}>
-                <div className="rounded-[1.2rem] border border-border bg-surface-strong p-5 text-sm text-foreground/58 space-y-4">
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      onClick={() => void processSyncQueue()}
-                      className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-accent px-4 py-2 text-xs font-bold text-accent-foreground transition hover:bg-accent/90 shadow-sm"
-                      type="button"
-                    >
-                      <RefreshCw className="h-3.5 w-3.5" />
-                      {lang === "ru" ? "Синхронизировать сейчас" : "Sync Now"}
-                    </button>
-                    {syncQueue.length > 0 && (
+              {developerMode && (
+                <Panel title={lang === "ru" ? "Диагностика синхронизации" : "Sync Diagnostics"}>
+                  <div className="rounded-[1.2rem] border border-border bg-surface-strong p-5 text-sm text-foreground/58 space-y-4">
+                    <div className="flex flex-wrap gap-2">
                       <button
-                        onClick={() => {
-                          clearSyncQueue();
-                          setSyncQueue([]);
-                        }}
-                        className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition text-xs font-bold px-4 py-2"
+                        onClick={() => void processSyncQueue()}
+                        className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-accent px-4 py-2 text-xs font-bold text-accent-foreground transition hover:bg-accent/90 shadow-sm"
                         type="button"
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        {lang === "ru" ? "Очистить очередь" : "Clear Queue"}
+                        <RefreshCw className="h-3.5 w-3.5" />
+                        {lang === "ru" ? "Синхронизировать сейчас" : "Sync Now"}
                       </button>
-                    )}
-                  </div>
+                      {syncQueue.length > 0 && (
+                        <button
+                          onClick={() => {
+                            clearSyncQueue();
+                            setSyncQueue([]);
+                          }}
+                          className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 transition text-xs font-bold px-4 py-2"
+                          type="button"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          {lang === "ru" ? "Очистить очередь" : "Clear Queue"}
+                        </button>
+                      )}
+                    </div>
 
-                  <div className="pt-2">
-                    <span className="block text-[10px] font-black uppercase tracking-[0.18em] text-foreground/42 mb-2">
-                      {lang === "ru" ? "Очередь отложенной синхронизации" : "Pending Sync Queue"}
-                    </span>
-                    {syncQueue.length === 0 ? (
-                      <div className="rounded-xl border border-dashed border-border p-4 text-center">
-                        <p className="text-xs font-medium text-foreground/48">
-                          {lang === "ru" ? "Все данные синхронизированы с облаком." : "All local changes are fully synced."}
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                        {syncQueue.map((item) => (
-                          <div key={item.id + item.operation} className="flex items-center justify-between p-3 rounded-xl border border-border bg-background shadow-sm text-xs transition hover:border-foreground/20">
-                            <div className="min-w-0 flex-1 pr-3">
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-foreground capitalize">{item.entity}</span>
-                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${
-                                  item.operation === "create" ? "bg-emerald-500/15 text-emerald-500" :
-                                  item.operation === "patch" ? "bg-amber-500/15 text-amber-500" :
-                                  "bg-rose-500/15 text-rose-500"
-                                }`}>
-                                  {item.operation}
-                                </span>
+                    <div className="pt-2">
+                      <span className="block text-[10px] font-black uppercase tracking-[0.18em] text-foreground/42 mb-2">
+                        {lang === "ru" ? "Очередь отложенной синхронизации" : "Pending Sync Queue"}
+                      </span>
+                      {syncQueue.length === 0 ? (
+                        <div className="rounded-xl border border-dashed border-border p-4 text-center">
+                          <p className="text-xs font-medium text-foreground/48">
+                            {lang === "ru" ? "Все данные синхронизированы с облаком." : "All local changes are fully synced."}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                          {syncQueue.map((item) => (
+                            <div key={item.id + item.operation} className="flex items-center justify-between p-3 rounded-xl border border-border bg-background shadow-sm text-xs transition hover:border-foreground/20">
+                              <div className="min-w-0 flex-1 pr-3">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-foreground capitalize">{item.entity}</span>
+                                  <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider ${
+                                    item.operation === "create" ? "bg-emerald-500/15 text-emerald-500" :
+                                    item.operation === "patch" ? "bg-amber-500/15 text-amber-500" :
+                                    "bg-rose-500/15 text-rose-500"
+                                  }`}>
+                                    {item.operation}
+                                  </span>
+                                </div>
+                                <div className="text-[10px] text-foreground/42 mt-1 truncate font-mono">
+                                  ID: {item.id} • {new Date(item.createdAt).toLocaleString(lang === "ru" ? "ru-RU" : "en-US")}
+                                </div>
                               </div>
-                              <div className="text-[10px] text-foreground/42 mt-1 truncate font-mono">
-                                ID: {item.id} • {new Date(item.createdAt).toLocaleString(lang === "ru" ? "ru-RU" : "en-US")}
-                              </div>
+                              <button
+                                onClick={() => {
+                                  removeSyncItem(item.id);
+                                  setSyncQueue(listSyncQueue());
+                                }}
+                                className="p-2 text-foreground/42 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition shrink-0"
+                                type="button"
+                                title={lang === "ru" ? "Удалить" : "Delete"}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
                             </div>
-                            <button
-                              onClick={() => {
-                                removeSyncItem(item.id);
-                                setSyncQueue(listSyncQueue());
-                              }}
-                              className="p-2 text-foreground/42 hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition shrink-0"
-                              type="button"
-                              title={lang === "ru" ? "Удалить" : "Delete"}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </Panel>
+                </Panel>
+              )}
             </div>
           )}
 
@@ -963,82 +1257,139 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
               <SectionIntro title={copy.settings.profile.title} text={copy.settings.profile.subtitle} />
 
               <div className="grid gap-6 xl:grid-cols-2">
-                <Panel title={copy.settings.profile.profileDetails || "Данные профиля"}>
+                <Panel title={copy.settings.profile.profileDetails || "Данные профиля"} rightElement={renderStatus(profileSaveStatus)}>
                   <div className="space-y-5">
-                    <div className="flex flex-col items-center gap-5 p-5 rounded-[1.3rem] bg-surface-strong border border-border sm:flex-row">
-                      <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-background bg-surface-strong text-3xl font-black text-foreground/45 shadow-lg">
-                        {avatarUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img alt="avatar" className="h-full w-full object-cover" src={avatarUrl} />
-                        ) : (
-                          <span>{(displayName || user?.email || "?").slice(0, 1).toUpperCase()}</span>
-                        )}
-                      </div>
-                      <div className="flex flex-col gap-2 w-full sm:w-auto">
+                    <div className="flex flex-col items-center justify-center p-6 rounded-[1.3rem] bg-surface-strong border border-border">
+                      <div className="relative h-24 w-24">
                         <button
-                          className="w-full inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2 text-xs font-bold text-accent-foreground hover:bg-accent/90 transition shadow-sm"
-                          onClick={() => void uploadAvatar()}
                           type="button"
+                          onClick={() => setIsAvatarMenuOpen(!isAvatarMenuOpen)}
+                          className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-full border-4 border-background bg-surface shadow-lg text-3xl font-black text-foreground/45 transition hover:scale-[1.02] active:scale-[0.98]"
                         >
-                          <Upload className="h-3.5 w-3.5" />
-                          {copy.settings.profile.uploadAvatarLabel || "Загрузить аватар"}
+                          {avatarUrl ? (
+                            <img alt="avatar" className="h-full w-full object-cover" src={avatarUrl} />
+                          ) : (
+                            <span>{(displayName || user?.email || "?").slice(0, 1).toUpperCase()}</span>
+                          )}
                         </button>
-                        {avatarUrl && (
-                          <button
-                            className="w-full text-center text-xs font-bold text-rose-500 hover:text-rose-600 transition min-h-10 flex items-center justify-center border border-rose-500/20 rounded-xl bg-rose-500/5 hover:bg-rose-500/10"
-                            onClick={() => setAvatarUrl("")}
-                            type="button"
-                          >
-                            {copy.settings.profile.deleteAvatar || "Удалить аватар"}
-                          </button>
-                        )}
+                        
+                        <button
+                          type="button"
+                          onClick={() => setIsAvatarMenuOpen(!isAvatarMenuOpen)}
+                          className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-md transition hover:scale-110 active:scale-95 border-2 border-background"
+                        >
+                          <Camera className="h-4 w-4" />
+                        </button>
+ 
+                        <AnimatePresence>
+                          {isAvatarMenuOpen && (
+                            <>
+                              <div 
+                                className="fixed inset-0 z-40" 
+                                onClick={() => setIsAvatarMenuOpen(false)} 
+                              />
+                              <motion.div
+                                initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                                transition={{ duration: 0.15 }}
+                                className="absolute left-1/2 -translate-x-1/2 mt-2 w-48 rounded-xl border border-border bg-background p-1.5 shadow-xl z-50 origin-top font-sans"
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setIsAvatarMenuOpen(false);
+                                    void uploadAvatar();
+                                  }}
+                                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-bold text-foreground hover:bg-surface-strong transition"
+                                >
+                                  <Upload className="h-3.5 w-3.5" />
+                                  {lang === "ru" ? "Загрузить фото" : "Upload photo"}
+                                </button>
+                                {avatarUrl && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setIsAvatarMenuOpen(false);
+                                      setAvatarUrl("");
+                                      void handleSaveProfileData({ photoURL: null });
+                                    }}
+                                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-bold text-rose-500 hover:bg-rose-500/10 transition"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                    {lang === "ru" ? "Удалить фото" : "Delete photo"}
+                                  </button>
+                                )}
+                              </motion.div>
+                            </>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                      <div className="mt-4 text-center">
+                        <p className="text-xs font-bold text-foreground/50">
+                          {lang === "ru" ? "Нажмите на аватарку, чтобы изменить фото" : "Tap on avatar to change photo"}
+                        </p>
                       </div>
                     </div>
-
-                    <div>
-                      <span className="block mb-1.5 text-xs font-bold text-foreground/70">{copy.settings.profile.avatarUrl}</span>
-                      <input
-                        id="profile_avatar_url"
-                        name="profile_avatar_url"
-                        className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm min-h-11 outline-none focus:border-accent focus:ring-1 focus:ring-accent transition font-normal"
-                        onChange={(e) => setAvatarUrl(e.target.value)}
-                        placeholder={copy.settings.profile.avatarUrlPlaceholder}
-                        type="url"
-                        value={avatarUrl}
-                      />
-                    </div>
-
-                    <div>
-                      <span className="block mb-1.5 text-xs font-bold text-foreground/70">{copy.settings.profile.displayName}</span>
-                      <input
-                        id="profile_display_name"
-                        name="profile_display_name"
-                        className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm min-h-11 outline-none focus:border-accent focus:ring-1 focus:ring-accent transition font-normal"
-                        onChange={(e) => setDisplayName(e.target.value)}
-                        placeholder={copy.settings.profile.displayNamePlaceholder}
-                        type="text"
-                        value={displayName}
-                      />
-                    </div>
-
-                    <div className="pt-2">
-                      <button
-                        className={`w-full min-h-11 rounded-xl px-4 text-sm font-bold transition-all shadow-sm flex items-center justify-center gap-2 ${profileSaved ? "bg-emerald-500/15 text-emerald-600 border border-emerald-500/25" : "bg-accent text-accent-foreground hover:bg-accent/90"}`}
-                        disabled={profilePending}
-                        onClick={() => void handleSaveProfile()}
-                        type="button"
-                      >
-                        {profilePending
-                          ? <Loader2 className="h-4 w-4 animate-spin" />
-                          : profileSaved
-                            ? <Check className="h-4 w-4" />
-                            : null}
-                        {profilePending
-                          ? copy.settings.profile.saving
-                          : profileSaved
-                            ? copy.settings.profile.saved
-                            : copy.settings.profile.saveProfile}
-                      </button>
+ 
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div>
+                        <span className="block mb-1.5 text-xs font-bold text-foreground/70">{copy.settings.profile.displayName}</span>
+                        <input
+                          id="profile_display_name"
+                          name="profile_display_name"
+                          className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm min-h-11 outline-none focus:border-accent focus:ring-1 focus:ring-accent transition font-normal"
+                          onChange={(e) => setDisplayName(e.target.value)}
+                          onBlur={() => {
+                            if (displayName.trim() !== (user?.displayName ?? "")) {
+                              void handleSaveProfileData({ displayName: displayName.trim() });
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.currentTarget.blur();
+                            }
+                          }}
+                          placeholder={copy.settings.profile.displayNamePlaceholder}
+                          type="text"
+                          value={displayName}
+                        />
+                      </div>
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-xs font-bold text-foreground/70">{lang === "ru" ? "Уникальный логин (никнейм)" : "Unique login (username)"}</span>
+                          <span className={`text-[10px] font-black uppercase tracking-wider ${hasChangedUsername ? "text-rose-500/70" : "text-emerald-500/70"}`}>
+                            {hasChangedUsername 
+                              ? (lang === "ru" ? "Изменено" : "Changed")
+                              : (lang === "ru" ? "1 попытка" : "1 limit")}
+                          </span>
+                        </div>
+                        <input
+                          id="profile_username"
+                          name="profile_username"
+                          disabled={hasChangedUsername}
+                          className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm min-h-11 outline-none focus:border-accent focus:ring-1 focus:ring-accent transition font-normal disabled:opacity-60 disabled:cursor-not-allowed"
+                          onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, ""))}
+                          onBlur={() => {
+                            if (hasChangedUsername) return;
+                            if (user?.email) {
+                              const defaultUsername = user.email.split("@")[0].replace(/[^a-zA-Z0-9_]/g, "");
+                              if (username.trim() && username.trim().toLowerCase() !== defaultUsername.toLowerCase()) {
+                                setHasChangedUsername(true);
+                                void handleSaveProfileData({});
+                              }
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.currentTarget.blur();
+                            }
+                          }}
+                          placeholder="login"
+                          type="text"
+                          value={username}
+                        />
+                      </div>
                     </div>
                   </div>
                 </Panel>
@@ -1052,6 +1403,53 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                         readOnly
                         value={user?.email ?? "-"}
                       />
+                    </div>
+
+                    <div>
+                      <span className="block mb-2 text-xs font-bold text-foreground/70">{lang === "ru" ? "Способы входа" : "Sign-in methods"}</span>
+                      <div className="space-y-2 font-sans">
+                        <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-background text-xs font-bold">
+                          <div className="flex items-center gap-2">
+                            <span className="text-foreground">{lang === "ru" ? "Почта и пароль" : "Email & Password"}</span>
+                            <span className="text-[10px] text-foreground/50 font-normal">({user?.email})</span>
+                          </div>
+                          <span className="text-[10px] bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded-md uppercase tracking-wider shrink-0">
+                            {lang === "ru" ? "Активно" : "Active"}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-background text-xs font-bold">
+                          <div className="flex items-center gap-2">
+                            <span className="text-foreground">{lang === "ru" ? "Логин (Никнейм)" : "Login (Username)"}</span>
+                            <span className="text-[10px] text-foreground/50 font-normal">({username || "..."})</span>
+                          </div>
+                          <span className="text-[10px] bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded-md uppercase tracking-wider shrink-0">
+                            {lang === "ru" ? "Активно" : "Active"}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-background text-xs font-bold">
+                          <div className="flex items-center gap-2">
+                            <span className="text-foreground">Google</span>
+                            <span className="text-[10px] text-foreground/50 font-normal truncate max-w-[120px] sm:max-w-none">
+                              {googleLinked ? `${user?.displayName || "Google User"}` : (lang === "ru" ? "Не привязан" : "Not linked")}
+                            </span>
+                          </div>
+                          {googleLinked ? (
+                            <span className="text-[10px] bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded-md uppercase tracking-wider shrink-0">
+                              {lang === "ru" ? "Привязано" : "Linked"}
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setGoogleLinked(true)}
+                              className="text-[10px] bg-accent text-accent-foreground px-2 py-1 rounded-md hover:bg-accent/90 transition shrink-0"
+                            >
+                              {lang === "ru" ? "Привязать" : "Link"}
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     </div>
 
                     <div>
@@ -1079,19 +1477,11 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
                     </div>
 
                     {user?.createdAt && (
-                      <div className="grid grid-cols-2 gap-3 p-4 rounded-[1.3rem] bg-surface-strong border border-border text-xs text-foreground/60 font-medium">
-                        <div>
-                          <span className="block text-[10px] text-foreground/45 uppercase tracking-wider font-black">{copy.settings.profile.registeredAt || "Регистрация"}</span>
-                          <span className="mt-1 block truncate text-foreground font-bold">
-                            {new Date(user.createdAt).toLocaleDateString(lang === "ru" ? "ru-RU" : "en-US", { year: "numeric", month: "short", day: "numeric" })}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="block text-[10px] text-foreground/45 uppercase tracking-wider font-black">{copy.settings.profile.lastLoginAt || "Последний вход"}</span>
-                          <span className="mt-1 block truncate text-foreground font-bold">
-                            {user.lastSignInAt ? new Date(user.lastSignInAt).toLocaleDateString(lang === "ru" ? "ru-RU" : "en-US", { year: "numeric", month: "short", day: "numeric" }) : "-"}
-                          </span>
-                        </div>
+                      <div className="p-4 rounded-[1.3rem] bg-surface-strong border border-border text-xs text-foreground/60 font-bold flex items-center justify-between">
+                        <span className="text-[10px] text-foreground/45 uppercase tracking-wider font-black">{copy.settings.profile.registeredAt || "Регистрация"}</span>
+                        <span>
+                          {new Date(user.createdAt).toLocaleDateString(lang === "ru" ? "ru-RU" : "en-US", { year: "numeric", month: "short", day: "numeric" })}
+                        </span>
                       </div>
                     )}
 
@@ -1202,6 +1592,225 @@ export default function SettingsClient({ initialDriveConnected }: SettingsClient
           )}
         </section>
       </div>
+      <AnimatePresence>
+        {isExportFolderModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 15 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 15 }}
+              transition={{ type: "spring", duration: 0.3 }}
+              className="w-full max-w-md overflow-hidden rounded-[1.6rem] border border-border bg-surface p-6 shadow-2xl"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-base font-black text-foreground">
+                  {lang === "ru" ? "Экспорт папки" : "Export Folder"}
+                </h3>
+                <button
+                  onClick={() => setIsExportFolderModalOpen(false)}
+                  className="rounded-lg p-1.5 text-foreground/50 hover:bg-surface-strong hover:text-foreground transition"
+                  type="button"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <p className="text-xs text-foreground/60 mb-4 font-medium leading-relaxed">
+                {lang === "ru"
+                  ? "Выберите папку для экспорта всех содержащихся в ней заметок в файл формата JSON."
+                  : "Select a folder to export all notes within it to a JSON file."}
+              </p>
+
+              <div className="space-y-2 max-h-60 overflow-y-auto pr-1 mb-6">
+                {folders.filter(f => !f.trashedAt).length === 0 ? (
+                  <div className="text-center py-6 text-xs text-foreground/42">
+                    {lang === "ru" ? "Нет доступных папок для экспорта." : "No folders available for export."}
+                  </div>
+                ) : (
+                  folders
+                    .filter(f => !f.trashedAt)
+                    .map((folder) => {
+                      const isSelected = selectedFolderId === folder.id;
+                      return (
+                        <button
+                          key={folder.id}
+                          onClick={() => setSelectedFolderId(folder.id)}
+                          className={`w-full flex items-center justify-between p-3 rounded-xl border text-left text-xs font-bold transition ${
+                            isSelected
+                              ? "border-accent bg-accent/10 text-accent"
+                              : "border-border bg-surface-strong hover:bg-border/30 text-foreground"
+                          }`}
+                          type="button"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Folder className={`h-4 w-4 shrink-0 ${isSelected ? "text-accent" : "text-foreground/50"}`} />
+                            <span className="truncate">{folder.name}</span>
+                          </div>
+                          {isSelected && <Check className="h-4 w-4 shrink-0 text-accent" />}
+                        </button>
+                      );
+                    })
+                )}
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setIsExportFolderModalOpen(false)}
+                  className="flex-1 min-h-11 rounded-xl border border-border bg-background hover:bg-surface-strong transition text-xs font-bold"
+                  type="button"
+                >
+                  {lang === "ru" ? "Отмена" : "Cancel"}
+                </button>
+                <button
+                  onClick={() => {
+                    if (!selectedFolderId) return;
+                    const folder = folders.find((f) => f.id === selectedFolderId);
+                    if (!folder) return;
+                    const exportable = notes.filter((n) => n.folderId === folder.id && !n.lock?.hidden);
+                    downloadTextFile(
+                      `${safeFileName(`smartnotes-folder-${folder.name}`)}.json`,
+                      JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), folderId: folder.id, folderName: folder.name, notes: exportable }, null, 2),
+                      "application/json;charset=utf-8"
+                    );
+                    setIsExportFolderModalOpen(false);
+                  }}
+                  disabled={!selectedFolderId}
+                  className="flex-1 min-h-11 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 disabled:opacity-50 transition text-xs font-bold"
+                  type="button"
+                >
+                  {lang === "ru" ? "Экспортировать" : "Export"}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {confirmModal.isOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 15 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 15 }}
+              transition={{ type: "spring", duration: 0.3 }}
+              className="w-full max-w-sm overflow-hidden rounded-[1.6rem] border border-border bg-surface p-6 shadow-2xl"
+            >
+              <h3 className="text-base font-black text-foreground mb-2">
+                {confirmModal.title}
+              </h3>
+
+              <p className="text-xs text-foreground/60 mb-6 font-medium leading-relaxed font-sans">
+                {confirmModal.description}
+              </p>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                  className="flex-1 min-h-11 rounded-xl border border-border bg-background hover:bg-surface-strong transition text-xs font-bold"
+                  type="button"
+                >
+                  {confirmModal.cancelText}
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      await confirmModal.onConfirm();
+                    } finally {
+                      setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                    }
+                  }}
+                  className={`flex-1 min-h-11 rounded-xl transition text-xs font-bold ${
+                    confirmModal.variant === "destructive"
+                      ? "bg-rose-500 text-white hover:bg-rose-600"
+                      : "bg-accent text-accent-foreground hover:bg-accent/90"
+                  }`}
+                  type="button"
+                >
+                  {confirmModal.actionText}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {isSavePresetModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 15 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 15 }}
+              transition={{ type: "spring", duration: 0.3 }}
+              className="w-full max-w-sm overflow-hidden rounded-[1.6rem] border border-border bg-surface p-6 shadow-2xl"
+            >
+              <h3 className="text-base font-black text-foreground mb-2">
+                {lang === "ru" ? "Сохранить пресет темы" : "Save theme preset"}
+              </h3>
+
+              <p className="text-xs text-foreground/60 mb-4 font-medium leading-relaxed font-sans">
+                {lang === "ru" 
+                  ? "Введите имя для сохранения текущих настроек темы, фонов и прозрачности."
+                  : "Enter a name to save your current theme, background, and opacity settings."}
+              </p>
+
+              <input
+                id="modal_preset_name"
+                name="modal_preset_name"
+                type="text"
+                autoFocus
+                className="w-full mb-6 rounded-xl border border-border bg-background px-4 py-2.5 text-sm outline-none focus:border-accent focus:ring-1 focus:ring-accent transition font-normal"
+                placeholder={lang === "ru" ? "Мой пресет" : "My Preset"}
+                value={presetName}
+                onChange={(e) => setPresetName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && presetName.trim()) {
+                    saveCurrentThemePreset(presetName.trim());
+                    setIsSavePresetModalOpen(false);
+                  }
+                }}
+              />
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setIsSavePresetModalOpen(false)}
+                  className="flex-1 min-h-11 rounded-xl border border-border bg-background hover:bg-surface-strong transition text-xs font-bold"
+                  type="button"
+                >
+                  {lang === "ru" ? "Отмена" : "Cancel"}
+                </button>
+                <button
+                  onClick={() => {
+                    if (presetName.trim()) {
+                      saveCurrentThemePreset(presetName.trim());
+                      setIsSavePresetModalOpen(false);
+                    }
+                  }}
+                  disabled={!presetName.trim()}
+                  className="flex-1 min-h-11 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90 disabled:opacity-50 transition text-xs font-bold"
+                  type="button"
+                >
+                  {lang === "ru" ? "Сохранить" : "Save"}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </main>
   );
 }

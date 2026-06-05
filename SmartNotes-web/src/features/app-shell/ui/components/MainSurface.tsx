@@ -39,7 +39,7 @@ type MainSurfaceProps = {
   semanticLoading: boolean;
   activeFolder: FolderEntity | null;
   folderViewMode: "compact" | "full";
-  notesPerPage: 5 | 10 | 20 | 50;
+  notesPerPage: number;
   onOpenFolder: (folder: FolderEntity) => void;
   onOpenNote: (noteId: string) => void;
   onOpenSheet: (sheet: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void;
@@ -170,7 +170,7 @@ function FoldersGrid({ folders, mode, emptyText, folderViewMode, onOpenFolder }:
   );
 }
 
-function TrashView({ copy, notes, notesPerPage, trashedFolders, onOpenNote, onOpenSheet }: { copy: ReturnType<typeof getUiCopy>; notes: Note[]; notesPerPage: 5 | 10 | 20 | 50; trashedFolders: FolderEntity[]; onOpenNote: (noteId: string) => void; onOpenSheet: (sheet: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void }) {
+function TrashView({ copy, notes, notesPerPage, trashedFolders, onOpenNote, onOpenSheet }: { copy: ReturnType<typeof getUiCopy>; notes: Note[]; notesPerPage: number; trashedFolders: FolderEntity[]; onOpenNote: (noteId: string) => void; onOpenSheet: (sheet: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void }) {
   const { permanentlyDeleteFolder, restoreFolder } = useFolderActions();
   const { clearTrash } = useNoteActions();
 
@@ -213,7 +213,7 @@ function TrashView({ copy, notes, notesPerPage, trashedFolders, onOpenNote, onOp
   );
 }
 
-function NotesView({ copy, title: _title, notes, semanticNotes, semanticLoading, notesPerPage, emptyText: _emptyText, onOpenNote, onOpenSheet, view }: { copy: ReturnType<typeof getUiCopy>; title: string; notes: Note[]; semanticNotes: Note[]; semanticLoading: boolean; notesPerPage: 5 | 10 | 20 | 50; emptyText: string; onOpenNote: (noteId: string) => void; onOpenSheet: (sheet: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void; view: AppView }) {
+function NotesView({ copy, title: _title, notes, semanticNotes, semanticLoading, notesPerPage, emptyText: _emptyText, onOpenNote, onOpenSheet, view }: { copy: ReturnType<typeof getUiCopy>; title: string; notes: Note[]; semanticNotes: Note[]; semanticLoading: boolean; notesPerPage: number; emptyText: string; onOpenNote: (noteId: string) => void; onOpenSheet: (sheet: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void; view: AppView }) {
   const { data: folders = [] } = useFoldersQuery();
   const [displayLimit, setDisplayLimit] = useState<number>(notesPerPage);
   const visibleFolders = useMemo(() => folders.filter((folder) => !folder.trashedAt && !folder.isHidden), [folders]);

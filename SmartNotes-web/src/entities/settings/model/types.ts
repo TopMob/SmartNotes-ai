@@ -40,7 +40,7 @@ export type UserSettings = {
   preset: ThemePreset;
   lang: "ru" | "en";
   folderViewMode: "compact" | "full";
-  notesPerPage: 5 | 10 | 20 | 50;
+  notesPerPage: number;
   reduceMotion: boolean;
   uiOpacity: number;
   cardsOpacity: number;
