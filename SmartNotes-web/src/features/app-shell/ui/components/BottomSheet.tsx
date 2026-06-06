@@ -1,7 +1,5 @@
 import { Pencil, Star, X, Copy, Users, FolderOpen, Bell, Archive, Lock, Unlock, Download, Trash2, Eye, EyeOff, FileText, Check, ArrowLeft, type LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-
 import type { Folder as FolderEntity } from "@/entities/folder";
 import type { Note } from "@/entities/note";
 import { useAuthStore } from "@/features/auth/model/auth-store";
@@ -12,7 +10,7 @@ import { useFoldersQuery } from "@/features/folders/hooks/use-folders-query";
 import { LockModal } from "@/features/lock-center/ui/lock-modal";
 import { useLockStore } from "@/features/lock-center/model/lock-store";
 import { useNoteActions } from "@/features/notes/hooks/use-note-mutations";
-import { useNotesFlat } from "@/features/notes/hooks/use-notes-query";
+import { useNoteDetails, useNotesFlat } from "@/features/notes/hooks/use-notes-query";
 import { useNoteUiStore } from "@/features/notes/model/note-ui-store";
 import { useSettingsQuery } from "@/features/settings/hooks/use-settings-query";
 import { publish } from "@/services/event-bus";
@@ -21,7 +19,6 @@ import { scheduleReminder } from "@/services/reminders/reminder-service";
 import { getConsoleLogs } from "@/services/console-log-store";
 import { getUiCopy } from "@/shared/lib/i18n";
 import { Button } from "@/shared/ui/button";
-import { LogoMark } from "@/shared/ui/logo-mark";
 import { SharePrompt } from "@/features/editor-collab/ui/share-prompt";
 import { AiSummaryCard } from "@/features/editor/ui/AiSummaryCard";
 import { verifyNoteLock } from "@/features/lock-center/lib/lock-service";
@@ -179,7 +176,8 @@ function NoteActionSheet({ copy, onOpenSheet, onClose, onCloseEditor }: { copy: 
   const { data: folders = [] } = useFoldersQuery();
   const { setArchived, trashNote, restoreNote, permanentlyDeleteNote } = useNoteActions();
   const currentNoteId = useNoteUiStore((state) => state.currentNoteId);
-  const note = notes.find((item) => item.id === currentNoteId) ?? null;
+  const { data: noteDetails } = useNoteDetails(currentNoteId);
+  const note = noteDetails ?? notes.find((item) => item.id === currentNoteId) ?? null;
 
   const aiStatus = useAiEngineStore((state) => state.status);
   const dlgs = copy.shell.dialogs;
@@ -347,7 +345,8 @@ function NoteFolderPickerContent({
   const { data: folders = [] } = useFoldersQuery();
   const { moveNoteToFolder } = useNoteActions();
   const currentNoteId = useNoteUiStore((state) => state.currentNoteId);
-  const note = notes.find((item) => item.id === currentNoteId) ?? null;
+  const { data: noteDetails } = useNoteDetails(currentNoteId);
+  const note = noteDetails ?? notes.find((item) => item.id === currentNoteId) ?? null;
   const visibleFolders = useMemo(() => folders.filter((folder) => !folder.trashedAt && !folder.isHidden), [folders]);
 
   if (!note) return null;
@@ -388,7 +387,8 @@ function NoteExportContent({
   const { data: settings } = useSettingsQuery();
   const lang = settings?.lang ?? "ru";
   const currentNoteId = useNoteUiStore((state) => state.currentNoteId);
-  const note = notes.find((item) => item.id === currentNoteId) ?? null;
+  const { data: noteDetails } = useNoteDetails(currentNoteId);
+  const note = noteDetails ?? notes.find((item) => item.id === currentNoteId) ?? null;
 
   if (!note) return null;
 
@@ -732,7 +732,8 @@ function LockContent({ copy, onClose, onOpenEditor }: { copy: ReturnType<typeof 
   const currentNoteId = useNoteUiStore((state) => state.currentNoteId);
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const note = notes.find((item) => item.id === currentNoteId) ?? null;
+  const { data: noteDetails } = useNoteDetails(currentNoteId);
+  const note = noteDetails ?? notes.find((item) => item.id === currentNoteId) ?? null;
 
   if (!currentNoteId || !note?.lock) {
     return null;
@@ -910,7 +911,8 @@ function ReminderContent({ copy, onClose }: { copy: ReturnType<typeof getUiCopy>
   const { data: notes = [] } = useNotesFlat();
   const { setReminder } = useNoteActions();
   const currentNoteId = useNoteUiStore((state) => state.currentNoteId);
-  const note = notes.find((item) => item.id === currentNoteId) ?? null;
+  const { data: noteDetails } = useNoteDetails(currentNoteId);
+  const note = noteDetails ?? notes.find((item) => item.id === currentNoteId) ?? null;
 
   const toLocalDatetimeValue = (isoString: string | null | undefined) => {
     if (!isoString) return "";
@@ -1043,7 +1045,8 @@ function ReminderContent({ copy, onClose }: { copy: ReturnType<typeof getUiCopy>
 function ShareContent({ onClose }: { onClose: () => void }) {
   const { data: notes = [] } = useNotesFlat();
   const currentNoteId = useNoteUiStore((state) => state.currentNoteId);
-  const note = notes.find((item) => item.id === currentNoteId) ?? null;
+  const { data: noteDetails } = useNoteDetails(currentNoteId);
+  const note = noteDetails ?? notes.find((item) => item.id === currentNoteId) ?? null;
 
   if (!note) return null;
 

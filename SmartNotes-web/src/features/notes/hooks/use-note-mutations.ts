@@ -351,11 +351,11 @@ export function useNoteActions() {
     clearTrash: () => clearTrashMutation.mutateAsync(),
     togglePinned: (noteId: string) => {
       const note = findNote(noteId);
-      return note ? updateMutation.mutateAsync({ noteId, patch: normalizeNotePatch({ pinned: !note.pinned }, { scheduleAnalysis: false }) }) : Promise.resolve();
+      return note ? updateMutation.mutateAsync({ noteId, patch: normalizeNotePatch({ pinned: !note.pinned }, { scheduleAnalysis: false, keepTimestamp: true }) }) : Promise.resolve();
     },
     toggleFavorite: (noteId: string) => {
       const note = findNote(noteId);
-      return note ? updateMutation.mutateAsync({ noteId, patch: normalizeNotePatch({ favorite: !note.favorite }, { scheduleAnalysis: false }) }) : Promise.resolve();
+      return note ? updateMutation.mutateAsync({ noteId, patch: normalizeNotePatch({ favorite: !note.favorite }, { scheduleAnalysis: false, keepTimestamp: true }) }) : Promise.resolve();
     },
     setArchived: (noteId: string, isArchived: boolean) =>
       updateMutation.mutateAsync({ noteId, patch: normalizeNotePatch({ isArchived }, { scheduleAnalysis: false }) }),

@@ -1,7 +1,7 @@
 import { Brain, Folder, Heart, RotateCcw, Shield, Sparkles } from "lucide-react";
 import { useMemo, useState, useEffect } from "react";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 import type { Folder as FolderEntity } from "@/entities/folder";
 import type { Note } from "@/entities/note";
@@ -173,11 +173,20 @@ function FoldersGrid({ folders, mode, emptyText, folderViewMode, onOpenFolder }:
 function TrashView({ copy, notes, notesPerPage, trashedFolders, onOpenNote, onOpenSheet }: { copy: ReturnType<typeof getUiCopy>; notes: Note[]; notesPerPage: number; trashedFolders: FolderEntity[]; onOpenNote: (noteId: string) => void; onOpenSheet: (sheet: Exclude<SheetName, null>, anchor?: SheetAnchor | null) => void }) {
   const { permanentlyDeleteFolder, restoreFolder } = useFolderActions();
   const { clearTrash } = useNoteActions();
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+
+  const isRu = copy.shell.favorites === "Важное";
+  const modalTitle = isRu ? "Очистить корзину?" : "Empty Trash?";
+  const modalDescription = isRu
+    ? "Все заметки и папки в корзине будут удалены навсегда. Это действие нельзя отменить."
+    : "All notes and folders in the trash will be permanently deleted. This action cannot be undone.";
+  const actionText = isRu ? "Очистить всё" : "Empty Trash";
+  const cancelText = isRu ? "Отмена" : "Cancel";
 
   return (
     <div className="content-scrollable space-y-6 p-3 sm:p-5">
       <div className="flex justify-end">
-        <button className="rounded-2xl border border-border bg-surface-strong px-4 py-2 text-sm font-black text-rose-500" onClick={() => void clearTrash()} type="button">{copy.shell.actions.clear}</button>
+        <button className="rounded-2xl border border-border bg-surface-strong px-4 py-2 text-sm font-black text-rose-500 transition hover:bg-rose-500/10 active:scale-95" onClick={() => setIsConfirmOpen(true)} type="button">{copy.shell.actions.clear}</button>
       </div>
       {trashedFolders.length ? (
         <section>
@@ -209,6 +218,56 @@ function TrashView({ copy, notes, notesPerPage, trashedFolders, onOpenNote, onOp
       ) : null}
 
       <NotesView copy={copy} emptyText={copy.shell.sections.trashEmpty} notes={notes} semanticNotes={[]} semanticLoading={false} notesPerPage={notesPerPage} onOpenNote={onOpenNote} onOpenSheet={onOpenSheet} title={copy.shell.trash} view="trash" />
+
+      <AnimatePresence>
+        {isConfirmOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 15 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 15 }}
+              transition={{ type: "spring", duration: 0.3 }}
+              className="w-full max-w-sm overflow-hidden rounded-[1.6rem] border border-border bg-surface p-6 shadow-2xl"
+            >
+              <h3 className="text-base font-black text-foreground mb-2">
+                {modalTitle}
+              </h3>
+
+              <p className="text-xs text-foreground/60 mb-6 font-medium leading-relaxed font-sans">
+                {modalDescription}
+              </p>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setIsConfirmOpen(false)}
+                  className="flex-1 min-h-11 rounded-xl border border-border bg-background hover:bg-surface-strong transition text-xs font-bold text-foreground/80 hover:text-foreground active:scale-[0.98]"
+                  type="button"
+                >
+                  {cancelText}
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      await clearTrash();
+                    } finally {
+                      setIsConfirmOpen(false);
+                    }
+                  }}
+                  className="flex-1 min-h-11 rounded-xl transition text-xs font-black bg-rose-500 text-white hover:bg-rose-600 active:scale-[0.98]"
+                  type="button"
+                >
+                  {actionText}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

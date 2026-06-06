@@ -7,6 +7,7 @@ export const NOTE_PAGE_TITLE_MAX_LENGTH = 80;
 
 type NotePatchOptions = {
   scheduleAnalysis?: boolean;
+  keepTimestamp?: boolean;
 };
 
 export type NotePagePatch = Partial<Pick<NotePage, "title" | "content" | "drawingDataUrl" | "drawingRevision">>;
@@ -113,12 +114,12 @@ export function shouldScheduleAnalysis(patch: Partial<Note>, requested: boolean)
 }
 
 export function normalizeNotePatch(patch: Partial<Note>, options: NotePatchOptions = {}): NormalizedNotePatch {
-  const { scheduleAnalysis = true } = options;
+  const { scheduleAnalysis = true, keepTimestamp = false } = options;
   const analysisPending = shouldScheduleAnalysis(patch, scheduleAnalysis);
 
   return {
     ...patch,
-    updatedAt: nowIso(),
+    ...(keepTimestamp ? null : { updatedAt: nowIso() }),
     ...(analysisPending
       ? {
           aiStatus: "pending" as const,
