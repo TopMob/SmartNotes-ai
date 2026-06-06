@@ -19,7 +19,7 @@ export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
 };
 
 export const DEFAULT_USER_SETTINGS: Omit<UserSettings, "id" | "createdAt" | "updatedAt"> = {
-  preset: "paper",
+  preset: "classic",
   lang: "ru",
   folderViewMode: "full",
   notesPerPage: 30,

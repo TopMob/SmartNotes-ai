@@ -85,20 +85,18 @@
 }
 
 :root[data-theme="classic"] {
-  --background: #d7e6ff;
-  --foreground: #061735;
-  --surface: rgba(239, 246, 255, 0.92);
-  --surface-strong: #f8fbff;
-  --border: rgba(16, 73, 153, 0.22);
-  --accent: #1455d9;
-  --accent-foreground: #ffffff;
-  --scrollbar-thumb: rgba(6, 23, 53, 0.15);
-  --shadow-color: rgba(20, 85, 217, 0.16);
+  --background: #050505;
+  --foreground: #ffffff;
+  --surface: rgba(15, 15, 17, 0.72);
+  --surface-strong: #111113;
+  --border: rgba(255, 255, 255, 0.08);
+  --accent: #00f2ff;
+  --accent-foreground: #031315;
+  --scrollbar-thumb: rgba(255, 255, 255, 0.12);
+  --shadow-color: rgba(0, 0, 0, 0.25);
   --wallpaper:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.45) 1px, transparent 1px),
-    linear-gradient(rgba(255, 255, 255, 0.45) 1px, transparent 1px),
-    linear-gradient(135deg, #d7e6ff 0%, #f6fbff 50%, #b9d5ff 100%);
-  background-size: auto, 28px 28px, auto;
+    radial-gradient(circle at 50% 18%, rgba(0, 80, 255, 0.08), transparent 32rem),
+    linear-gradient(180deg, #050505 0%, #09090b 100%);
 }
 
 @theme inline {
@@ -503,18 +501,20 @@ section,
 
 /* Paper theme - explicit (same as :root defaults, useful for reset) */
 :root[data-theme="paper"] {
-  --background: #050505;
-  --foreground: #ffffff;
-  --surface: rgba(15, 15, 17, 0.72);
-  --surface-strong: #111113;
-  --border: rgba(255, 255, 255, 0.08);
-  --accent: #00f2ff;
-  --accent-foreground: #031315;
-  --scrollbar-thumb: rgba(255, 255, 255, 0.12);
-  --shadow-color: rgba(0, 0, 0, 0.25);
+  --background: #d7e6ff;
+  --foreground: #061735;
+  --surface: rgba(239, 246, 255, 0.92);
+  --surface-strong: #f8fbff;
+  --border: rgba(16, 73, 153, 0.22);
+  --accent: #1455d9;
+  --accent-foreground: #ffffff;
+  --scrollbar-thumb: rgba(6, 23, 53, 0.15);
+  --shadow-color: rgba(20, 85, 217, 0.16);
   --wallpaper:
-    radial-gradient(circle at 50% 18%, rgba(0, 80, 255, 0.08), transparent 32rem),
-    linear-gradient(180deg, #050505 0%, #09090b 100%);
+    linear-gradient(90deg, rgba(255, 255, 255, 0.45) 1px, transparent 1px),
+    linear-gradient(rgba(255, 255, 255, 0.45) 1px, transparent 1px),
+    linear-gradient(135deg, #d7e6ff 0%, #f6fbff 50%, #b9d5ff 100%);
+  background-size: auto, 28px 28px, auto;
 }
 
 .ProseMirror a {
