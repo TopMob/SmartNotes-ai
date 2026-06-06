@@ -15,6 +15,9 @@ export const uiCopy = {
     },
     shell: {
       menuTitle: "Меню",
+      personalGroup: "Личное",
+      organizeGroup: "Организация",
+      archiveGroup: "Архив",
       notes: "Все записи",
       favorites: "Важное",
       archive: "Архив",
@@ -295,6 +298,9 @@ export const uiCopy = {
     },
     shell: {
       menuTitle: "Menu",
+      personalGroup: "Personal",
+      organizeGroup: "Organize",
+      archiveGroup: "Archive",
       notes: "All notes",
       favorites: "Favorites",
       archive: "Archive",
