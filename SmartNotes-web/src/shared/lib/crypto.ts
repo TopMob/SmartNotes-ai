@@ -7,16 +7,33 @@ export async function sha256(value: string) {
     .join("");
 }
 
-export function secureCompare(left: string, right: string) {
-  if (left.length !== right.length) {
+export async function secureCompare(left: string, right: string) {
+  const encoder = new TextEncoder();
+  const inputBytes = encoder.encode(left);
+  const storedBytes = encoder.encode(right);
+
+  if (inputBytes.length !== storedBytes.length) {
     return false;
   }
 
-  let mismatch = 0;
+  // Import raw bytes into CryptoKeys for secure comparison
+  const algo = { name: 'HMAC', hash: 'SHA-256' };
 
-  for (let index = 0; index < left.length; index += 1) {
-    mismatch |= left.charCodeAt(index) ^ right.charCodeAt(index);
+  // Generate an ephemeral random key to perform the HMAC securely
+  const key = await crypto.subtle.generateKey(algo, false, ['sign']) as CryptoKey;
+
+  const mac1 = await crypto.subtle.sign(algo, key, inputBytes);
+  const mac2 = await crypto.subtle.sign(algo, key, storedBytes);
+
+  const mac1Array = new Uint8Array(mac1);
+  const mac2Array = new Uint8Array(mac2);
+
+  // Perform bitwise constant-time comparison.
+  // Evaluates every single byte, never exiting early.
+  let result = 0;
+  for (let i = 0; i < mac1Array.length; i++) {
+    result |= mac1Array[i] ^ mac2Array[i];
   }
 
-  return mismatch === 0;
+  return result === 0;
 }

@@ -2,21 +2,16 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { requireSupabaseUrl, requireSupabasePublishableKey, getSupabaseServiceRoleKey } from "@/shared/api/supabase/env";
+import { requireServerAuthorization } from "@/shared/api/supabase/auth-guard";
 
 export const runtime = "nodejs";
 
 export async function GET() {
   try {
-    const cookieStore = await cookies();
-    const supabase = createServerClient(
-      requireSupabaseUrl(),
-      requireSupabasePublishableKey(),
-      { cookies: { getAll: () => cookieStore.getAll(), setAll: () => undefined } }
-    );
-
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session?.user) {
+    let session;
+    try {
+      session = await requireServerAuthorization();
+    } catch {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
