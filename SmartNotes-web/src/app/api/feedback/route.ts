@@ -2,23 +2,19 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { requireSupabaseUrl, requireSupabasePublishableKey } from "@/shared/api/supabase/env";
+import { requireServerAuthorization } from "@/shared/api/supabase/auth-guard";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  let userId: string | null = null;
+  let session;
   try {
-    const cookieStore = await cookies();
-    const supabase = createServerClient(
-      requireSupabaseUrl(),
-      requireSupabasePublishableKey(),
-      { cookies: { getAll: () => cookieStore.getAll(), setAll: () => undefined } },
-    );
-    const { data: { user } } = await supabase.auth.getUser();
-    userId = user?.id ?? null;
-  } catch {
-    userId = null;
+    session = await requireServerAuthorization();
+  } catch (error) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const userId = session.user.id;
 
   try {
     const payload = (await request.json()) as {

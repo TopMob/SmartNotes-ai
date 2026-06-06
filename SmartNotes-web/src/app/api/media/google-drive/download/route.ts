@@ -1,5 +1,5 @@
 // НИКАКОГО Base64 ВООБЩЕ - Использовать только сырые бинарные буферы для работы с файлами!
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { requireSupabaseUrl, requireSupabasePublishableKey, getSupabaseServiceRoleKey } from "@/shared/api/supabase/env";
@@ -8,7 +8,9 @@ import type { Database } from "@/shared/api/supabase/types";
 
 export const runtime = "nodejs";
 
-export async function GET(request: Request) {
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB limit
+
+export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const fileId = searchParams.get("fileId");
 
@@ -91,9 +93,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Google credentials not available. Please sign in with Google." }, { status: 400 });
   }
 
-
   try {
-    const metadataResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name,mimeType`, {
+    const metadataResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?fields=name,mimeType,size`, {
       headers: {
         Authorization: `Bearer ${activeToken}`,
       },
@@ -106,12 +107,20 @@ export async function GET(request: Request) {
       const meta = await metadataResponse.json();
       filename = meta.name || filename;
       mimeType = meta.mimeType || mimeType;
+
+      const size = parseInt(meta.size || '0', 10);
+      if (size > MAX_FILE_SIZE) {
+        return NextResponse.json({ error: 'File too large' }, { status: 413 });
+      }
     }
 
     const driveResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+      method: "GET",
       headers: {
         Authorization: `Bearer ${activeToken}`,
+        Accept: 'application/json, application/octet-stream'
       },
+      redirect: 'manual',
     });
 
     if (!driveResponse.ok) {
@@ -127,6 +136,7 @@ export async function GET(request: Request) {
     headers.set("Content-Type", mimeType);
     headers.set("Content-Disposition", `inline; filename="${encodeURIComponent(filename)}"`);
     headers.set("Content-Length", buffer.byteLength.toString());
+    headers.set('X-Content-Type-Options', 'nosniff');
     
     return new Response(buffer, {
       status: 200,

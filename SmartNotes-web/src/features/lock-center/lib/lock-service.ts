@@ -8,7 +8,10 @@ export async function createNoteLock(password: string): Promise<NoteLock> {
     throw new Error("PASSWORD_REQUIRED");
   }
 
-  const salt = crypto.randomUUID();
+  const saltBuffer = new Uint8Array(16);
+  crypto.getRandomValues(saltBuffer);
+  const salt = Array.from(saltBuffer).map(b => b.toString(16).padStart(2, '0')).join('');
+
   const hash = await sha256(salt + normalized);
 
   return {
@@ -28,11 +31,9 @@ export async function verifyNoteLock(lock: NoteLock, password: string) {
 
 
   const expectedHash = lock.salt ? await sha256(lock.salt + normalized) : await sha256(normalized);
-  return secureCompare(lock.hash, expectedHash);
+  return await secureCompare(lock.hash, expectedHash);
 }
 
 export function maskLockedPreview(noteId: string) {
   return `Защищенная заметка ${noteId.slice(0, 6)}. Введите пароль для просмотра.`;
 }
-
-

@@ -1,5 +1,5 @@
 // НИКАКОГО Base64 ВООБЩЕ - Использовать только сырые бинарные буферы для работы с файлами!
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { requireSupabaseUrl, requireSupabasePublishableKey } from "@/shared/api/supabase/env";
@@ -7,7 +7,9 @@ import { getGoogleAccessToken, getOrCreateSmartNotesPath } from "@/shared/api/go
 
 export const runtime = "nodejs";
 
-export async function POST(request: Request) {
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB limit to prevent memory exhaustion
+
+export async function POST(request: NextRequest) {
   let userId: string | null = null;
   let isGoogleUser = false;
   let activeToken: string | null = null;
@@ -49,12 +51,21 @@ export async function POST(request: Request) {
     );
   }
 
+  const contentLength = parseInt(request.headers.get('content-length') || '0', 10);
+  if (contentLength > MAX_FILE_SIZE) {
+    return NextResponse.json({ error: 'Payload too large' }, { status: 413 });
+  }
+
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
 
     if (!file) {
       return NextResponse.json({ error: "File is required" }, { status: 400 });
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json({ error: 'File too large' }, { status: 413 });
     }
 
     const arrayBuffer = await file.arrayBuffer();

@@ -6,6 +6,7 @@ import crypto from "crypto";
 import type { AnalyzeNoteRequest } from "@/features/ai-engine/model/types";
 import { requireSupabaseUrl, requireSupabasePublishableKey, getSupabaseServiceRoleKey } from "@/shared/api/supabase/env";
 import { normalizeText } from "@/shared/utils/string";
+import { requireServerAuthorization } from "@/shared/api/supabase/auth-guard";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -33,14 +34,8 @@ export async function POST(request: Request) {
 
   if (!isAdminCall) {
     try {
-      const cookieStore = await cookies();
-      const supabase = createServerClient(
-        requireSupabaseUrl(),
-        requireSupabasePublishableKey(),
-        { cookies: { getAll: () => cookieStore.getAll(), setAll: () => undefined } },
-      );
-      const { data: { user } } = await supabase.auth.getUser();
-      userId = user?.id ?? null;
+      const session = await requireServerAuthorization();
+      userId = session?.user?.id ?? null;
     } catch {
       userId = null;
     }
