@@ -272,17 +272,6 @@ export function SharePrompt({ id, title, ownerId, type, onClose }: SharePromptPr
           </div>
         </div>
       )}
-
-      {/* Footer Close */}
-      <div className="flex justify-end pt-3">
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-xl bg-surface-strong px-4 py-2.5 text-sm font-bold text-foreground/72 hover:bg-background transition"
-        >
-          Закрыть
-        </button>
-      </div>
     </div>
   );
 }

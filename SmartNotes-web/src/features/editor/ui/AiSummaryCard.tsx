@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { AiStatus } from "@/entities/note";
+import { useSettingsQuery } from "@/features/settings/hooks/use-settings-query";
 
 type AiSummaryCardProps = {
   summary: string | null | undefined;
@@ -12,6 +13,8 @@ type AiSummaryCardProps = {
 
 export function AiSummaryCard({ summary, aiStatus }: AiSummaryCardProps) {
   const [isExpanded, setIsExpanded] = useState(true);
+  const { data: settings } = useSettingsQuery();
+  const lang = settings?.lang ?? "ru";
 
   const isLoading = aiStatus === "pending" || aiStatus === "analyzing";
   const hasSummary = !!summary && !isLoading;
@@ -29,7 +32,7 @@ export function AiSummaryCard({ summary, aiStatus }: AiSummaryCardProps) {
               <Sparkles className={`h-4 w-4 ${isLoading ? "animate-pulse" : ""}`} />
             </div>
             <span className="text-xs font-black uppercase tracking-[0.15em] text-foreground/80">
-              AI Insight
+              {lang === "ru" ? "ИИ Анализ" : "AI Insight"}
             </span>
             {isLoading && (
               <span className="inline-flex items-center rounded-full bg-violet-400/10 px-2 py-0.5 text-[10px] font-medium text-violet-400">
