@@ -175,7 +175,7 @@ function buildConversationContext(messages: ChatMessage[]) {
   return [
     "This is an existing chat.",
     "Previous conversation messages are listed below in chronological order.",
-    ...messages.map((message, index) =<\\|im_start\\|> `${index + 1}. ${message.role.toUpperCase()}: ${message.text}`),
+    ...messages.map((message, index) => `${index + 1}. ${message.role.toUpperCase()}: ${message.text}`),
   ].join("\n");
 }
 
@@ -189,7 +189,7 @@ function cleanJsonResponse(text: string): string {
   let clean = text.trim();
   const firstBrace = clean.indexOf("{");
   const lastBrace = clean.lastIndexOf("}");
-  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace <\\|im_start\\|> firstBrace) {
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
     clean = clean.substring(firstBrace, lastBrace + 1);
   }
   if (clean.startsWith("```json")) {
@@ -222,7 +222,7 @@ export async function POST(request: Request) {
     activeNoteContent = body.activeNoteContent ?? null;
     chatHistory = Array.isArray(body.messages)
       ? body.messages
-          .filter((message: unknown): message is ChatMessage =<\\|im_start\\|>
+          .filter((message: unknown): message is ChatMessage =>
             typeof message === "object" &&
             message !== null &&
             "role" in message &&
@@ -245,7 +245,7 @@ export async function POST(request: Request) {
     const supabase = createServerClient(
       requireSupabaseUrl(),
       requireSupabasePublishableKey(),
-      { cookies: { getAll: () =<\\|im_start\\|> cookieStore.getAll(), setAll: () =<\\|im_start\\|> undefined } },
+      { cookies: { getAll: () => cookieStore.getAll(), setAll: () => undefined } },
     );
     const { data: { user } } = await supabase.auth.getUser();
     userId = user?.id ?? null;
@@ -267,7 +267,7 @@ export async function POST(request: Request) {
       const supabase = createServerClient(
         requireSupabaseUrl(),
         requireSupabasePublishableKey(),
-        { cookies: { getAll: () =<\\|im_start\\|> cookieStore.getAll(), setAll: () =<\\|im_start\\|> undefined } },
+        { cookies: { getAll: () => cookieStore.getAll(), setAll: () => undefined } },
       );
       
       const { data: dbNotes } = await supabase
@@ -277,7 +277,7 @@ export async function POST(request: Request) {
         .order("updated_at", { ascending: false });
 
       if (dbNotes) {
-        notesForContext = dbNotes.map(n =<\\|im_start\\|> ({
+        notesForContext = dbNotes.map(n => ({
           id: n.id,
           title: n.title,
           folderId: n.folder_id,
@@ -313,13 +313,13 @@ export async function POST(request: Request) {
       for (const note of clientNotes) {
         if (note.lock) continue; // Skip locked notes
 
-        if (note.pages && note.pages.length <\\|im_start\\|> 0) {
+        if (note.pages && note.pages.length > 0) {
           for (const page of note.pages) {
             if (page.content?.trim()) {
               allChunks.push({
                 note_id: note.id,
                 note_title: note.title || "Без названия",
-                content: page.content.replace(/<[^<\\|im_start\\|>]*<\\|im_start\\|>/g, " ").trim(),
+                content: page.content.replace(/<[^>]*>/g, " ").trim(),
               });
             }
           }
@@ -327,14 +327,14 @@ export async function POST(request: Request) {
           allChunks.push({
             note_id: note.id,
             note_title: note.title || "Без названия",
-            content: note.content.replace(/<[^<\\|im_start\\|>]*<\\|im_start\\|>/g, " ").trim(),
+            content: note.content.replace(/<[^>]*>/g, " ").trim(),
           });
         }
       }
 
-      if (allChunks.length <\\|im_start\\|> 0) {
+      if (allChunks.length > 0) {
         const chunkEmbeddings = await Promise.all(
-          allChunks.map(async (c) =<\\|im_start\\|> {
+          allChunks.map(async (c) => {
             try {
               const emb = await getEmbedding(c.content);
               return { chunk: c, embedding: emb };
@@ -345,7 +345,7 @@ export async function POST(request: Request) {
           })
         );
 
-        const cosineSimilarity = (a: number[], b: number[]) =<\\|im_start\\|> {
+        const cosineSimilarity = (a: number[], b: number[]) => {
           let dotProduct = 0;
           let mA = 0;
           let mB = 0;
@@ -361,16 +361,16 @@ export async function POST(request: Request) {
         };
 
         const matches = chunkEmbeddings
-          .filter((ce) =<\\|im_start\\|> ce.embedding !== null)
-          .map((ce) =<\\|im_start\\|> {
+          .filter((ce) => ce.embedding !== null)
+          .map((ce) => {
             const similarity = cosineSimilarity(questionEmbedding, ce.embedding!);
             return {
               ...ce.chunk,
               similarity,
             };
           })
-          .filter((m) =<\\|im_start\\|> m.similarity <\\|im_start\\|>= 0.15)
-          .sort((a, b) =<\\|im_start\\|> b.similarity - a.similarity)
+          .filter((m) => m.similarity >= 0.15)
+          .sort((a, b) => b.similarity - a.similarity)
           .slice(0, 6);
 
         chunks = matches;
@@ -384,7 +384,7 @@ export async function POST(request: Request) {
       const supabase = createServerClient(
         requireSupabaseUrl(),
         requireSupabasePublishableKey(),
-        { cookies: { getAll: () =<\\|im_start\\|> cookieStore.getAll(), setAll: () =<\\|im_start\\|> undefined } },
+        { cookies: { getAll: () => cookieStore.getAll(), setAll: () => undefined } },
       );
       const questionEmbedding = await getEmbedding(question);
       const { data, error } = await supabase.rpc("match_note_embeddings", {
@@ -402,13 +402,13 @@ export async function POST(request: Request) {
   }
 
   // Find which note IDs are explicitly mentioned by title in the question or messages
-  const mentionedNoteIds = new Set<string<\\|im_start\\|>();
-  const textToSearch = (question + " " + chatHistory.map(h =<\\|im_start\\|> h.text).join(" ")).toLowerCase();
+  const mentionedNoteIds = new Set<string>();
+  const textToSearch = (question + " " + chatHistory.map(h => h.text).join(" ")).toLowerCase();
   
   for (const note of notesForContext) {
     if (!note.title) continue;
     const titleLower = note.title.toLowerCase();
-    if (titleLower.length <\\|im_start\\|>= 4 && textToSearch.includes(titleLower)) {
+    if (titleLower.length >= 4 && textToSearch.includes(titleLower)) {
       mentionedNoteIds.add(note.id);
     } else {
       // Check for exact word boundaries for shorter titles
@@ -429,7 +429,7 @@ export async function POST(request: Request) {
   let totalCharactersUsed = 0;
   const CHAR_LIMIT = 120000;
   
-  const formattedNotes = notesForContext.map((note, idx) =<\\|im_start\\|> {
+  const formattedNotes = notesForContext.map((note, idx) => {
     const isNoteActive = note.id === activeNoteId;
     const isNoteMentioned = mentionedNoteIds.has(note.id);
     const isHighPriority = isNoteActive || isNoteMentioned || idx < 10;
@@ -466,14 +466,14 @@ export async function POST(request: Request) {
   });
 
   // Construct prompts with structured metadata
-  const foldersMeta = JSON.stringify(foldersForContext.map(f =<\\|im_start\\|> ({ id: f.id, name: f.name })));
+  const foldersMeta = JSON.stringify(foldersForContext.map(f => ({ id: f.id, name: f.name })));
   const notesMeta = JSON.stringify(formattedNotes, null, 2);
   
   const delimiter = `---DATA_BOUNDARY_${crypto.randomUUID()}---`;
 
-  const ragContext = chunks.length <\\|im_start\\|> 0
-    ? chunks.map((chunk, i) =<\\|im_start\\|> {
-        const sanitizedDoc = chunk.content.replace(/(system:|user:|assistant:|<\\|im_start\\|>|<\\|im_end\\|>)/gi, '');
+  const ragContext = chunks.length > 0
+    ? chunks.map((chunk, i) => {
+        const sanitizedDoc = chunk.content.replace(/(system:|user:|assistant:||)/gi, '');
         return `${delimiter}\n[Note ${i + 1}: "${chunk.note_title || "Без названия"}"]\n${sanitizedDoc}\n${delimiter}`;
       }).join("\n\n")
     : "No relevant note content matches found.";
@@ -492,7 +492,7 @@ export async function POST(request: Request) {
   const userPrompt = `Question: ${question}`;
 
   let answerText = "";
-  let actionsList: ReturnType<typeof parseAiResponse<\\|im_start\\|>["actions"] = [];
+  let actionsList: ReturnType<typeof parseAiResponse>["actions"] = [];
     try {
       try {
         const rawCompletion = await openRouterComplete(customizedSystemPrompt, userPrompt, {
@@ -532,8 +532,8 @@ export async function POST(request: Request) {
 
   // Deduplicate citations by note_id
   const citations = chunks
-    .map((chunk) =<\\|im_start\\|> ({ id: chunk.note_id, title: chunk.note_title || "Без названия" }))
-    .filter((val, index, self) =<\\|im_start\\|> self.findIndex(t =<\\|im_start\\|> t.id === val.id) === index);
+    .map((chunk) => ({ id: chunk.note_id, title: chunk.note_title || "Без названия" }))
+    .filter((val, index, self) => self.findIndex(t => t.id === val.id) === index);
 
   return NextResponse.json({
     answer: answerText,
