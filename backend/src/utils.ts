@@ -103,18 +103,30 @@ export async function callLLM(
 
 export function cleanJsonResponse(text: string): string {
   let clean = text.trim();
+  clean = clean.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+  clean = clean.replace(/```json/gi, "").replace(/```/g, "").trim();
   const firstBrace = clean.indexOf("{");
+  const firstBracket = clean.indexOf("[");
+  let startIdx = -1;
+  if (firstBrace !== -1 && firstBracket !== -1) {
+    startIdx = Math.min(firstBrace, firstBracket);
+  } else if (firstBrace !== -1) {
+    startIdx = firstBrace;
+  } else if (firstBracket !== -1) {
+    startIdx = firstBracket;
+  }
   const lastBrace = clean.lastIndexOf("}");
-  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-    clean = clean.substring(firstBrace, lastBrace + 1);
+  const lastBracket = clean.lastIndexOf("]");
+  let endIdx = -1;
+  if (lastBrace !== -1 && lastBracket !== -1) {
+    endIdx = Math.max(lastBrace, lastBracket);
+  } else if (lastBrace !== -1) {
+    endIdx = lastBrace;
+  } else if (lastBracket !== -1) {
+    endIdx = lastBracket;
   }
-  if (clean.startsWith("```json")) {
-    clean = clean.substring(7);
-  } else if (clean.startsWith("```")) {
-    clean = clean.substring(3);
-  }
-  if (clean.endsWith("```")) {
-    clean = clean.substring(0, clean.length - 3);
+  if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+    clean = clean.substring(startIdx, endIdx + 1);
   }
   return clean.trim();
 }
