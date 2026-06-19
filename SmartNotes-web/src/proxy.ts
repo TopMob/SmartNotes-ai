@@ -19,6 +19,7 @@ export async function proxy(request: NextRequest) {
     PUBLIC_PATHS.has(pathname) ||
     pathname.startsWith("/api/") ||
     pathname.startsWith("/auth/") ||
+    pathname.startsWith("/-/supabase") ||
     pathname === "/sw.js" ||
     pathname === "/manifest.webmanifest" ||
     pathname === "/manifest" ||
@@ -56,5 +57,7 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  // Skip `-/supabase` so the BFF proxy traffic passes straight through to Supabase
+  // (the middleware must not redirect/auth-gate it — that broke One Tap login).
+  matcher: ["/((?!_next/static|_next/image|-/supabase|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
 };
