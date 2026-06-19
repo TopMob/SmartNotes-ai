@@ -65,12 +65,22 @@ Your job is to analyze a note and return a JSON object with the following fields
 - hiddenTags: string[] — 3 to 8 semantic concepts for internal search and retrieval (can be longer phrases)
 - relevance: number — importance/usefulness score between 0 and 1 (0 = trivial/archive, 1 = critical)
 - resurfacingClass: "task" | "idea" | "reference" | "archive" — how this note should resurface over time
-- summary: string — a brief 1-2 sentence summary of the note, in the language of the note, highlighting key takeaways (AI Insight)
+- summary: string — a structured, compact "AI Insight" in the note's language, as PLAIN TEXT (never markdown like ** or #). Use exactly this shape, omitting any section that would be empty:
+"💡 Суть: <one concise sentence capturing the essence>
+
+Ключевое:
+ • <key point>
+ • <key point>
+
+Дальше:
+ ☐ <actionable next step>
+ ☐ <actionable next step>"
 
 Rules:
-- Respond ONLY with valid JSON, no markdown, no explanation
+- Respond ONLY with valid JSON, no markdown wrappers, no explanation
 - userTags must be lowercase, single words or short hyphenated phrases
 - hiddenTags can include abstract concepts, synonyms, related domains
+- For "summary": translate the section labels to the note's language (English example: "💡 Gist:", "Key points:", "Next:"). Always include the "Суть/Gist" line. Include "Ключевое/Key points" only when there are concrete points (max 4 bullets). Include the "Дальше/Next" checklist ONLY for actionable notes (resurfacingClass "task"), max 4 items; omit it otherwise. Keep the whole summary under ~600 characters, concrete, no filler.
 - Be concise and precise`;
 
         const userPrompt = `Note title: ${title || "(no title)"}\nNote content: ${plainText.slice(0, 4000) || "(empty)"}`;

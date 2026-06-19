@@ -12,8 +12,12 @@ import { signInWithGoogleIdToken } from "@/features/auth/api/auth-client";
 import { mapAuthUser } from "@/features/auth/lib/map-auth-user";
 import { useAuthStore } from "@/features/auth/model/auth-store";
 import { createSupabaseBrowserClient } from "@/shared/api/supabase/client";
+import { BootSplash, ConnectionBanner } from "@/features/auth/ui/boot-screen";
 
-const AUTH_BOOT_TIMEOUT_MS = 8_000;
+// How long we wait for the backend before falling back to a usable offline UI.
+// Kept short so throttled RU connections show the app (in offline mode) quickly
+// instead of staring at a splash for several seconds.
+const AUTH_BOOT_TIMEOUT_MS = 4_000;
 
 function createLocalModeUser() {
   return {
@@ -105,6 +109,7 @@ async function syncSession(session: Session | null) {
 
 export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
   const [ready, setReady] = useState(false);
+  const offline = useAuthStore((state) => state.offline);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -112,8 +117,9 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
     const timeoutId = window.setTimeout(() => {
       useAuthStore.getState().setAuthState({
         status: "degraded",
-        user: null,
+        user: createLocalModeUser(),
         degraded: true,
+        offline: true,
         error: "Auth bootstrap watchdog timeout exceeded",
       });
       setReady(true);
@@ -196,10 +202,13 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
 
         return () => authListener.data.subscription.unsubscribe();
       } catch (error) {
+        // Reaching here almost always means the Supabase backend was unreachable
+        // (network/DPI). Surface it as an offline state rather than failing silently.
         useAuthStore.getState().setAuthState({
           status: "authenticated",
           user: createLocalModeUser(),
           degraded: true,
+          offline: true,
           error: error instanceof Error ? `${error.message}. Running in local mode.` : "Failed to bootstrap auth. Running in local mode.",
         });
         setReady(true);
@@ -226,8 +235,13 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
   }, []);
 
   if (!ready) {
-    return null;
+    return <BootSplash />;
   }
 
-  return children;
+  return (
+    <>
+      {offline ? <ConnectionBanner /> : null}
+      {children}
+    </>
+  );
 }

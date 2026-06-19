@@ -167,15 +167,20 @@ type ChatMessage = {
   text: string;
 };
 
+const MAX_HISTORY_MESSAGES = 12;
+
 function buildConversationContext(messages: ChatMessage[]) {
   if (messages.length === 0) {
     return "This is a new chat. There is no previous conversation yet.";
   }
 
+  const recent = messages.slice(-MAX_HISTORY_MESSAGES);
   return [
     "This is an existing chat.",
-    "Previous conversation messages are listed below in chronological order.",
-    ...messages.map((message, index) => `${index + 1}. ${message.role.toUpperCase()}: ${message.text}`),
+    messages.length > recent.length
+      ? `Showing the last ${recent.length} of ${messages.length} messages (older turns omitted).`
+      : "Previous conversation messages are listed below in chronological order.",
+    ...recent.map((message, index) => `${index + 1}. ${message.role.toUpperCase()}: ${message.text}`),
   ].join("\n");
 }
 
@@ -442,13 +447,16 @@ export async function POST(request: Request) {
   }
 
   let totalCharactersUsed = 0;
-  const CHAR_LIMIT = 120000;
-  
+  // Inline full text only for the notes the agent needs (active / mentioned / most
+  // recent); the rest fall back to their AI summary or a snippet, with detail still
+  // available via semantic RAG context. Keeps the prompt focused, not bloated.
+  const CHAR_LIMIT = 40000;
+
   const formattedNotes = notesForContext.map((note, idx) => {
     const isNoteActive = note.id === activeNoteId;
     const isNoteMentioned = mentionedNoteIds.has(note.id);
-    const isHighPriority = isNoteActive || isNoteMentioned || idx < 10;
-    
+    const isHighPriority = isNoteActive || isNoteMentioned || idx < 4;
+
     const baseMeta = {
       id: note.id,
       title: note.title || "Без названия",

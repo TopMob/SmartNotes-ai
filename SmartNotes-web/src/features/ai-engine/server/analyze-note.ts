@@ -15,13 +15,23 @@ Your job is to analyze a note and return a JSON object with the following fields
 - folderId: string | null - the best matching folder ID from the provided list, or null if none fit
 - relevance: number - importance/usefulness score between 0 and 1 (0 = trivial/archive, 1 = critical)
 - resurfacingClass: "task" | "idea" | "reference" | "archive" - how this note should resurface over time
-- summary: string - a brief 1-2 sentence summary of the note, in the language of the note, highlighting key takeaways
+- summary: string - a structured, compact "AI Insight" in the note's language, as PLAIN TEXT (never markdown like ** or #). Use exactly this shape, omitting any section that would be empty:
+"💡 Суть: <one concise sentence capturing the essence>
+
+Ключевое:
+ • <key point>
+ • <key point>
+
+Дальше:
+ ☐ <actionable next step>
+ ☐ <actionable next step>"
 
 Rules:
 - Respond ONLY with valid JSON, no markdown, no explanation
 - userTags must be lowercase, single words or short hyphenated phrases
 - hiddenTags can include abstract concepts, synonyms, related domains
 - If no folder matches well, return null for folderId
+- For "summary": translate the section labels to the note's language (English example: "💡 Gist:", "Key points:", "Next:"). Always include the "Суть/Gist" line. Include "Ключевое/Key points" only when there are concrete points (max 4 bullets). Include the "Дальше/Next" checklist ONLY for actionable notes (resurfacingClass "task"), max 4 items; omit it otherwise. Keep the whole summary under ~600 characters, concrete, no filler.
 - Be concise and precise`;
 
 

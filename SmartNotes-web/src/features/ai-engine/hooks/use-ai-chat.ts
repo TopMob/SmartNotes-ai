@@ -204,7 +204,9 @@ export function useAiChat({ activeNote, onOpenNote, open }: UseAiChatProps) {
         },
         body: JSON.stringify({
           question,
-          messages: messages.map((message) => ({ role: message.role, text: message.text })),
+          // Send only the recent turns; the backend bounds history too, but trimming
+          // here keeps the request payload small over long conversations.
+          messages: messages.slice(-12).map((message) => ({ role: message.role, text: message.text })),
           notes: notesPayload,
           folders: foldersPayload,
           activeNoteId: activeNote?.id ?? null,

@@ -170,14 +170,21 @@ interface EmbeddingMatch {
   content: string;
 }
 
+// Keep only the most recent turns in the prompt: enough for the agent to follow
+// the thread, but bounded so token usage and latency stay flat over long chats.
+const MAX_HISTORY_MESSAGES = 12;
+
 function buildConversationContext(messages: { role: string; text: string }[]) {
   if (messages.length === 0) {
     return "This is a new chat. There is no previous conversation yet.";
   }
+  const recent = messages.slice(-MAX_HISTORY_MESSAGES);
   return [
     "This is an existing chat.",
-    "Previous conversation messages are listed below in chronological order.",
-    ...messages.map((message, index) => `${index + 1}. ${message.role.toUpperCase()}: ${message.text}`),
+    messages.length > recent.length
+      ? `Showing the last ${recent.length} of ${messages.length} messages (older turns omitted).`
+      : "Previous conversation messages are listed below in chronological order.",
+    ...recent.map((message, index) => `${index + 1}. ${message.role.toUpperCase()}: ${message.text}`),
   ].join("\n");
 }
 
@@ -367,12 +374,17 @@ export async function chatRoutes(server: FastifyInstance) {
     }
 
     let totalCharactersUsed = 0;
-    const CHAR_LIMIT = 120000;
+    // Only the notes the agent actually needs get their full text inlined; the rest
+    // are represented by their AI summary or a short snippet. Detailed content still
+    // reaches the model through the semantic RAG context below. This keeps the prompt
+    // focused (better answers, less instruction eviction) instead of dumping the whole
+    // workspace into every request.
+    const CHAR_LIMIT = 40000;
 
     const formattedNotes = notesForContext.map((note, idx) => {
       const isNoteActive = note.id === activeNoteId;
       const isNoteMentioned = mentionedNoteIds.has(note.id);
-      const isHighPriority = isNoteActive || isNoteMentioned || idx < 10;
+      const isHighPriority = isNoteActive || isNoteMentioned || idx < 4;
 
       const baseMeta = {
         id: note.id,

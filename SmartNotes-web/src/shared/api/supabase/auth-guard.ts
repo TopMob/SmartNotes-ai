@@ -23,3 +23,28 @@ export const requireServerAuthorization = cache(async () => {
 
   return { user };
 });
+
+/** Server-side admin allowlist from the `ADMIN_EMAILS` env (comma-separated). */
+function getAdminEmails(): string[] {
+  return (process.env.ADMIN_EMAILS ?? '')
+    .split(',')
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+/**
+ * Authorizes the request AND verifies the user is an admin (their verified email
+ * is in `ADMIN_EMAILS`). Throws `Forbidden` for authenticated non-admins so the
+ * caller can return 403; not-logged-in users are redirected by the inner guard.
+ */
+export const requireAdminAuthorization = cache(async () => {
+  const { user } = await requireServerAuthorization();
+  const email = user.email?.trim().toLowerCase();
+  const admins = getAdminEmails();
+
+  if (!email || admins.length === 0 || !admins.includes(email)) {
+    throw new Error('Forbidden');
+  }
+
+  return { user };
+});

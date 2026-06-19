@@ -1,18 +1,20 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
-import { requireSupabaseUrl, requireSupabasePublishableKey, getSupabaseServiceRoleKey } from "@/shared/api/supabase/env";
-import { requireServerAuthorization } from "@/shared/api/supabase/auth-guard";
+import { requireSupabaseUrl, getSupabaseServiceRoleKey } from "@/shared/api/supabase/env";
+import { requireAdminAuthorization } from "@/shared/api/supabase/auth-guard";
 
 export const runtime = "nodejs";
 
 export async function GET() {
   try {
-    let session;
     try {
-      session = await requireServerAuthorization();
-    } catch {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      await requireAdminAuthorization();
+    } catch (authError) {
+      const forbidden = authError instanceof Error && authError.message === "Forbidden";
+      return NextResponse.json(
+        { error: forbidden ? "Forbidden" : "Unauthorized" },
+        { status: forbidden ? 403 : 401 },
+      );
     }
 
     const serviceRoleKey = getSupabaseServiceRoleKey();

@@ -60,7 +60,7 @@ export function AiSummaryCard({ summary, aiStatus }: AiSummaryCardProps) {
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
               className="overflow-hidden"
             >
-              <div className="mt-3 text-sm leading-6 text-foreground/78">
+              <div className="mt-3 whitespace-pre-line text-sm leading-6 text-foreground/78">
                 {isLoading ? (
                   <div className="space-y-2 py-1">
                     <div className="h-4 w-3/4 animate-pulse rounded bg-foreground/6" />

@@ -1,3 +1,7 @@
+import "server-only";
+import os from "node:os";
+import path from "node:path";
+
 import { getSupabaseUrl, getSupabaseServiceRoleKey, getSupabasePublishableKey } from "@/shared/api/supabase/env";
 
 type Extractor = (text: string, options?: { pooling?: string; normalize?: boolean }) => Promise<{ data: number[] | Float32Array }>;
@@ -50,7 +54,10 @@ export async function getEmbedding(text: string): Promise<number[]> {
   // 2. Fallback to local model (using dynamic import to prevent loading on environments where libraries like libonnxruntime are missing)
   try {
     const { pipeline, env } = await import("@xenova/transformers");
-    env.cacheDir = "./.next/cache/transformers";
+    // Use the OS temp dir: on serverless hosts (e.g. Vercel) the project FS is
+    // read-only except for the temp dir, so `./.next/cache` would fail to write
+    // and the model would be re-downloaded on every cold start (or crash).
+    env.cacheDir = path.join(os.tmpdir(), "smartnotes-transformers");
 
     if (!extractorPromise) {
       extractorPromise = pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2") as unknown as Promise<Extractor>;
