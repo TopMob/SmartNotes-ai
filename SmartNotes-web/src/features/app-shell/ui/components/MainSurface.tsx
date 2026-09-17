@@ -501,7 +501,7 @@ function AdminToolsView({ notes }: { notes: Note[] }) {
   };
 
   const handleRemoveEmail = (emailToRemove: string) => {
-    if (emailToRemove === "shazak6430@gmail.com") return;
+    if (emailToRemove === adminEmails[0]) return;
     if (emailToRemove === user?.email?.toLowerCase()) return;
 
     const updated = adminEmails.filter((email) => email !== emailToRemove);
@@ -624,7 +624,7 @@ function AdminToolsView({ notes }: { notes: Note[] }) {
             
             <div className="mt-6 space-y-2">
               {adminEmails.map((email) => {
-                const isMain = email === "shazak6430@gmail.com";
+                const isMain = email === adminEmails[0];
                 const isSelf = email === user?.email?.toLowerCase();
                 const canRemove = !isMain && !isSelf;
 

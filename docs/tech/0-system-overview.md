@@ -24,10 +24,6 @@ SmartNotes AI — это распределенное веб-приложени�
    - Расширение `pgvector` для хранения векторов и семантического поиска.
    - Supabase Realtime (Channels) используется как транспортный слой для совместного редактирования (CRDT/Yjs).
    - **Edge Functions (`analyze-note`, `embed`):** Альтернативный серверлесс-путь выполнения ИИ-задач.
-   - **Полезные ссылки для разработки:** 
-     - [Панель управления Supabase](https://supabase.com/dashboard/project/ammpwqfcutlyrjcarubc)
-     - [Проект на Vercel](https://vercel.com/topmobs-projects/smartnotes-ai)
-     - [Панель управления Railway](https://railway.com/project/009825d3-e65b-4c35-acf7-c57fcc8fc6ee)
 
 > [!NOTE]
 > **Двойной пайплайн выполнения ИИ-задач:**

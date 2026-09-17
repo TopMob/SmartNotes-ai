@@ -32,7 +32,7 @@ begin
 
   -- Perform the HTTP POST via pg_net to Deno Edge function
   perform net.http_post(
-    url := 'https://ammpwqfcutlyrjcarubc.supabase.co/functions/v1/generate-note-embedding',
+    url := 'https://your-project.supabase.co/functions/v1/generate-note-embedding',
     body := payload,
     headers := '{"Content-Type":"application/json"}'::jsonb,
     timeout_milliseconds := 5000
